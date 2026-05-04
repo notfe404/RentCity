@@ -76,7 +76,7 @@ api.interceptors.response.use(
         // Refresh thất bại → logout
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        window.location.href = '/';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

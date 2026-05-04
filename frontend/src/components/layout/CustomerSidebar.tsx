@@ -1,18 +1,22 @@
-import { User, FileText, Settings, LogOut, Camera } from 'lucide-react';
+import { User, FileText, Bell, Settings, LogOut, Camera } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRef } from 'react';
+import { MOCK_NOTIFICATIONS } from '@/data/mockNotifications';
 
 export default function CustomerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  const unreadCount = MOCK_NOTIFICATIONS.filter(n => !n.isRead).length;
+
   const links = [
-    { name: 'My Profile', path: '/profile', icon: User },
-    { name: 'My Bookings', path: '/my-bookings', icon: FileText },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Hồ sơ', path: '/profile', icon: User },
+    { name: 'Đơn đặt xe', path: '/my-bookings', icon: FileText },
+    { name: 'Thông báo', path: '/notifications', icon: Bell, badge: unreadCount },
+    { name: 'Cài đặt', path: '/settings', icon: Settings },
   ];
 
   const handleAvatarClick = () => {
@@ -52,20 +56,25 @@ export default function CustomerSidebar() {
             <Camera className="text-white" size={24} />
           </div>
         </div>
-        <h3 className="text-lg font-black text-gray-900">{user?.fullName || 'John Doe'}</h3>
-        <p className="text-sm text-gray-500 font-medium capitalize">{user?.role?.toLowerCase() || 'Customer'}</p>
+        <h3 className="text-lg font-black text-gray-900">{user?.fullName || 'Khách'}</h3>
+        <p className="text-sm text-gray-500 font-medium capitalize">{user?.role === 'CUSTOMER' ? 'Khách hàng' : user?.role === 'STAFF' ? 'Nhân viên' : user?.role === 'ADMIN' ? 'Quản trị' : 'Khách'}</p>
       </div>
 
       <nav className="space-y-2">
         {links.map(link => {
-          const isActive = location.pathname.includes(link.path);
+          const isActive = location.pathname === link.path || (link.path !== '/profile' && location.pathname.startsWith(link.path));
           return (
             <button 
               key={link.name}
               onClick={() => navigate(link.path)}
-              className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold transition-all ${isActive ? 'bg-[#78ad44] text-white shadow-md shadow-[#78ad44]/20' : 'text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44]'}`}
+              className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold transition-all relative ${isActive ? 'bg-[#78ad44] text-white shadow-md shadow-[#78ad44]/20' : 'text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44]'}`}
             >
               <link.icon size={18} /> {link.name}
+              {'badge' in link && link.badge! > 0 && (
+                <span className={`ml-auto text-xs font-black rounded-full w-5 h-5 flex items-center justify-center ${isActive ? 'bg-white text-[#78ad44]' : 'bg-red-500 text-white'}`}>
+                  {link.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -77,7 +86,7 @@ export default function CustomerSidebar() {
             }}
             className="w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold text-red-500 hover:bg-red-50 transition-all"
           >
-            <LogOut size={18} /> Logout
+            <LogOut size={18} /> Đăng xuất
           </button>
         </div>
       </nav>

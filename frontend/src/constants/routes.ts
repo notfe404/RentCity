@@ -18,6 +18,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   MY_BOOKINGS: '/my-bookings',
   BOOKING_DETAIL: '/my-bookings/:id',
+  NOTIFICATIONS: '/notifications',
 
   // Admin Dashboard (Admin Only)
   ADMIN: '/admin',

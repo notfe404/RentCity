@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/store/authStore';
+import { BookingProvider } from '@/store/bookingStore';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import { ROUTES } from '@/constants/routes';
 import Spinner from '@/components/ui/Spinner';
@@ -22,6 +23,7 @@ const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage'));
 const BookingDetailPage = lazy(() => import('@/pages/BookingDetailPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const AdminVehicles = lazy(() => import('@/pages/AdminVehicles'));
@@ -40,6 +42,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <BookingProvider>
         {/* Global Toast */}
         <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
 
@@ -63,6 +66,7 @@ export default function App() {
             <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
             <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
+            <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
 
             {/* ─── Admin ─── */}
             <Route path={ROUTES.ADMIN} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminDashboard /></ProtectedRoute>} />
@@ -73,6 +77,7 @@ export default function App() {
             <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
           </Routes>
         </Suspense>
+        </BookingProvider>
       </AuthProvider>
     </BrowserRouter>
   );
