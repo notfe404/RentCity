@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@theme {
+  /* Legacy dark tokens (giữ để không hỏng code cũ) */
+  --color-deepBlack: #0a0a0a;
+  --color-graphite: #1e1e1e;
+  --color-gold: #d4af37;
+  --color-electricBlue: #0ba8e6;
+
+  /* New light design tokens */
+  --color-brand:       #5a9e3b;   /* xanh lá chủ đạo */
+  --color-brand-light: #dff0d5;   /* xanh lá nhạt background */
+  --color-brand-dark:  #3d7a24;   /* xanh lá đậm hover */
+  --color-surface:     #f8f9fa;   /* background sections */
+  --color-card:        #ffffff;
+  --color-border:      #e5e7eb;
+  --color-text:        #111827;
+  --color-muted:       #6b7280;
+
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-text font-sans antialiased overflow-x-hidden;
+  }
+  * {
+    @apply scroll-smooth;
+  }
+}
+
+@layer utilities {
+  /* Legacy dark glassmorphism (giữ để không hỏng nếu còn dùng) */
+  .glassmorphism {
+    @apply bg-white/5 border border-white/10 backdrop-blur-md;
+  }
+  .luxury-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gold to-yellow-200;
+  }
+
+  /* New light utilities */
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold text-text;
+  }
+  .section-sub {
+    @apply text-muted text-base leading-relaxed;
+  }
+  .btn-brand {
+    @apply bg-brand hover:bg-brand-dark text-white font-semibold rounded-md
+           px-6 py-2.5 transition-colors duration-200 cursor-pointer;
+  }
+  .btn-outline {
+    @apply border border-brand text-brand hover:bg-brand hover:text-white font-semibold
+           rounded-md px-6 py-2.5 transition-colors duration-200 cursor-pointer;
+  }
+  .input-light {
+    @apply w-full border border-border rounded-md px-3 py-2.5 text-sm text-text
+           placeholder-muted bg-white focus:outline-none focus:ring-2 focus:ring-brand/40
+           focus:border-brand transition-all;
+  }
+  .card-light {
+    @apply bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow;
+  }
+  /* Scrollbar ẩn */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom Date Picker Premium Styling */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+}
+
