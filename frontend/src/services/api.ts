@@ -16,7 +16,8 @@ const api = axios.create({
 // ---- Request Interceptor: tự động gắn JWT Access Token ----
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
-  if (token) {
+  // Chỉ đính kèm nếu token tồn tại và không phải là mock token
+  if (token && !token.startsWith('mock-token-')) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -42,7 +43,14 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Không cố gắng refresh token đối với các API xác thực chính (login, register, refresh)
+    if (
+      error.response?.status === 401 && 
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/register') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
       if (isRefreshing) {
         // Đưa request vào hàng chờ token mới
         return new Promise((resolve, reject) => {

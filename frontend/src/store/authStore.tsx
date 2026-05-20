@@ -74,32 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (info: RegisterRequest) => {
-    // ── MOCK REGISTER (for local development) ────────────────
-    const newUser: User = {
-      id: 'u-' + Math.random().toString(36).substr(2, 9),
-      email: info.email,
-      fullName: info.fullName || 'New User',
-      phone: info.phone || '',
-      role: 'CUSTOMER',
-      status: 'ACTIVE',
-      loyaltyPoints: 0,
-      tier: 'STANDARD',
-      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(info.fullName || 'New User')}&background=random&color=fff`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem('accessToken', 'mock-token-CUSTOMER');
-    localStorage.setItem('mockUser', JSON.stringify(newUser));
-    setUser(newUser);
-    closeAuthModal();
-    return;
     // ── REAL API ─────────────────────────────────────────────
-    // const { data } = await api.post<AuthResponse>('/auth/register', info);
-    // localStorage.setItem('accessToken', data.accessToken);
-    // localStorage.setItem('refreshToken', data.refreshToken);
-    // setUser(data.user);
-    // closeAuthModal();
+    const { data } = await api.post<AuthResponse>('/auth/register', info);
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    setUser(data.user);
+    closeAuthModal();
   };
 
   const logout = async () => {
@@ -108,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('mockUser');
       setUser(null);
     }
   };

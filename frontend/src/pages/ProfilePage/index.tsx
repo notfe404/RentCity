@@ -4,15 +4,12 @@ import Footer from '../LandingPage/Footer';
 import { Save, Upload, X, FileText, Check, Edit3 } from 'lucide-react';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
 import { getMe } from '@/services/userApi';
 import { uploadDocument } from '@/services/userApi';
 import { updateProfile } from '@/services/userApi';
 import { getMyDocuments } from '@/services/userApi';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
-  const [documents, setDocuments] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
   // Local state for displaying & editing
@@ -55,7 +52,6 @@ const [backId, setBackId] = useState<{
 
       // 👉 GET DOCUMENTS
       const docRes = await getMyDocuments();
-      setDocuments(docRes.data);
 
       if (docRes.data.length > 0) {
         const doc = docRes.data[0];
@@ -133,7 +129,6 @@ const [backId, setBackId] = useState<{
 
       // reload docs
       const docRes = await getMyDocuments();
-      setDocuments(docRes.data);
 
       const doc = docRes.data[0];
 
