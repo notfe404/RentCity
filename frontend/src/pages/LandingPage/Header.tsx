@@ -106,7 +106,8 @@ function UserDropdown() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
-  const { openAuthModal, isLoggedIn } = useAuth();
+  const { openAuthModal, isLoggedIn, user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 w-full z-50 bg-white border-b border-border shadow-sm">
@@ -150,17 +151,77 @@ export default function Header() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden bg-white border-t border-border px-4 pb-4 pt-2 space-y-1 shadow-lg absolute w-full left-0">
+        <div className="md:hidden bg-white border-t border-border px-4 pb-6 pt-2 space-y-1 shadow-lg absolute w-full left-0 z-50">
           {NAV_LINKS.map(l => (
-            <a key={l.label} href={l.href} onClick={() => setOpen(false)} className="block py-2 text-sm font-medium text-muted hover:text-brand">
+            <a key={l.label} href={l.href} onClick={() => setOpen(false)} className="block py-2.5 text-sm font-bold text-gray-600 hover:text-[#78ad44]">
               {l.label}
             </a>
           ))}
-          <div className="pt-3">
-            {!isLoggedIn && (
+          
+          <div className="pt-4 border-t border-gray-100 mt-4">
+            {isLoggedIn && user ? (
+              <div className="space-y-4">
+                {/* User profile brief */}
+                <div className="flex items-center gap-3 px-2 py-1.5 bg-[#f4f8f7] rounded-2xl">
+                  <img 
+                    src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=78ad44&color=fff`}
+                    alt={user.fullName}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-gray-900 text-sm truncate">{user.fullName}</p>
+                    <p className="text-xs text-gray-500 font-medium truncate">{user.email}</p>
+                  </div>
+                </div>
+                
+                {/* Badge Role */}
+                <div className="px-2">
+                  <span className={`inline-block text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${
+                    user.role === 'ADMIN' ? 'bg-gray-900 text-white' :
+                    user.role === 'STAFF' ? 'bg-blue-100 text-blue-700' :
+                    'bg-[#e9f2eb] text-[#78ad44]'
+                  }`}>{user.role}</span>
+                </div>
+
+                {/* Nav Links */}
+                <div className="space-y-1">
+                  {(user.role === 'ADMIN' || user.role === 'STAFF'
+                    ? [
+                        { label: 'Admin Dashboard', icon: LayoutDashboard, path: '/admin' },
+                        { label: 'Vehicles', icon: Car, path: '/admin/vehicles' },
+                        { label: 'Bookings', icon: FileText, path: '/admin/bookings' },
+                      ]
+                    : [
+                        { label: 'My Profile', icon: User, path: '/profile' },
+                        { label: 'My Bookings', icon: FileText, path: '/my-bookings' },
+                      ]
+                  ).map(link => (
+                    <button
+                      key={link.path}
+                      onClick={() => { navigate(link.path); setOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44] rounded-xl transition-colors"
+                    >
+                      <link.icon size={16} /> {link.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Logout */}
+                <button
+                  onClick={async () => {
+                    await logout();
+                    setOpen(false);
+                    navigate('/');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                >
+                  <LogOut size={16} /> Đăng xuất
+                </button>
+              </div>
+            ) : (
               <button 
                 onClick={() => { setOpen(false); openAuthModal('login'); }}
-                className="w-full flex items-center justify-center gap-2 bg-[#78ad44] text-white font-bold text-sm py-2.5 rounded-xl"
+                className="w-full flex items-center justify-center gap-2 bg-[#78ad44] text-white font-black text-sm py-3 rounded-xl shadow-md active:scale-95 transition-transform"
               >
                 <User size={18} /> Sign In / Register
               </button>

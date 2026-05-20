@@ -116,8 +116,8 @@ export default function AuthModal() {
   if (!isAuthModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className={`bg-white w-full max-w-[900px] md:min-h-[600px] rounded-2xl shadow-2xl flex flex-col md:flex-row relative overflow-hidden animate-in zoom-in-95 duration-300 ${!isLogin ? 'md:flex-row-reverse' : ''}`}>
+    <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className={`bg-white w-full max-w-[900px] md:min-h-[600px] rounded-2xl shadow-2xl flex flex-col md:flex-row relative overflow-hidden my-auto animate-in zoom-in-95 duration-300 ${!isLogin ? 'md:flex-row-reverse' : ''}`}>
         
         {/* Close Button */}
         <button 
