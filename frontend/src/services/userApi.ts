@@ -1,23 +1,29 @@
 import api from './api';
+import type { ApiUser, UserDocument } from '@/types';
 
-// get current user
+export interface ProfileUpdatePayload {
+  fullName?: string;
+  phone?: string;
+  idCardUrl?: string;
+}
+
 export const getMe = () => {
-  return api.get('/users/me');
+  return api.get<ApiUser>('/users/me');
 };
 
-// upload CCCD
 export const uploadDocument = (formData: FormData) => {
-  return api.post('/users/upload-document', formData, {
+  return api.post<UserDocument>('/users/upload-document', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
 };
 
-export const updateProfile = (data: any) => {
-  return api.put('/users/update', data);
+export const updateProfile = (data: ProfileUpdatePayload) => {
+  return api.put<ApiUser>('/users/update', data);
 };
 
 export const getMyDocuments = () => {
-  return api.get('/users/documents');
+  return api.get<UserDocument[]>('/users/documents');
 };
+

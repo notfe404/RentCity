@@ -181,9 +181,9 @@ export default function AuthModal() {
               {/* Demo account hint */}
               <div className="text-[11px] text-gray-400 bg-gray-50 rounded-xl p-3 leading-relaxed">
                 <span className="font-bold text-gray-500">Demo accounts:</span><br />
-                👤 customer@demo.com / 123456<br />
-                👔 staff@demo.com / 123456<br />
-                🛡️ admin@demo.com / 123456
+                👤 customer@demo.com / Password123<br />
+                👔 staff@demo.com / Password123<br />
+                🛡️ admin@demo.com / Password123
               </div>
 
               <div className="text-center">

@@ -1,10 +1,7 @@
-// ============================================================
-// User Types — B2C Model
-// ============================================================
-
 export type UserRole = 'CUSTOMER' | 'STAFF' | 'ADMIN';
 export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFY';
 export type CustomerTier = 'STANDARD' | 'SILVER' | 'GOLD' | 'PLATINUM';
+export type KycStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface User {
   id: string;
@@ -12,38 +9,49 @@ export interface User {
   fullName: string;
   phone: string;
   avatarUrl?: string;
+  idCardUrl?: string;
   role: UserRole;
+  kycStatus?: KycStatus;
   status: UserStatus;
-  loyaltyPoints: number;    // điểm tích lũy
-  tier: CustomerTier;       // hạng thành viên
+  loyaltyPoints: number;
+  tier: CustomerTier;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ApiUser {
+  id: number;
+  email: string;
+  fullName: string;
+  phone: string;
+  idCardUrl?: string;
+  role: UserRole;
+  kycStatus: KycStatus;
 }
 
 export type DocType = 'CCCD' | 'DRIVING_LICENSE';
 
 export interface UserDocument {
-  id: string;
-  userId: string;
+  id: number;
+  userId: number;
   docType: DocType;
-  docNumber?: string;       // masked để bảo mật
-  frontUrl?: string;        // S3 URL
+  docNumber?: string;
+  frontUrl?: string;
   backUrl?: string;
   expiresAt?: string;
   verified: boolean;
-  verifiedBy?: string;      // staff id
+  verifiedBy?: string;
   verifiedAt?: string;
+  createdAt?: string;
 }
 
-// Tier label & màu badge
 export const TIER_CONFIG: Record<CustomerTier, { label: string; color: string }> = {
   STANDARD: { label: 'Standard', color: 'gray' },
-  SILVER:   { label: 'Silver',   color: 'slate' },
-  GOLD:     { label: 'Gold',     color: 'yellow' },
+  SILVER: { label: 'Silver', color: 'slate' },
+  GOLD: { label: 'Gold', color: 'yellow' },
   PLATINUM: { label: 'Platinum', color: 'cyan' },
 };
 
-// ---- Auth request/response ----
 export interface LoginRequest {
   email: string;
   password: string;
@@ -59,5 +67,5 @@ export interface RegisterRequest {
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  user: User;
+  user: ApiUser;
 }

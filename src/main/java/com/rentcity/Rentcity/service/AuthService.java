@@ -30,14 +30,14 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email này đã được sử dụng");
-        }
-        
-        if (userRepository.existsByPhone(request.getPhone())) {
-            throw new IllegalArgumentException("Số điện thoại này đã được sử dụng");
+            throw new IllegalArgumentException("Email is already in use");
         }
 
-        var user = User.builder()
+        if (userRepository.existsByPhone(request.getPhone())) {
+            throw new IllegalArgumentException("Phone number is already in use");
+        }
+
+        User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
@@ -48,8 +48,8 @@ public class AuthService {
 
         userRepository.save(user);
 
-        var jwtToken = jwtService.generateToken(user);
-        var refreshToken = jwtService.generateRefreshToken(user);
+        String jwtToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
         return AuthResponse.builder()
                 .accessToken(jwtToken)
                 .refreshToken(refreshToken)
@@ -65,10 +65,10 @@ public class AuthService {
                 )
         );
 
-        var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow();
-        var jwtToken = jwtService.generateToken(user);
-        var refreshToken = jwtService.generateRefreshToken(user);
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        String jwtToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
         return AuthResponse.builder()
                 .accessToken(jwtToken)
@@ -81,7 +81,7 @@ public class AuthService {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
-        
+
         if (token != null && !tokenBlacklistRepository.existsByToken(token)) {
             TokenBlacklist tokenBlacklist = TokenBlacklist.builder()
                     .token(token)
@@ -94,9 +94,10 @@ public class AuthService {
         String refreshToken = request.getRefreshToken();
         String username = jwtService.extractUsername(refreshToken);
         if (username != null) {
-            var user = userRepository.findByEmail(username).orElseThrow();
+            User user = userRepository.findByEmail(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
             if (jwtService.isTokenValid(refreshToken, user)) {
-                var accessToken = jwtService.generateToken(user);
+                String accessToken = jwtService.generateToken(user);
                 return AuthResponse.builder()
                         .accessToken(accessToken)
                         .refreshToken(refreshToken)
@@ -119,3 +120,4 @@ public class AuthService {
                 .build();
     }
 }
+

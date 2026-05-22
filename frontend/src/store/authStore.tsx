@@ -1,11 +1,7 @@
 import { createContext, useState, useEffect, type ReactNode } from 'react';
-import type { User, AuthResponse, LoginRequest, RegisterRequest } from '@/types';
+import type { User, AuthResponse, LoginRequest, RegisterRequest, ApiUser } from '@/types';
 import api from '@/services/api';
-import { MOCK_USERS } from '@/data/mockUsers';
-
-// ============================================================
-// Auth Context — B2C (CUSTOMER | STAFF | ADMIN)
-// ============================================================
+import { mapApiUserToUser } from '@/utils/userMapper';
 
 interface AuthContextValue {
   user: User | null;
@@ -23,81 +19,63 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function clearStoredSession() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('mockUser');
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State quản lý Popup Đăng nhập/Đăng ký
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
 
-  // Khôi phục session khi tải trang
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
-    if (!token) { setIsLoading(false); return; }
-
-    // Nếu là mock token — restore từ localStorage không cần gọi API
-    if (token.startsWith('mock-token-')) {
-      const saved = localStorage.getItem('mockUser');
-      if (saved) setUser(JSON.parse(saved));
+    if (!token) {
       setIsLoading(false);
       return;
     }
 
-    // Token thật — gọi API
-    api.get<User>('/auth/me')
-      .then(({ data }) => setUser(data))
+    api.get<ApiUser>('/users/me')
+      .then(({ data }) => setUser(mapApiUserToUser(data)))
       .catch(() => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        clearStoredSession();
+        setUser(null);
       })
       .finally(() => setIsLoading(false));
   }, []);
 
   const login = async (credentials: LoginRequest) => {
-    // ── MOCK LOGIN (for local development) ──────────────────
-    const mockUser = MOCK_USERS[credentials.email];
-    if (mockUser && mockUser.password === credentials.password) {
-      const { password: _, ...user } = mockUser;
-      localStorage.setItem('accessToken', 'mock-token-' + user.role);
-      localStorage.setItem('mockUser', JSON.stringify(user));
-      setUser(user);
-      closeAuthModal();
-      return;
-    }
-    // ── REAL API ─────────────────────────────────────────────
     const { data } = await api.post<AuthResponse>('/auth/login', credentials);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(data.user);
+    setUser(mapApiUserToUser(data.user));
     closeAuthModal();
   };
 
   const register = async (info: RegisterRequest) => {
-    // ── REAL API ─────────────────────────────────────────────
     const { data } = await api.post<AuthResponse>('/auth/register', info);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(data.user);
+    setUser(mapApiUserToUser(data.user));
     closeAuthModal();
   };
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout');
+      if (localStorage.getItem('accessToken')) {
+        await api.post('/auth/logout');
+      }
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('mockUser');
+      clearStoredSession();
       setUser(null);
     }
   };
 
   const updateUser = (data: Partial<User>) => {
-    if (!user) return;
-    const updatedUser = { ...user, ...data };
-    setUser(updatedUser);
-    localStorage.setItem('mockUser', JSON.stringify(updatedUser));
+    setUser((currentUser) => currentUser ? { ...currentUser, ...data } : currentUser);
   };
 
   const openAuthModal = (tab: 'login' | 'register' = 'login') => {
@@ -110,12 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isLoggedIn: !!user, 
-      isLoading, 
-      login, 
-      register, 
+    <AuthContext.Provider value={{
+      user,
+      isLoggedIn: !!user,
+      isLoading,
+      login,
+      register,
       logout,
       updateUser,
       isAuthModalOpen,
@@ -128,5 +106,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook internal — dùng bởi useAuth.ts
 export { AuthContext };
+

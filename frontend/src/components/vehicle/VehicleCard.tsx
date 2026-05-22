@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Users, Settings, Briefcase, Fuel, Star } from 'lucide-react';
+import { Car, Users, Settings, Briefcase, Fuel, Star, MapPin } from 'lucide-react';
 import { formatVND } from '@/utils/formatters';
 import type { MockVehicle } from '@/data/mockVehicles';
 

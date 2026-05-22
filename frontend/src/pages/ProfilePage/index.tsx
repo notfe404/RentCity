@@ -4,13 +4,43 @@ import Footer from '../LandingPage/Footer';
 import { Save, Upload, X, FileText, Check, Edit3 } from 'lucide-react';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
 import { toast } from 'sonner';
-import { getMe } from '@/services/userApi';
-import { uploadDocument } from '@/services/userApi';
-import { updateProfile } from '@/services/userApi';
-import { getMyDocuments } from '@/services/userApi';
+import { getMe, getMyDocuments, updateProfile, uploadDocument } from '@/services/userApi';
+import { useAuth } from '@/hooks/useAuth';
+import { mapApiUserToUser } from '@/utils/userMapper';
+
+type ProfileFieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone' | 'fullName', string>>;
+
+const inputClass = (hasError: boolean) =>
+  `w-full border rounded-2xl px-5 py-3.5 text-sm outline-none text-gray-900 font-bold transition-colors ${
+    hasError
+      ? 'bg-red-50 border-red-300 focus:ring-2 focus:ring-red-200'
+      : 'bg-[#f4f8f7] border-transparent focus:ring-2 focus:ring-[#78ad44]'
+  }`;
+
+function getProfileFieldErrors(err: unknown): ProfileFieldErrors {
+  const responseData = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!responseData || typeof responseData !== 'object') return {};
+
+  const data = responseData as Record<string, unknown>;
+  const errors: ProfileFieldErrors = {};
+
+  if (typeof data.phone === 'string') errors.phone = data.phone;
+  if (typeof data.fullName === 'string') {
+    errors.firstName = data.fullName;
+    errors.lastName = data.fullName;
+    errors.fullName = data.fullName;
+  }
+  if (!errors.phone && !errors.fullName && typeof data.error === 'string') {
+    errors.fullName = data.error;
+  }
+
+  return errors;
+}
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const { updateUser } = useAuth();
+  const [profileErrors, setProfileErrors] = useState<ProfileFieldErrors>({});
 
   // Local state for displaying & editing
   const [firstName, setFirstName] = useState('');
@@ -56,15 +86,19 @@ const [backId, setBackId] = useState<{
       if (docRes.data.length > 0) {
         const doc = docRes.data[0];
 
-        setFrontId({
-          url: doc.frontUrl,
-          isPdf: doc.frontUrl.endsWith('.pdf'),
-        });
+        if (doc.frontUrl) {
+          setFrontId({
+            url: doc.frontUrl,
+            isPdf: doc.frontUrl.toLowerCase().includes('.pdf'),
+          });
+        }
 
-        setBackId({
-          url: doc.backUrl,
-          isPdf: doc.backUrl.endsWith('.pdf'),
-        });
+        if (doc.backUrl) {
+          setBackId({
+            url: doc.backUrl,
+            isPdf: doc.backUrl.toLowerCase().includes('.pdf'),
+          });
+        }
       }
 
     } catch (err) {
@@ -110,11 +144,30 @@ const [backId, setBackId] = useState<{
 
   const handleSave = async () => {
   try {
+    setProfileErrors({});
+    const fullName = `${firstName} ${lastName}`.trim();
+    const nextErrors: ProfileFieldErrors = {};
+
+    if (fullName.length < 2) {
+      nextErrors.firstName = 'Full name must be between 2 and 100 characters';
+      nextErrors.lastName = 'Full name must be between 2 and 100 characters';
+    }
+    if (!/^0\d{9}$/.test(phone)) {
+      nextErrors.phone = 'Phone number must have exactly 10 digits and start with 0';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setProfileErrors(nextErrors);
+      toast.error('Please fix the highlighted fields');
+      return;
+    }
+
     // Update profile
-    await updateProfile({
-      fullName: `${firstName} ${lastName}`,
+    const profileRes = await updateProfile({
+      fullName,
       phone,
     });
+    updateUser(mapApiUserToUser(profileRes.data));
 
     // Upload ONLY if new files selected
     if (frontId?.file && backId?.file) {
@@ -132,15 +185,19 @@ const [backId, setBackId] = useState<{
 
       const doc = docRes.data[0];
 
-      setFrontId({
-        url: doc.frontUrl,
-        isPdf: doc.frontUrl.includes('.pdf'),
-      });
+      if (doc.frontUrl) {
+        setFrontId({
+          url: doc.frontUrl,
+          isPdf: doc.frontUrl.toLowerCase().includes('.pdf'),
+        });
+      }
 
-      setBackId({
-        url: doc.backUrl,
-        isPdf: doc.backUrl.includes('.pdf'),
-      });
+      if (doc.backUrl) {
+        setBackId({
+          url: doc.backUrl,
+          isPdf: doc.backUrl.toLowerCase().includes('.pdf'),
+        });
+      }
     }
 
     toast.success('Profile updated & document uploaded!');
@@ -148,12 +205,19 @@ const [backId, setBackId] = useState<{
 
   } catch (err) {
     console.error(err);
-    toast.error('Failed to save profile');
+    const fieldErrors = getProfileFieldErrors(err);
+    if (Object.keys(fieldErrors).length > 0) {
+      setProfileErrors(fieldErrors);
+      toast.error('Please fix the highlighted fields');
+    } else {
+      toast.error('Failed to save profile');
+    }
   }
 };
 
   const handleCancel = () => {
     // Reset or ignore
+    setProfileErrors({});
     setIsEditing(false);
   };
 
@@ -188,7 +252,18 @@ const [backId, setBackId] = useState<{
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">First Name</label>
                 {isEditing ? (
-                   <input type="text" value={firstName} onChange={e=>setFirstName(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-900 font-bold" />
+                   <>
+                     <input
+                       type="text"
+                       value={firstName}
+                       onChange={e => {
+                         setFirstName(e.target.value);
+                         setProfileErrors(errors => ({ ...errors, firstName: undefined, fullName: undefined }));
+                       }}
+                       className={inputClass(!!profileErrors.firstName)}
+                     />
+                     {profileErrors.firstName && <p className="mt-2 text-xs font-semibold text-red-600">{profileErrors.firstName}</p>}
+                   </>
                 ) : (
                    <div className="text-lg font-black text-gray-900">{firstName || '-'}</div>
                 )}
@@ -196,7 +271,18 @@ const [backId, setBackId] = useState<{
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Last Name</label>
                 {isEditing ? (
-                   <input type="text" value={lastName} onChange={e=>setLastName(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-900 font-bold" />
+                   <>
+                     <input
+                       type="text"
+                       value={lastName}
+                       onChange={e => {
+                         setLastName(e.target.value);
+                         setProfileErrors(errors => ({ ...errors, lastName: undefined, fullName: undefined }));
+                       }}
+                       className={inputClass(!!profileErrors.lastName)}
+                     />
+                     {profileErrors.lastName && <p className="mt-2 text-xs font-semibold text-red-600">{profileErrors.lastName}</p>}
+                   </>
                 ) : (
                    <div className="text-lg font-black text-gray-900">{lastName || '-'}</div>
                 )}
@@ -212,7 +298,18 @@ const [backId, setBackId] = useState<{
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Phone Number</label>
                 {isEditing ? (
-                   <input type="text" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-900 font-bold" />
+                   <>
+                     <input
+                       type="text"
+                       value={phone}
+                       onChange={e => {
+                         setPhone(e.target.value);
+                         setProfileErrors(errors => ({ ...errors, phone: undefined }));
+                       }}
+                       className={inputClass(!!profileErrors.phone)}
+                     />
+                     {profileErrors.phone && <p className="mt-2 text-xs font-semibold text-red-600">{profileErrors.phone}</p>}
+                   </>
                 ) : (
                    <div className="text-lg font-black text-gray-900">{phone || '-'}</div>
                 )}

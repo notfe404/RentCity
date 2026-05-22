@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { PricingResult, PricingOption } from '../types/pricing.types';
+import type { PricingResult } from '../types/pricing.types';
 import { useRentalDuration } from './useRentalDuration';
 
 interface UsePricingParams {
@@ -68,9 +68,9 @@ export const usePricing = ({
         const remainHrsD = remainHoursD % 24;
         const priceD = fullMonths * MOCK_RULES.monthly_rate + remainWeeksD * MOCK_RULES.weekly_rate + remainDaysD * MOCK_RULES.daily_rate + remainHrsD * MOCK_RULES.hourly_rate;
 
-        const alternatives: PricingOption[] = [
+        const alternatives = [
           {
-            mode: 'HOURLY',
+            mode: 'HOURLY' as const,
             baseAmount: priceA,
             surcharge: 0,
             discount: 0,
@@ -79,7 +79,7 @@ export const usePricing = ({
             label: 'Theo giờ',
           },
           {
-            mode: 'DAILY',
+            mode: 'DAILY' as const,
             baseAmount: priceB,
             surcharge: 0,
             discount: 0,
@@ -91,7 +91,7 @@ export const usePricing = ({
 
         if (fullWeeks > 0) {
           alternatives.push({
-            mode: 'WEEKLY',
+            mode: 'WEEKLY' as const,
             baseAmount: priceC,
             surcharge: 0,
             discount: 0,
@@ -103,7 +103,7 @@ export const usePricing = ({
         
         if (fullMonths > 0) {
            alternatives.push({
-            mode: 'MONTHLY',
+            mode: 'MONTHLY' as const,
             baseAmount: priceD,
             surcharge: 0,
             discount: 0,

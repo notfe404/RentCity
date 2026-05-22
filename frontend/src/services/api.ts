@@ -1,10 +1,6 @@
 import axios from 'axios';
 import type { AuthResponse } from '@/types';
 
-// ============================================================
-// Axios Instance — Rent-City API
-// ============================================================
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
   timeout: 15000,
@@ -13,17 +9,20 @@ const api = axios.create({
   },
 });
 
-// ---- Request Interceptor: tự động gắn JWT Access Token ----
+function clearStoredSession() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('mockUser');
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
-  // Chỉ đính kèm nếu token tồn tại và không phải là mock token
-  if (token && !token.startsWith('mock-token-')) {
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// ---- Response Interceptor: tự động refresh token khi 401 ----
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
@@ -43,17 +42,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Không cố gắng refresh token đối với các API xác thực chính (login, register, refresh)
     if (
-      error.response?.status === 401 && 
+      error.response?.status === 401 &&
+      originalRequest &&
       !originalRequest._retry &&
       !originalRequest.url?.includes('/auth/login') &&
       !originalRequest.url?.includes('/auth/register') &&
       !originalRequest.url?.includes('/auth/refresh')
     ) {
       if (isRefreshing) {
-        // Đưa request vào hàng chờ token mới
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -61,17 +59,21 @@ api.interceptors.response.use(
         });
       }
 
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        clearStoredSession();
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
       isRefreshing = true;
-
-      const refreshToken = localStorage.getItem('refreshToken');
 
       try {
         const { data } = await axios.post<AuthResponse>(
           `${api.defaults.baseURL}/auth/refresh`,
           { refreshToken }
         );
-        
+
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
 
@@ -81,9 +83,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Refresh thất bại → logout
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        clearStoredSession();
         window.location.href = '/';
         return Promise.reject(refreshError);
       } finally {
@@ -96,3 +96,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+
