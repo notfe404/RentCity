@@ -6,7 +6,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/rentcity
     username: postgres
-    password: password
+    password: 123456
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -16,7 +16,15 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  servlet:
+    multipart:
+      max-file-size: 5MB        # giới hạn dung lượng 1 file ảnh xe (B6)
+      max-request-size: 10MB
 
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
   expiration: 86400000 # 1 day in milliseconds
+
+# Thư mục lưu ảnh xe upload (B6). Có thể đổi sang đường dẫn tuyệt đối khi deploy.
+app:
+  upload-dir: ./uploads
