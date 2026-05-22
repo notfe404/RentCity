@@ -23,7 +23,7 @@ interface BookingSidebarProps {
 
 export default function BookingSidebar({
   vehicle, pickupLocation, returnLocation,
-  startDate, endDate, totalDays,
+  startDate, endDate,
   lineItems, totalAmount,
   actionLabel, actionDisabled = false, onAction,
 }: BookingSidebarProps) {
