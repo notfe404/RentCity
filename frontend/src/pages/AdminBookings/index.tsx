@@ -1,108 +1,258 @@
+import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, Filter, Eye, Check, X } from 'lucide-react';
+import { Search, Eye, Check, X, CarFront, Play, Flag } from 'lucide-react';
+import { toast } from 'sonner';
 
-const MOCK_BOOKINGS = [
-  { id: 'RC-9482', customer: 'Sarah Connor', car: 'Mercedes S-Class', startDate: 'Oct 25, 2024', endDate: 'Oct 28, 2024', status: 'Pending', total: 450 },
-  { id: 'RC-8472', customer: 'John Doe', car: 'Tesla Model 3', startDate: 'Oct 24, 2024', endDate: 'Oct 26, 2024', status: 'Active', total: 320 },
-  { id: 'RC-7462', customer: 'Bruce Wayne', car: 'BMW X5', startDate: 'Oct 22, 2024', endDate: 'Oct 25, 2024', status: 'Completed', total: 850 },
-  { id: 'RC-6452', customer: 'Clark Kent', car: 'Ford Mustang', startDate: 'Oct 20, 2024', endDate: 'Oct 21, 2024', status: 'Cancelled', total: 200 },
-  { id: 'RC-5442', customer: 'Diana Prince', car: 'Porsche 911', startDate: 'Oct 30, 2024', endDate: 'Nov 02, 2024', status: 'Pending', total: 600 },
+import { confirmBookingForTest, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
+import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
+import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';
+
+type StatusFilter = 'ALL' | ApiBookingStatus;
+
+const FILTERS: Array<{ key: StatusFilter; label: string }> = [
+  { key: 'ALL', label: 'Tất cả' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'ONGOING', label: 'Ongoing' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
 export default function AdminBookingsPage() {
+  const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const { data } = await getAdminBookings(statusFilter === 'ALL' ? {} : { status: statusFilter });
+        if (!cancelled) {
+          setBookings(data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được danh sách booking admin');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    setIsLoading(true);
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusFilter]);
+
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) {
+      return bookings;
+    }
+
+    return bookings.filter((booking) => {
+      const vehicleName = getBookingVehicleName(booking).toLowerCase();
+      return (
+        booking.bookingCode.toLowerCase().includes(keyword)
+        || (booking.customerName ?? '').toLowerCase().includes(keyword)
+        || (booking.customerEmail ?? '').toLowerCase().includes(keyword)
+        || vehicleName.includes(keyword)
+      );
+    });
+  }, [bookings, search]);
+
+  const runTransition = async (bookingId: number, payload: AdminBookingTransitionPayload, useTestConfirm = false) => {
+    setActiveBookingId(bookingId);
+    try {
+      const { data } = useTestConfirm
+        ? await confirmBookingForTest(bookingId)
+        : await transitionAdminBooking(bookingId, payload);
+
+      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
+      toast.success(`Đã cập nhật booking ${data.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể cập nhật booking';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
   return (
     <AdminLayout title="Bookings Management">
-      
-      {/* Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-80">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search by ID, Customer..." 
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by code, customer, vehicle..."
               className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#78ad44]"
             />
           </div>
-          <button className="flex items-center gap-2 bg-white border border-gray-100 text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors font-bold text-sm shadow-sm">
-            <Filter size={16} /> Filters
-          </button>
         </div>
-        
-        <div className="flex bg-[#f4f8f7] p-1 rounded-xl">
-          <button className="px-4 py-2 text-xs font-bold rounded-lg bg-white text-gray-900 shadow-sm border border-gray-200">All</button>
-          <button className="px-4 py-2 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-900">Pending</button>
-          <button className="px-4 py-2 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-900">Active</button>
-          <button className="px-4 py-2 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-900">Completed</button>
+
+        <div className="flex bg-[#f4f8f7] p-1 rounded-xl overflow-x-auto">
+          {FILTERS.map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setStatusFilter(filter.key)}
+              className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${
+                statusFilter === filter.key
+                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-[1.5rem] border border-gray-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#f4f8f7] border-b border-gray-100">
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Booking ID</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Customer & Car</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Booking</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Customer</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Vehicle</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Rental Dates</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Total</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Financial</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {MOCK_BOOKINGS.map(b => (
-                <tr key={b.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="p-5">
-                    <span className="font-black text-gray-900 text-sm">{b.id}</span>
-                  </td>
-                  <td className="p-5">
-                    <p className="font-black text-gray-900 text-sm">{b.customer}</p>
-                    <p className="font-bold text-gray-400 text-xs">{b.car}</p>
-                  </td>
-                  <td className="p-5">
-                    <p className="text-sm font-bold text-gray-900">{b.startDate}</p>
-                    <p className="text-xs font-bold text-gray-400">to {b.endDate}</p>
-                  </td>
-                  <td className="p-5 font-black text-[#78ad44]">${b.total}</td>
-                  <td className="p-5">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider border ${
-                      b.status === 'Active' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                      b.status === 'Completed' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                      b.status === 'Pending' ? 'bg-orange-50 text-orange-600 border-orange-100' : 
-                      'bg-red-50 text-red-600 border-red-100'
-                    }`}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="p-5 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {b.status === 'Pending' && (
-                        <>
-                          <button className="p-2 text-white bg-[#78ad44] hover:bg-[#689938] rounded-lg transition-colors shadow-sm" title="Approve"><Check size={16} /></button>
-                          <button className="p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm" title="Reject"><X size={16} /></button>
-                        </>
-                      )}
-                      <button className="p-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors shadow-sm font-bold flex items-center gap-1" title="View Details">
-                        <Eye size={16} /> <span className="text-xs">View</span>
-                      </button>
+              {isLoading && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-gray-500 font-bold">Đang tải booking...</td>
+                </tr>
+              )}
+
+              {!isLoading && filtered.map((booking) => {
+                const bookingMeta = BOOKING_STATUS_META[booking.status];
+                const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
+                const busy = activeBookingId === booking.id;
+
+                return (
+                  <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors group align-top">
+                    <td className="p-5">
+                      <p className="font-black text-gray-900 text-sm">{booking.bookingCode}</p>
+                      <p className="text-xs font-bold text-gray-400 mt-1">#{booking.id}</p>
+                    </td>
+                    <td className="p-5">
+                      <p className="font-black text-gray-900 text-sm">{booking.customerName ?? 'Unknown customer'}</p>
+                      <p className="font-bold text-gray-400 text-xs">{booking.customerEmail ?? '—'}</p>
+                    </td>
+                    <td className="p-5">
+                      <p className="font-black text-gray-900 text-sm">{getBookingVehicleName(booking)}</p>
+                      <p className="font-bold text-gray-400 text-xs">{booking.vehicleLicensePlate ?? '—'}</p>
+                    </td>
+                    <td className="p-5">
+                      <p className="text-sm font-bold text-gray-900">{formatDate(booking.startTime)}</p>
+                      <p className="text-xs font-bold text-gray-400">to {formatDate(booking.endTime)}</p>
+                    </td>
+                    <td className="p-5">
+                      <p className="font-black text-[#78ad44] text-sm">{formatVND(booking.totalAmount)}</p>
+                      <p className={`text-xs font-bold mt-1 ${depositMeta.color}`}>{depositMeta.label}</p>
+                    </td>
+                    <td className="p-5">
+                      <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider border text-white ${bookingMeta.bg}`}>
+                        {bookingMeta.label}
+                      </span>
+                    </td>
+                    <td className="p-5 text-right">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        {booking.status === 'PENDING' && (
+                          <>
+                            <button
+                              disabled={busy}
+                              onClick={() => runTransition(
+                                booking.id,
+                                { targetStatus: 'CONFIRMED', reason: 'TEST_CONFIRMATION', note: 'Confirmed via admin test flow' },
+                                true,
+                              )}
+                              className="p-2 text-white bg-[#78ad44] hover:bg-[#689938] rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                              title="Confirm for test"
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              disabled={busy}
+                              onClick={() => runTransition(booking.id, { targetStatus: 'CANCELLED', reason: 'ADMIN_CANCELLED', note: 'Cancelled from admin booking list' })}
+                              className="p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                              title="Cancel booking"
+                            >
+                              <X size={16} />
+                            </button>
+                          </>
+                        )}
+
+                        {booking.status === 'CONFIRMED' && (
+                          <button
+                            disabled={busy}
+                            onClick={() => runTransition(booking.id, { targetStatus: 'ONGOING', reason: 'ADMIN_CHECKOUT', note: 'Vehicle handed over to customer' })}
+                            className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                            title="Mark ongoing"
+                          >
+                            <Play size={16} />
+                          </button>
+                        )}
+
+                        {booking.status === 'ONGOING' && (
+                          <button
+                            disabled={busy}
+                            onClick={() => runTransition(booking.id, { targetStatus: 'COMPLETED', reason: 'ADMIN_COMPLETED', note: 'Rental completed' })}
+                            className="p-2 text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                            title="Complete booking"
+                          >
+                            <Flag size={16} />
+                          </button>
+                        )}
+
+                        <div className="inline-flex items-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 rounded-lg shadow-sm text-xs font-bold">
+                          <Eye size={16} />
+                          <span>{formatDateTime(booking.createdAt)}</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-10 text-center">
+                    <div className="inline-flex flex-col items-center gap-3 text-gray-400">
+                      <CarFront size={36} />
+                      <p className="font-bold text-gray-500">Không có booking phù hợp với bộ lọc hiện tại</p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination mock */}
+
         <div className="p-5 border-t border-gray-100 flex items-center justify-between">
-           <p className="text-xs font-bold text-gray-400">Showing 1 to 5 of 128 bookings</p>
-           {/* Pagination hidden for brevity */}
+          <p className="text-xs font-bold text-gray-400">Showing {filtered.length} booking(s)</p>
+          <p className="text-xs font-bold text-gray-400">Customer flow uses real backend booking data</p>
         </div>
-
       </div>
-
     </AdminLayout>
   );
 }

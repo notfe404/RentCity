@@ -1,0 +1,93 @@
+package com.rentcity.Rentcity.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(
+        name = "bookings",
+        indexes = {
+                @Index(name = "idx_bookings_user_created_at", columnList = "user_id, created_at"),
+                @Index(name = "idx_bookings_car_schedule", columnList = "car_id, status, start_time, end_time")
+        }
+)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Booking {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "booking_code", nullable = false, unique = true, length = 32)
+    private String bookingCode;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "car_id", nullable = false)
+    private Long carId;
+
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalDateTime endTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pricing_mode", nullable = false, length = 20)
+    private PricingMode pricingMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private BookingStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deposit_status", nullable = false, length = 20)
+    private DepositStatus depositStatus;
+
+    @Column(name = "base_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal baseAmount;
+
+    @Column(name = "deposit_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal depositAmount;
+
+    @Column(name = "total_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal totalAmount;
+
+    @Column(name = "free_cancel_until", nullable = false)
+    private LocalDateTime freeCancelUntil;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancel_reason", length = 100)
+    private String cancelReason;
+
+    @Column(name = "cancelled_by", length = 50)
+    private String cancelledBy;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}

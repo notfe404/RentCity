@@ -15,6 +15,7 @@ interface BookingSidebarProps {
   endDate: string;
   totalDays: number;
   lineItems: PriceLineItem[];
+  depositAmount: number;
   totalAmount: number;
   actionLabel: string;
   actionDisabled?: boolean;
@@ -22,17 +23,24 @@ interface BookingSidebarProps {
 }
 
 export default function BookingSidebar({
-  vehicle, pickupLocation, returnLocation,
-  startDate, endDate, totalDays,
-  lineItems, totalAmount,
-  actionLabel, actionDisabled = false, onAction,
+  vehicle,
+  pickupLocation,
+  returnLocation,
+  startDate,
+  endDate,
+  totalDays,
+  lineItems,
+  depositAmount,
+  totalAmount,
+  actionLabel,
+  actionDisabled = false,
+  onAction,
 }: BookingSidebarProps) {
   return (
     <aside className="w-full lg:w-[400px] shrink-0">
       <div className="sticky top-24 bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100 flex flex-col gap-6">
         <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2">Tóm tắt đơn</h3>
 
-        {/* Vehicle info */}
         <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl">
           <img src={vehicle.image} alt={vehicle.name} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
           <div>
@@ -41,7 +49,6 @@ export default function BookingSidebar({
           </div>
         </div>
 
-        {/* Location & dates */}
         <div className="space-y-4 px-2">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-[#f4f8f7] flex items-center justify-center shrink-0 mt-0.5">
@@ -65,7 +72,6 @@ export default function BookingSidebar({
           </div>
         </div>
 
-        {/* Price breakdown */}
         <div className="border-t border-gray-100 pt-5 px-2">
           {lineItems.map((item, i) => (
             <div key={i} className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
@@ -77,6 +83,11 @@ export default function BookingSidebar({
           <div className="flex justify-between items-center text-lg font-black text-gray-900 mt-6 bg-[#212529] text-white p-4 rounded-xl">
             <span>Tổng cộng</span>
             <span className="text-[#78ad44]">{formatVND(totalAmount)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm font-black text-gray-900 mt-3 bg-[#f4f8f7] p-4 rounded-xl border border-gray-100">
+            <span>Tiền cọc cần thanh toán</span>
+            <span className="text-[#78ad44]">{formatVND(depositAmount)}</span>
           </div>
         </div>
 

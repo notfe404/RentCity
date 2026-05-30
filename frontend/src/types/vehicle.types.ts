@@ -98,3 +98,39 @@ export interface SearchVehicleParams {
   minPrice?: number;
   maxPrice?: number;
 }
+
+export interface ApiCarImageResponse {
+  id: number;
+  imageUrl: string;
+  primary: boolean;
+}
+
+export interface ApiCarResponse {
+  id: number;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  seats?: number | null;
+  branchId?: number | null;
+  branchName?: string | null;
+  licensePlate: string;
+  brand: string;
+  model: string;
+  year?: number | null;
+  transmission: 'AUTO' | 'MANUAL';
+  pricePerDay: number;
+  deposit?: number | null;
+  status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED';
+  description?: string | null;
+  primaryImageUrl?: string | null;
+  images: ApiCarImageResponse[];
+}
+
+export interface ApiPageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}

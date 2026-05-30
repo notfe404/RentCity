@@ -1,196 +1,177 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { Shield, Car, Wallet, Smartphone, CreditCard, Building2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, FileText, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
-import { MOCK_VEHICLES } from '@/data/mockVehicles';
-import { useBooking } from '@/store/bookingStore';
-import { formatVND } from '@/utils/formatters';
-
-type PaymentMethod = 'vnpay' | 'momo' | 'zalopay' | 'bank' | 'cash';
-
-const PAYMENT_METHODS: { key: PaymentMethod; label: string; desc: string; icon: typeof Wallet; color: string }[] = [
-  { key: 'vnpay',   label: 'VNPay',       desc: 'Thanh toán qua ứng dụng VNPay hoặc thẻ ATM/Visa/Master',   icon: CreditCard,  color: '#005baa' },
-  { key: 'momo',    label: 'Ví MoMo',     desc: 'Thanh toán nhanh qua ví điện tử MoMo',                     icon: Smartphone,  color: '#ae2070' },
-  { key: 'zalopay', label: 'ZaloPay',     desc: 'Thanh toán qua ví ZaloPay hoặc thẻ liên kết',              icon: Wallet,      color: '#008fe5' },
-  { key: 'bank',    label: 'Chuyển khoản',desc: 'Chuyển khoản ngân hàng trực tiếp theo thông tin bên dưới', icon: Building2,   color: '#059669' },
-  { key: 'cash',    label: 'Tiền mặt',    desc: 'Thanh toán tại quầy khi nhận xe',                          icon: Wallet,      color: '#d97706' },
-];
+import { getMyBooking } from '@/services/bookingApi';
+import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
+import { formatDateTime, formatVND } from '@/utils/formatters';
+import type { ApiBookingResponse } from '@/types';
 
 export default function PaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [method, setMethod] = useState<PaymentMethod>('vnpay');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { totalDays, baseAmount, extrasAmount, discountAmount, totalAmount, reset } = useBooking();
+  useEffect(() => {
+    let cancelled = false;
 
-  const vehicle = MOCK_VEHICLES.find(v => v.id === id);
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
 
-  const handlePayment = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      reset();
-      navigate(`/booking/${id || '1'}/result`);
-    }, 2000);
-  };
+      try {
+        const { data } = await getMyBooking(id);
+        if (!cancelled) {
+          setBooking(data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được thông tin booking');
+          navigate('/my-bookings', { replace: true });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-  if (!vehicle) {
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, navigate]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-24 h-24 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300"><Car size={48} /></div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">Không tìm thấy đơn</h2>
-            <button onClick={() => navigate('/search')} className="bg-[#78ad44] text-white px-8 py-3 rounded-full font-bold shadow-lg mt-4">Quay lại tìm xe</button>
-          </div>
-        </div>
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải booking...</div>
         <Footer />
       </div>
     );
   }
 
+  if (!booking) {
+    return null;
+  }
+
+  const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
+  const vehicleImage = getBookingVehicleImage(booking);
+  const vehicleName = getBookingVehicleName(booking);
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
 
-      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full flex-1">
+      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full flex-1">
         <BookingStepper currentStep={3} />
 
-        <div className="flex flex-col lg:flex-row gap-10">
-          {/* Main */}
-          <div className="flex-1 w-full space-y-8">
-            <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
-              <h2 className="text-3xl font-black text-gray-900 mb-2">Phương thức thanh toán</h2>
-              <p className="text-sm font-medium text-gray-500 mb-8">Chọn phương thức thanh toán phù hợp với bạn.</p>
-
-              <div className="space-y-3">
-                {PAYMENT_METHODS.map(pm => (
-                  <button
-                    key={pm.key}
-                    onClick={() => setMethod(pm.key)}
-                    className={`w-full p-5 rounded-2xl border-2 flex items-start gap-4 transition-all text-left ${
-                      method === pm.key
-                        ? 'border-[#78ad44] bg-[#f4f8f7]'
-                        : 'border-gray-100 hover:border-gray-200'
-                    }`}
-                  >
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: pm.color + '15', color: pm.color }}
-                    >
-                      <pm.icon size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-900">{pm.label}</span>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          method === pm.key ? 'border-[#78ad44] bg-[#78ad44]' : 'border-gray-300'
-                        }`}>
-                          {method === pm.key && <div className="w-2 h-2 bg-white rounded-full" />}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-500 font-medium mt-1">{pm.desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Bank transfer details */}
-            {method === 'bank' && (
-              <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 animate-in fade-in duration-300">
-                <h3 className="text-xl font-black text-gray-900 mb-6">Thông tin chuyển khoản</h3>
-                <div className="bg-[#f4f8f7] rounded-2xl p-6 space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Ngân hàng</span>
-                    <span className="font-bold text-gray-900">Vietcombank</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Số tài khoản</span>
-                    <span className="font-bold text-gray-900 font-mono">1234 5678 9012</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Chủ tài khoản</span>
-                    <span className="font-bold text-gray-900">CONG TY RENT CITY</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Nội dung CK</span>
-                    <span className="font-bold text-[#78ad44] font-mono">RC{id}THANHTOAN</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Số tiền</span>
-                    <span className="font-black text-[#78ad44]">{formatVND(totalAmount)}</span>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-10">
+          <div className="space-y-8">
+            <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#fff7e8] flex items-center justify-center text-orange-500 shrink-0">
+                  <Clock3 size={28} />
                 </div>
-                <p className="text-xs text-gray-400 font-medium mt-4">
-                  Đơn hàng sẽ được xác nhận sau khi chúng tôi nhận được tiền (thường trong 15 phút).
-                </p>
+                <div>
+                  <h1 className="text-3xl font-black text-gray-900 mb-2">Booking đã được tạo</h1>
+                  <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                    Booking của bạn hiện ở trạng thái <span className="font-black text-orange-500">PENDING</span>.
+                    Vui lòng thanh toán tiền cọc để xe được giữ ở Showroom.
+                  </p>
+                </div>
               </div>
-            )}
+            </section>
+
+            <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-black text-gray-900 mb-6">Thông tin cọc hiện tại</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-[#f4f8f7] rounded-2xl p-5">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Mã booking</p>
+                  <p className="text-xl font-black text-gray-900">{booking.bookingCode}</p>
+                </div>
+                <div className="bg-[#f4f8f7] rounded-2xl p-5">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Trạng thái cọc</p>
+                  <p className={`text-lg font-black ${depositMeta.color}`}>{depositMeta.label}</p>
+                </div>
+                <div className="bg-[#f4f8f7] rounded-2xl p-5">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tiền cọc</p>
+                  <p className="text-2xl font-black text-[#78ad44]">{formatVND(booking.depositAmount)}</p>
+                </div>
+                <div className="bg-[#f4f8f7] rounded-2xl p-5">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Hủy miễn phí đến</p>
+                  <p className="text-lg font-black text-gray-900">{formatDateTime(booking.freeCancelUntil)}</p>
+                </div>
+              </div>
+            </section>
+
+            
           </div>
 
-          {/* Sidebar */}
-          <aside className="w-full lg:w-[400px] shrink-0">
-            <div className="sticky top-24 bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100 flex flex-col gap-6">
-              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2">Tóm tắt thanh toán</h3>
-
-              <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl">
-                <img src={vehicle.image} alt={vehicle.name} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
-                <div>
-                  <h4 className="font-black text-gray-900">{vehicle.name}</h4>
-                  <p className="text-xs text-gray-500 font-bold mt-1">{vehicle.type}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-5 px-2">
-                <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
-                  <span>Thuê xe ({totalDays} ngày)</span>
-                  <span>{formatVND(baseAmount)}</span>
-                </div>
-                {extrasAmount > 0 && (
-                  <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
-                    <span>Dịch vụ bổ sung</span>
-                    <span>{formatVND(extrasAmount)}</span>
-                  </div>
-                )}
-                {discountAmount > 0 && (
-                  <div className="flex justify-between items-center text-sm font-bold text-[#78ad44] mb-3">
-                    <span>Giảm giá</span>
-                    <span>-{formatVND(discountAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center text-lg font-black text-gray-900 mt-6 bg-[#212529] text-white p-4 rounded-xl">
-                  <span>Thanh toán</span>
-                  <span className="text-[#78ad44]">{formatVND(totalAmount)}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className={`w-full text-white font-bold rounded-2xl py-4 transition-all shadow-lg mt-2 flex justify-center items-center gap-2 ${
-                  isProcessing
-                    ? 'bg-gray-400 cursor-wait shadow-none'
-                    : 'bg-[#78ad44] hover:bg-[#689938] shadow-[#78ad44]/30'
-                }`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Đang xử lý...
-                  </>
+          <aside className="space-y-6">
+            <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100">
+              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Tóm tắt booking</h3>
+              <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl mb-6">
+                {vehicleImage ? (
+                  <img src={vehicleImage} alt={vehicleName} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
                 ) : (
-                  `Thanh toán ${formatVND(totalAmount)}`
+                  <div className="w-24 h-16 rounded-xl bg-gray-200" />
                 )}
-              </button>
-
-              <div className="flex items-center justify-center gap-2 text-xs font-bold text-gray-400">
-                <Shield size={14} /> Mã hóa SSL an toàn
+                <div>
+                  <h4 className="font-black text-gray-900">{vehicleName}</h4>
+                  <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'Chưa có biển số'}</p>
+                </div>
               </div>
+
+              <div className="space-y-3 text-sm font-bold text-gray-600 px-2">
+                <div className="flex justify-between">
+                  <span>Nhận xe</span>
+                  <span className="text-gray-900">{formatDateTime(booking.startTime)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Trả xe</span>
+                  <span className="text-gray-900">{formatDateTime(booking.endTime)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tổng tiền</span>
+                  <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tiền cọc</span>
+                  <span className="text-[#78ad44]">{formatVND(booking.depositAmount)}</span>
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-3">
+                <button
+                  onClick={() => navigate(`/booking/${booking.id}/result`)}
+                  className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} /> Xem kết quả booking
+                </button>
+                <button
+                  onClick={() => navigate(`/my-bookings/${booking.id}`)}
+                  className="w-full bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2"
+                >
+                  <FileText size={18} /> Xem chi tiết booking
+                </button>
+                <Link
+                  to="/my-bookings"
+                  className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl py-4 transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} /> Đến danh sách booking
+                </Link>
+              </div>
+
+              
             </div>
           </aside>
         </div>

@@ -1,14 +1,16 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Search, MapPin, Calendar, Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { MOCK_VEHICLES } from '@/data/mockVehicles';
-import { MOCK_LOCATIONS } from '@/data/mockLocations';
 import { VehicleCard } from '@/components/vehicle/VehicleCard';
 import { useDebounce } from '@/hooks/useDebounce';
+import { getAvailableCars } from '@/services/carApi';
+import { useBooking } from '@/store/bookingStore';
+import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import { formatVND } from '@/utils/formatters';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'trips';
@@ -29,6 +31,15 @@ const TRANSMISSION_OPTIONS = ['Số tự động', 'Số sàn'] as const;
 export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [vehicles, setVehicles] = useState<DisplayVehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const {
+    setVehicle,
+    setStartDate: setBookingStartDate,
+    setEndDate: setBookingEndDate,
+    setPickupLocation,
+    setReturnLocation,
+  } = useBooking();
 
   // Filters
   const [priceRange, setPriceRange] = useState(3000000);
@@ -44,15 +55,66 @@ export default function SearchPage() {
 
   // Dates auto-fill
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-  const futureDate = new Date();
-  futureDate.setDate(now.getDate() + 3);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const futureDate = new Date(now);
+  futureDate.setDate(now.getDate() + 4);
   const futureStr = futureDate.toISOString().split('T')[0];
-  const [searchStart, setSearchStart] = useState(todayStr);
+  const [searchStart, setSearchStart] = useState(tomorrowStr);
   const [searchEnd, setSearchEnd] = useState(futureStr);
 
   const brandFilter = searchParams.get('brand');
   const categoryFilter = searchParams.get('category');
+  const minReturnDate = useMemo(() => {
+    const nextDay = new Date(searchStart);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay.toISOString().split('T')[0];
+  }, [searchStart]);
+
+  useEffect(() => {
+    if (searchEnd <= searchStart) {
+      const nextDay = new Date(searchStart);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setSearchEnd(nextDay.toISOString().split('T')[0]);
+    }
+  }, [searchStart, searchEnd]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (searchStart >= searchEnd) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const { data } = await getAvailableCars({
+          from: searchStart,
+          to: searchEnd,
+          ...(selectedLocation ? { branchId: Number(selectedLocation) } : {}),
+        });
+        if (!cancelled) {
+          setVehicles(data.map(mapApiCarToDisplayVehicle));
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được danh sách xe');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchStart, searchEnd, selectedLocation]);
 
   // Toggle helpers
   const toggleFilter = (arr: string[], val: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
@@ -66,7 +128,7 @@ export default function SearchPage() {
 
   // Filter + Sort
   const filteredVehicles = useMemo(() => {
-    let results = MOCK_VEHICLES.filter(car => {
+    let results = vehicles.filter(car => {
       if (brandFilter && car.brand.toLowerCase() !== brandFilter.toLowerCase()) return false;
       if (categoryFilter && !car.type.toLowerCase().includes(categoryFilter.toLowerCase()) && !car.category?.toLowerCase().includes(categoryFilter.toLowerCase())) return false;
       if (car.price > debouncedPrice) return false;
@@ -85,10 +147,42 @@ export default function SearchPage() {
       case 'trips': results.sort((a, b) => b.totalTrips - a.totalTrips); break;
     }
     return results;
-  }, [brandFilter, categoryFilter, debouncedPrice, selectedCategories, selectedSeats, selectedFuel, selectedTransmission, selectedLocation, sortBy]);
+  }, [brandFilter, categoryFilter, debouncedPrice, selectedCategories, selectedSeats, selectedFuel, selectedTransmission, selectedLocation, sortBy, vehicles]);
+
+  const locationOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    vehicles.forEach((vehicle) => {
+      if (vehicle.locationId && vehicle.branchName) {
+        seen.set(vehicle.locationId, vehicle.branchName);
+      }
+    });
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [vehicles]);
 
   const handleDetailsClick = useCallback((id: string) => navigate(`/vehicles/${id}`), [navigate]);
-  const handleBookClick = useCallback((id: string) => navigate(`/booking/${id}`), [navigate]);
+  const handleBookClick = useCallback((id: string) => {
+    const selectedVehicle = vehicles.find((vehicle) => vehicle.id === id);
+    if (selectedVehicle) {
+      setVehicle(selectedVehicle);
+      setBookingStartDate(searchStart);
+      setBookingEndDate(searchEnd);
+      const pickupId = selectedVehicle.locationId || selectedLocation || 'loc-02';
+      setPickupLocation(pickupId);
+      setReturnLocation(pickupId);
+    }
+    navigate(`/booking/${id}`);
+  }, [
+    navigate,
+    vehicles,
+    searchStart,
+    searchEnd,
+    selectedLocation,
+    setVehicle,
+    setBookingStartDate,
+    setBookingEndDate,
+    setPickupLocation,
+    setReturnLocation,
+  ]);
 
   const clearAllFilters = () => {
     setPriceRange(3000000);
@@ -97,6 +191,8 @@ export default function SearchPage() {
     setSelectedFuel([]);
     setSelectedTransmission([]);
     setSelectedLocation('');
+    setSearchStart(tomorrowStr);
+    setSearchEnd(futureStr);
     navigate('/search');
   };
 
@@ -112,8 +208,8 @@ export default function SearchPage() {
           className="w-full bg-[#f4f8f7] rounded-xl py-3 px-4 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#78ad44] border-none appearance-none cursor-pointer"
         >
           <option value="">Tất cả chi nhánh</option>
-          {MOCK_LOCATIONS.map(loc => (
-            <option key={loc.id} value={loc.id}>{loc.name} — {loc.address}</option>
+          {locationOptions.map(loc => (
+            <option key={loc.id} value={loc.id}>{loc.name}</option>
           ))}
         </select>
       </div>
@@ -248,7 +344,7 @@ export default function SearchPage() {
                 className="w-full bg-[#f4f8f7] rounded-full py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-[#78ad44] text-gray-700 font-bold text-sm appearance-none cursor-pointer"
               >
                 <option value="">Tất cả chi nhánh</option>
-                {MOCK_LOCATIONS.map(loc => (
+                {locationOptions.map(loc => (
                   <option key={loc.id} value={loc.id}>{loc.name}</option>
                 ))}
               </select>
@@ -261,6 +357,7 @@ export default function SearchPage() {
                   type="date"
                   className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
                   value={searchStart}
+                  min={tomorrowStr}
                   onChange={e => setSearchStart(e.target.value)}
                   onClick={e => e.currentTarget.showPicker()}
                 />
@@ -279,6 +376,7 @@ export default function SearchPage() {
                   type="date"
                   className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
                   value={searchEnd}
+                  min={minReturnDate}
                   onChange={e => setSearchEnd(e.target.value)}
                   onClick={e => e.currentTarget.showPicker()}
                 />
@@ -379,7 +477,18 @@ export default function SearchPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
             <AnimatePresence mode="popLayout">
-              {filteredVehicles.map((car) => (
+              {isLoading && (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="col-span-full bg-white rounded-[2rem] p-12 text-center shadow-sm border border-gray-100 text-gray-500 font-bold"
+                >
+                  Đang tải xe...
+                </motion.div>
+              )}
+              {!isLoading && filteredVehicles.map((car) => (
                 <motion.div
                   key={car.id}
                   layout
@@ -399,7 +508,7 @@ export default function SearchPage() {
           </div>
 
           <AnimatePresence>
-            {filteredVehicles.length === 0 && (
+            {!isLoading && filteredVehicles.length === 0 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

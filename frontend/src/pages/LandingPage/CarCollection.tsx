@@ -149,7 +149,7 @@ export default function CarCollection() {
                 </div>
 
                 <button
-                  onClick={() => navigate(`/vehicles/${car.id}`)}
+                  onClick={() => navigate('/search')}
                   className={`w-full py-3.5 rounded-full font-bold text-xs transition-colors border-2 ${
                     car.isMiddle || idx === 1 // Just to match design highlight
                     ? 'bg-black text-white border-black hover:bg-gray-800 hover:border-gray-800' 

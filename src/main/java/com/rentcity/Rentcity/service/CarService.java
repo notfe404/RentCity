@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -40,6 +41,7 @@ public class CarService {
     private final BranchRepository branchRepository;
     private final CarImageRepository carImageRepository;
     private final FileStorageService fileStorageService;
+    private final BookingAvailabilityService bookingAvailabilityService;
 
     // ---------------------------------------------------------------
     // B1 — CRUD xe
@@ -113,9 +115,7 @@ public class CarService {
 
     /**
      * Trả về danh sách xe có thể thuê trong khoảng [from, to].
-     * Hiện tại trả về toàn bộ xe trạng thái AVAILABLE (tùy chọn lọc theo chi nhánh).
-     * TODO (B4): khi module Booking sẵn sàng, loại trừ xe có booking ACTIVE chồng lấn khoảng
-     *            thời gian bằng công thức overlap chuẩn: booking.start_date < :to AND booking.end_date > :from
+     * Chỉ trả về xe trạng thái AVAILABLE và không có booking active chồng lấn khoảng thời gian.
      */
     @Transactional(readOnly = true)
     public List<CarResponse> getAvailable(LocalDate from, LocalDate to, Long branchId) {
@@ -128,7 +128,19 @@ public class CarService {
         List<Car> cars = (branchId != null)
                 ? carRepository.findByStatusAndBranchId(CarStatus.AVAILABLE, branchId)
                 : carRepository.findByStatus(CarStatus.AVAILABLE);
-        return cars.stream().map(this::mapToResponse).toList();
+
+        if (cars.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime startTime = from.atStartOfDay();
+        LocalDateTime endTime = to.atStartOfDay();
+        Set<Long> unavailableCarIds = bookingAvailabilityService.findUnavailableCarIds(startTime, endTime);
+
+        return cars.stream()
+                .filter(car -> !unavailableCarIds.contains(car.getId()))
+                .map(this::mapToResponse)
+                .toList();
     }
 
     // ---------------------------------------------------------------

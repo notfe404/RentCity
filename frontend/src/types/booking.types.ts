@@ -85,3 +85,50 @@ export interface CheckoutRequest extends CheckinRequest {
   extraCharge?: number;
   extraNote?: string;
 }
+
+// ============================================================
+// Backend Booking API Types
+// ============================================================
+
+export type ApiBookingStatus = 'PENDING' | 'CONFIRMED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+export type ApiPricingMode = 'HOURLY' | 'DAILY' | 'MONTHLY';
+export type ApiDepositStatus = 'UNPAID' | 'PAID' | 'FORFEITED' | 'REFUNDED' | 'NOT_REQUIRED';
+
+export interface ApiBookingResponse {
+  id: number;
+  bookingCode: string;
+  vehicleId: number;
+  userId: number;
+  vehicleName?: string;
+  vehicleLicensePlate?: string;
+  vehiclePrimaryImageUrl?: string;
+  customerName?: string;
+  customerEmail?: string;
+  startTime: string;
+  endTime: string;
+  pricingMode: ApiPricingMode;
+  status: ApiBookingStatus;
+  depositStatus: ApiDepositStatus;
+  baseAmount: number;
+  depositAmount: number;
+  totalAmount: number;
+  freeCancelUntil: string;
+  cancelledAt?: string;
+  cancelReason?: string;
+  cancelledBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackendCreateBookingRequest {
+  vehicleId: number;
+  startTime: string;
+  endTime: string;
+  pricingMode: ApiPricingMode;
+}
+
+export interface AdminBookingTransitionPayload {
+  targetStatus: Exclude<ApiBookingStatus, 'PENDING'>;
+  reason?: string;
+  note?: string;
+}

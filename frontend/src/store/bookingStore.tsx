@@ -64,8 +64,8 @@ function getDefaultDates() {
 
 const INITIAL: BookingState = {
   vehicle: null,
-  pickupLocationId: 'loc-02',
-  returnLocationId: 'loc-02',
+  pickupLocationId: 'loc-cau-giay',
+  returnLocationId: 'loc-cau-giay',
   ...getDefaultDates(),
   extras: { insurance: true, childSeat: false, gps: false },
   customerNote: '',
@@ -84,7 +84,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     (sum, [key, on]) => sum + (on ? EXTRAS_PRICE[key as keyof BookingExtras] * totalDays : 0), 0
   );
   const totalAmount = Math.max(0, baseAmount + extrasAmount - state.discountAmount);
-  const depositAmount = Math.round(totalAmount * 0.3);
+  const depositAmount = Math.round(totalAmount * 0.1);
 
   const setVehicle = useCallback((v: MockVehicle) => setState(s => ({ ...s, vehicle: v })), []);
   const setPickupLocation = useCallback((id: string) => setState(s => ({ ...s, pickupLocationId: id })), []);

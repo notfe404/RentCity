@@ -1,81 +1,254 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { CheckCircle2, Copy, FileText, Home } from 'lucide-react';
+import { CheckCircle2, FileText, Home, Clock3, Shield, CalendarDays, CarFront } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function PaymentResultPage() {
-  const navigate = useNavigate();
-  const [bookingCode] = useState(() =>
-    'RC-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).substring(2, 6).toUpperCase()
-  );
+import { getMyBooking } from '@/services/bookingApi';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
+import { formatDateTime, formatVND } from '@/utils/formatters';
+import type { ApiBookingResponse } from '@/types';
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(bookingCode);
-    toast.success('Đã sao chép mã đặt xe!');
-  };
+export default function PaymentResultPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getMyBooking(id);
+        if (!cancelled) {
+          setBooking(data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được kết quả booking');
+          navigate('/my-bookings', { replace: true });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, navigate]);
+
+  const content = useMemo(() => {
+    if (!booking) {
+      return null;
+    }
+
+    switch (booking.status) {
+      case 'PENDING':
+        return {
+          title: 'Booking đã được tạo',
+          description: 'Đơn đặt xe của bạn đã ghi nhận thành công và hiện đang chờ xử lý tiếp theo.',
+          accentClass: 'text-orange-500',
+          iconBg: 'bg-[#fff7e8]',
+          iconColor: 'text-orange-500',
+          icon: <Clock3 size={48} />,
+        };
+      case 'CONFIRMED':
+        return {
+          title: 'Booking đã được xác nhận',
+          description: 'Xe đã được giữ chỗ thành công cho bạn. Bạn có thể xem lại toàn bộ thông tin booking bên dưới.',
+          accentClass: 'text-[#78ad44]',
+          iconBg: 'bg-[#e9f2eb]',
+          iconColor: 'text-[#78ad44]',
+          icon: <CheckCircle2 size={48} />,
+        };
+      case 'CANCELLED':
+        return {
+          title: 'Booking đã bị hủy',
+          description: 'Đơn đặt xe này hiện không còn hiệu lực. Bạn vẫn có thể xem chi tiết booking để kiểm tra lịch sử.',
+          accentClass: 'text-red-500',
+          iconBg: 'bg-red-50',
+          iconColor: 'text-red-500',
+          icon: <Clock3 size={48} />,
+        };
+      default:
+        return {
+          title: 'Kết quả booking',
+          description: 'Thông tin booking của bạn đã sẵn sàng.',
+          accentClass: 'text-[#78ad44]',
+          iconBg: 'bg-[#e9f2eb]',
+          iconColor: 'text-[#78ad44]',
+          icon: <CheckCircle2 size={48} />,
+        };
+    }
+  }, [booking]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải kết quả booking...</div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!booking || !content) {
+    return null;
+  }
+
+  const statusMeta = BOOKING_STATUS_META[booking.status];
+  const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
+  const vehicleName = getBookingVehicleName(booking);
+  const vehicleImage = getBookingVehicleImage(booking);
+  const totalDays = getBookingTotalDays(booking);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
 
-      <div className="flex-1 flex items-center justify-center py-32 px-4">
+      <div className="flex-1 py-32 px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 30 }}
+          initial={{ opacity: 0, scale: 0.97, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="max-w-xl w-full bg-white rounded-[2.5rem] p-10 md:p-12 shadow-xl border border-gray-100 text-center relative overflow-hidden"
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="max-w-5xl mx-auto bg-white rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-gray-100 overflow-hidden relative"
         >
-          {/* BG decorations */}
-          <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#B4D581] opacity-20 blur-3xl rounded-full" />
+          <div className="absolute -top-24 -right-24 w-52 h-52 bg-[#B4D581] opacity-20 blur-3xl rounded-full" />
           <div className="absolute top-1/2 -left-24 w-48 h-48 bg-[#49B096] opacity-10 blur-3xl rounded-full" />
 
-          <div className="relative z-10">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="w-24 h-24 bg-[#e9f2eb] rounded-full mx-auto flex items-center justify-center mb-8 border-4 border-white shadow-lg"
-            >
-              <CheckCircle2 size={48} className="text-[#78ad44]" />
-            </motion.div>
-
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-4">
-              Thanh toán thành công!
-            </h1>
-            <p className="text-gray-500 font-medium mb-8 leading-relaxed max-w-sm mx-auto">
-              Đơn đặt xe của bạn đã được xác nhận. Email xác nhận đã được gửi tới hộp thư của bạn.
-            </p>
-
-            <div className="bg-[#f4f8f7] p-6 rounded-3xl mb-10 flex flex-col md:flex-row items-center justify-between gap-4 border border-gray-100">
-              <div className="text-left">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Mã đặt xe</p>
-                <p className="text-2xl font-black text-[#78ad44] tracking-wider">{bookingCode}</p>
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.9fr] gap-10">
+            <div className="space-y-8">
+              <div className="flex items-start gap-5">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, duration: 0.25 }}
+                  className={`w-24 h-24 rounded-full flex items-center justify-center border-4 border-white shadow-lg ${content.iconBg} ${content.iconColor}`}
+                >
+                  {content.icon}
+                </motion.div>
+                <div className="pt-2">
+                  <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-3">{content.title}</h1>
+                  <p className="text-gray-500 font-medium leading-relaxed max-w-xl">{content.description}</p>
+                </div>
               </div>
-              <button
-                onClick={copyCode}
-                className="w-full md:w-auto flex items-center justify-center gap-2 bg-white text-gray-600 hover:text-gray-900 font-bold px-4 py-2.5 rounded-xl shadow-sm border border-gray-200 transition-colors"
-              >
-                <Copy size={16} /> Sao chép
-              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Mã booking</p>
+                  <p className="text-2xl font-black text-[#78ad44] tracking-wide">{booking.bookingCode}</p>
+                </div>
+                <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Trạng thái booking</p>
+                  <p className={`text-lg font-black ${statusMeta.color}`}>{statusMeta.label}</p>
+                </div>
+                <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tiền cọc</p>
+                  <p className="text-2xl font-black text-[#78ad44]">{formatVND(booking.depositAmount)}</p>
+                </div>
+                <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Trạng thái cọc</p>
+                  <p className={`text-lg font-black ${depositMeta.color}`}>{depositMeta.label}</p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm">
+                <h2 className="text-xl font-black text-gray-900 mb-5">Thông tin lịch thuê</h2>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <CalendarDays size={18} className="text-[#78ad44] mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Nhận xe</p>
+                      <p className="text-sm font-black text-gray-900">{formatDateTime(booking.startTime)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CalendarDays size={18} className="text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Trả xe</p>
+                      <p className="text-sm font-black text-gray-900">{formatDateTime(booking.endTime)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Shield size={18} className="text-[#78ad44] mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Hủy miễn phí đến</p>
+                      <p className="text-sm font-black text-gray-900">{formatDateTime(booking.freeCancelUntil)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  onClick={() => navigate(`/my-bookings/${booking.id}`)}
+                  className="flex-1 px-8 py-4 bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl transition-colors shadow-lg flex items-center justify-center gap-2"
+                >
+                  <FileText size={18} /> Chi tiết booking
+                </button>
+                <button
+                  onClick={() => navigate('/my-bookings')}
+                  className="flex-1 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} /> Đơn đặt xe của tôi
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex-1 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
+                >
+                  <Home size={18} /> Trang chủ
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => navigate('/my-bookings')}
-                className="flex-1 shrink-0 px-8 py-4 bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl transition-colors shadow-lg flex items-center justify-center gap-2"
-              >
-                <FileText size={18} /> Đơn đặt xe của tôi
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="flex-1 shrink-0 px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
-              >
-                <Home size={18} /> Trang chủ
-              </button>
-            </div>
+            <aside className="bg-[#f4f8f7] rounded-[2rem] p-6 border border-gray-100">
+              <h3 className="text-xl font-black text-gray-900 mb-5">Thông tin xe</h3>
+              <div className="rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 mb-5">
+                {vehicleImage ? (
+                  <img src={vehicleImage} alt={vehicleName} className="w-full h-48 object-cover" />
+                ) : (
+                  <div className="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-400">
+                    <CarFront size={36} />
+                  </div>
+                )}
+                <div className="p-5">
+                  <p className="text-lg font-black text-gray-900">{vehicleName}</p>
+                  <p className="text-sm font-bold text-gray-400 mt-1">{booking.vehicleLicensePlate ?? 'Chưa có biển số'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm font-bold text-gray-600">
+                <div className="flex justify-between items-center">
+                  <span>Thời lượng thuê</span>
+                  <span className="text-gray-900">{totalDays} ngày</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Giá thuê</span>
+                  <span className="text-gray-900">{formatVND(booking.baseAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Tiền cọc</span>
+                  <span className={content.accentClass}>{formatVND(booking.depositAmount)}</span>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-gray-200 flex justify-between items-center bg-white p-4 rounded-xl">
+                <span className="font-black text-gray-700">Tổng booking</span>
+                <span className="text-2xl font-black text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
+              </div>
+            </aside>
           </div>
         </motion.div>
       </div>

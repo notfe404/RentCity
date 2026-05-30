@@ -1,6 +1,6 @@
 # Kế hoạch triển khai chức năng Booking
 
-Tài liệu này mô tả kế hoạch triển khai đầy đủ cho chức năng booking trong Rent City, bao gồm backend, frontend, business rule, state machine, kiểm tra trùng lịch, pessimistic lock, và tự động hủy booking sau 15 phút nếu chưa hoàn thành đặt cọc.
+Tài liệu này mô tả kế hoạch triển khai đầy đủ cho chức năng booking trong Rent City, bao gồm backend, frontend, business rule, state machine, kiểm tra trùng lịch, pessimistic lock, và cách hỗ trợ xác nhận booking phục vụ test trước khi phần payment thật được hoàn tất.
 
 ## 1. Mục tiêu tính năng
 
@@ -17,7 +17,7 @@ Cho phép hệ thống:
 - Kiểm tra trùng lịch để tránh double booking.
 - Dùng pessimistic lock để tránh 2 khách cùng book cùng lúc.
 - Dùng state machine để kiểm soát vòng đời booking.
-- Tự động hủy booking sau 15 phút nếu chưa hoàn thành đặt cọc.
+- Cho phép xác nhận booking phục vụ test mà chưa cần tích hợp payment thật.
 
 Cho phép admin/staff:
 
@@ -37,7 +37,8 @@ Cho phép admin/staff:
 
 - Khi tạo booking, hệ thống tính `depositAmount`.
 - Booking chỉ được giữ chỗ thực sự khi khách hoàn thành đặt cọc.
-- Sau khi tạo booking, nếu quá 15 phút mà chưa hoàn thành đặt cọc thì booking tự động bị hủy.
+- Trong giai đoạn hiện tại, chưa triển khai auto-cancel theo timeout.
+- Để phục vụ test flow booking trước khi payment hoàn tất, cần có cơ chế cho phép chuyển `PENDING -> CONFIRMED` mà không cần giao dịch thanh toán thật.
 
 ### 2.3. Rule hủy booking
 
@@ -52,10 +53,10 @@ Nếu hủy sau ngưỡng trên:
 - booking bị hủy
 - tiền cọc bị mất
 
-Nếu booking bị hệ thống tự động hủy sau 15 phút do chưa đặt cọc:
+Trong giai đoạn test hiện tại:
 
-- booking bị hủy
-- không có chuyện mất cọc vì khách chưa thanh toán cọc
+- booking `PENDING` có thể được xác nhận thủ công bởi admin/staff hoặc qua test endpoint nội bộ
+- việc xác nhận này chỉ nhằm phục vụ test flow booking trước khi payment thật hoàn tất
 
 ### 2.4. Trùng lịch
 
@@ -80,7 +81,7 @@ Các trạng thái không còn chiếm lịch:
 
 Lưu ý:
 
-- `PENDING` vẫn phải chiếm lịch trong 15 phút timeout để tránh 2 người cùng tạo booking trong lúc một người đang đi thanh toán cọc.
+- `PENDING` vẫn phải chiếm lịch để tránh 2 người cùng tạo booking trên cùng một xe trước khi booking được xác nhận hoặc hủy.
 
 ## 3. State machine
 
@@ -121,22 +122,22 @@ Không cho phép:
 - `COMPLETED -> bất kỳ`
 - `CANCELLED -> bất kỳ`
 
-### 3.4. Transition tự động
+### 3.4. Transition phục vụ test
 
-Hệ thống cần có transition tự động:
+Trong giai đoạn payment chưa xong, cần hỗ trợ transition tạm thời:
 
 ```text
-PENDING -> CANCELLED
+PENDING -> CONFIRMED
 ```
 
 Điều kiện:
 
-- `createdAt + 15 phút < now`
-- booking chưa hoàn thành đặt cọc
+- chỉ dùng cho môi trường dev/test hoặc do admin/staff thao tác
+- phải được đánh dấu rõ là xác nhận phục vụ test
 
 Lý do:
 
-- `PAYMENT_TIMEOUT`
+- unblock việc test booking flow trước khi payment integration hoàn tất
 
 ## 4. Domain model backend
 
@@ -189,7 +190,6 @@ Field đề xuất:
 
 - `CUSTOMER_CANCELLED`
 - `ADMIN_CANCELLED`
-- `PAYMENT_TIMEOUT`
 - `SYSTEM_CANCELLED`
 
 ### 4.6. Entity `BookingStatusHistory`
@@ -210,6 +210,18 @@ Field đề xuất:
 - `reason`
 - `note`
 - `createdAt`
+
+### 4.7. Gợi ý bổ sung để hỗ trợ test
+
+Có thể thêm một trong hai hướng sau:
+
+- `confirmedByTestBypass`: boolean
+- hoặc chỉ cần lưu trong `BookingStatusHistory.reason` / `note` rằng booking được confirm bằng luồng test
+
+Khuyến nghị:
+
+- chưa cần thêm field nếu chỉ phục vụ giai đoạn ngắn
+- ưu tiên ghi rõ trong history để tránh làm domain phình sớm
 
 ## 5. Pricing và cancel policy
 
@@ -271,6 +283,10 @@ where vehicle_id = :vehicleId
   and :endTime > start_time
 ```
 
+Lưu ý:
+
+- vì chưa có auto-cancel, cần có cách chủ động hủy hoặc dọn các booking `PENDING` test không còn dùng nữa để tránh giữ lịch quá lâu
+
 ### 6.2. Thời điểm check
 
 Phải check overlap trong transaction lúc tạo booking.
@@ -310,66 +326,41 @@ Optional<Vehicle> findByIdForUpdate(Long id);
 
 Lock vào vehicle là đủ để serialize việc tạo booking trên cùng một xe. Đây là cách đơn giản và an toàn hơn so với cố lock toàn bộ booking rows theo khoảng thời gian.
 
-## 8. Auto-cancel sau 15 phút nếu chưa đặt cọc
+## 8. Xác nhận booking phục vụ test khi chưa có payment thật
 
 ### 8.1. Rule
 
 Mỗi booking mới tạo ở trạng thái `PENDING`.
 
-Nếu sau 15 phút kể từ `createdAt` mà vẫn:
+Trong giai đoạn hiện tại:
 
-- `status = PENDING`
-- `depositStatus = UNPAID`
+- chưa có auto-cancel sau 15 phút
+- chưa bắt buộc phải thanh toán thật để test toàn bộ booking flow
 
-thì hệ thống tự động:
+Cần có một cách rõ ràng để chuyển booking từ `PENDING` sang `CONFIRMED` cho mục đích test.
 
-- chuyển `status = CANCELLED`
-- set `cancelReason = PAYMENT_TIMEOUT`
-- ghi `BookingStatusHistory`
+### 8.2. Cách triển khai khuyến nghị
 
-### 8.2. Cách triển khai
+Khuyến nghị dùng một trong hai cách:
 
-Có 2 lựa chọn kỹ thuật:
+1. Dùng API admin transition sớm:
+   - admin/staff gọi transition `PENDING -> CONFIRMED`
+   - reason ghi rõ `TEST_CONFIRMATION`
 
-1. Scheduled job chạy mỗi 1 phút:
-   - query các booking quá hạn
-   - cancel từng booking trong transaction
-
-2. Delayed job / queue:
-   - khi tạo booking thì enqueue task check timeout sau 15 phút
+2. Tạo API test/internal tạm thời:
+   - ví dụ `POST /api/bookings/{id}/simulate-payment`
+   - endpoint này chỉ bật ở dev/test
 
 Khuyến nghị cho project hiện tại:
 
-- dùng scheduled job trước
+- ưu tiên cách 1 nếu đã có admin/staff flow sớm
+- nếu cần test nhanh frontend customer trước, có thể làm cách 2 tạm thời rồi xóa sau
 
-Lý do:
+### 8.3. Yêu cầu an toàn
 
-- đơn giản hơn
-- đủ tốt cho local/dev và giai đoạn đầu
-
-### 8.3. Scheduled job đề xuất
-
-Ví dụ:
-
-```java
-@Scheduled(fixedDelay = 60000)
-public void cancelExpiredPendingBookings() { ... }
-```
-
-Service sẽ:
-
-- lấy booking `PENDING` + `UNPAID` quá hạn
-- gọi state machine transition sang `CANCELLED`
-- set `cancelReason = PAYMENT_TIMEOUT`
-
-### 8.4. Concurrency cho timeout job
-
-Khi scheduled job chạy:
-
-- nên lock booking record hoặc update trong transaction
-- re-check trạng thái trước khi cancel
-
-để tránh race condition nếu khách vừa thanh toán cọc đúng lúc job chạy.
+- không mở cơ chế bypass này cho public production flow
+- phải giới hạn theo role hoặc theo môi trường
+- phải ghi `BookingStatusHistory` để biết booking nào được confirm bằng test bypass
 
 ## 9. Backend API design
 
@@ -381,11 +372,24 @@ Khi scheduled job chạy:
 - `POST /api/bookings/{id}/pay-deposit`
 - `POST /api/bookings/{id}/cancel`
 
+Ghi chú giai đoạn hiện tại:
+
+- `pay-deposit` có thể chưa implement thật ngay nếu payment do team khác phụ trách
+- có thể thay tạm bằng test flow xác nhận booking
+
 ### 9.2. Admin APIs
 
 - `GET /api/admin/bookings`
 - `GET /api/admin/bookings/{id}`
 - `POST /api/admin/bookings/{id}/transition`
+
+API tạm phục vụ test nếu cần:
+
+- `POST /api/admin/bookings/{id}/confirm-for-test`
+
+Khuyến nghị:
+
+- nếu `transition` API làm sớm thì không nhất thiết cần endpoint riêng
 
 ### 9.3. Create booking request
 
@@ -409,8 +413,7 @@ Khi scheduled job chạy:
   "depositStatus": "UNPAID",
   "depositAmount": 300000,
   "totalAmount": 1000000,
-  "freeCancelUntil": "2026-06-01T08:00:00",
-  "paymentDeadline": "2026-06-01T09:15:00"
+  "freeCancelUntil": "2026-06-01T08:00:00"
 }
 ```
 
@@ -439,7 +442,7 @@ Admin:
 - `BookingStateMachineService`
 - `BookingCancellationPolicyService`
 - `BookingService`
-- `BookingTimeoutJobService`
+- `BookingTestConfirmationService` (optional, nếu muốn tách riêng test bypass)
 
 ## 11. Validation backend
 
@@ -457,10 +460,16 @@ Admin:
 ### 11.2. Khi thanh toán đặt cọc
 
 - chỉ cho `PENDING`
-- chỉ cho booking chưa quá 15 phút
-- nếu đã bị `CANCELLED` do timeout thì reject
+- khi payment thật được tích hợp sau này thì mới chốt rule đầy đủ cho payment validation
 
-### 11.3. Khi hủy booking
+### 11.3. Khi xác nhận booking phục vụ test
+
+- chỉ cho `PENDING`
+- chỉ cho admin/staff hoặc chỉ bật ở dev/test
+- phải ghi rõ lý do xác nhận là test bypass
+- không dùng như public customer flow
+
+### 11.4. Khi hủy booking
 
 - chỉ cho `PENDING` hoặc `CONFIRMED`
 - không cho hủy `COMPLETED`
@@ -496,10 +505,9 @@ Nối API vào các page hiện có:
 
 - trạng thái booking
 - trạng thái cọc
-- thời hạn hoàn thành đặt cọc trong 15 phút
 - thời hạn hủy miễn phí
 - nếu trùng lịch thì báo lỗi rõ
-- nếu booking đã timeout thì báo booking đã tự động hủy
+- nếu booking được confirm bằng luồng test, nên có cách để team dev biết đây không phải payment thật
 
 ## 13. Phased implementation
 
@@ -515,11 +523,11 @@ Nối API vào các page hiện có:
 - Tạo create booking API
 - Tạo list booking của user
 
-### Phase 2 - Deposit và timeout
+### Phase 2 - Test confirmation flow trước payment thật
 
 - Tạo `depositStatus`
-- Tạo API `pay-deposit`
-- Tạo scheduled job auto-cancel sau 15 phút
+- Tạo cơ chế `PENDING -> CONFIRMED` phục vụ test
+- Ưu tiên dùng admin transition hoặc test/internal endpoint
 - Tạo cancel policy service
 - Tạo cancel booking API
 
@@ -537,6 +545,7 @@ Nối API vào các page hiện có:
 - Add pagination/filter/sort
 - Chuẩn hóa error response
 - Thêm logging/audit
+- Khi payment team xong, thay test confirm bằng flow payment thật
 
 ## 14. Test plan
 
@@ -550,13 +559,13 @@ Nối API vào các page hiện có:
 - `PENDING -> CONFIRMED` hợp lệ
 - `PENDING -> ONGOING` bị reject
 - `CONFIRMED -> COMPLETED` bị reject
+- Confirm booking bằng test bypass:
+  - chỉ admin/staff hoặc dev/test flow dùng được
+  - có ghi history rõ ràng
 - Hủy trước deadline:
   - `depositStatus = REFUNDED`
 - Hủy sau deadline:
   - `depositStatus = FORFEITED`
-- Quá 15 phút chưa cọc:
-  - auto transition sang `CANCELLED`
-  - `cancelReason = PAYMENT_TIMEOUT`
 - User chỉ xem được booking của chính mình
 - Admin xem được toàn bộ booking
 
@@ -564,8 +573,7 @@ Nối API vào các page hiện có:
 
 - Tạo booking thành công
 - Trùng lịch hiển thị lỗi rõ
-- Thanh toán cọc đổi trạng thái UI từ `PENDING` sang `CONFIRMED`
-- Timeout booking hiển thị đúng
+- Xác nhận booking bằng flow test đổi trạng thái UI từ `PENDING` sang `CONFIRMED`
 - Danh sách booking của user hiển thị đúng
 - Admin booking list hiển thị đúng
 
@@ -579,6 +587,7 @@ Nối API vào các page hiện có:
 4. `MONTHLY` hủy miễn phí trước 1 ngày như yêu cầu hiện tại hay trước 1 tháng theo logic business chuẩn hơn
 5. Có cho phép hủy khi `ONGOING` hay không
 6. Có cần pagination cho list booking ngay từ đầu hay làm sau
+7. Dùng admin transition luôn cho test hay làm test endpoint tạm riêng
 
 ## 16. Đề xuất thực thi ngay
 
@@ -587,7 +596,8 @@ Nếu bắt đầu code ngay, thứ tự đề xuất là:
 1. Thiết kế entity + enums + repository
 2. Làm create booking với overlap check + pessimistic lock
 3. Làm state machine + status history
-4. Làm pay deposit + timeout job 15 phút
+4. Làm test confirmation flow `PENDING -> CONFIRMED`
 5. Làm customer list booking + admin list all booking
 6. Nối frontend customer trước, admin sau
+7. Khi payment thật sẵn sàng, thay test flow bằng payment confirmation flow
 

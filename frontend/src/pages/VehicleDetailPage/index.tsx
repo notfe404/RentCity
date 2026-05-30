@@ -1,14 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import { Car, Users, Settings, Briefcase, MapPin, Calendar, Check, Star, ShieldCheck, ChevronRight, Fuel, MessageSquare, ThumbsUp } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { MOCK_VEHICLES } from '@/data/mockVehicles';
 import { MOCK_LOCATIONS } from '@/data/mockLocations';
 import { MOCK_REVIEWS } from '@/data/mockReviews';
+import { getCarById } from '@/services/carApi';
 import { formatVND, formatDate } from '@/utils/formatters';
+import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import RatingStars from '@/components/ui/RatingStars';
 import { useBooking } from '@/store/bookingStore';
 
@@ -16,6 +18,8 @@ export default function VehicleDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
+  const [vehicle, setVehicleData] = useState<DisplayVehicle | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const {
     setVehicle,
     setStartDate: setBookingStart,
@@ -24,27 +28,88 @@ export default function VehicleDetailPage() {
     setReturnLocation,
   } = useBooking();
 
-  // Find vehicle from mock data
-  const vehicle = MOCK_VEHICLES.find(v => v.id === id);
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getCarById(id);
+        if (!cancelled) {
+          setVehicleData(mapApiCarToDisplayVehicle(data));
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được chi tiết xe từ backend');
+          setVehicleData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // Reservation state
   const now = new Date();
   const defaultStart = new Date(now); defaultStart.setDate(now.getDate() + 1);
   const defaultEnd = new Date(now); defaultEnd.setDate(now.getDate() + 4);
+  const minStartDate = defaultStart.toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(defaultStart.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(defaultEnd.toISOString().split('T')[0]);
-  const [pickupLoc, setPickupLoc] = useState(vehicle?.locationId ?? 'loc-02');
-  const [returnLoc, setReturnLoc] = useState(vehicle?.locationId ?? 'loc-02');
+  const [pickupLoc, setPickupLoc] = useState(MOCK_LOCATIONS[0]?.id ?? 'loc-cau-giay');
+  const [returnLoc, setReturnLoc] = useState(MOCK_LOCATIONS[0]?.id ?? 'loc-cau-giay');
+
+  useEffect(() => {
+    if (MOCK_LOCATIONS[0]?.id) {
+      setPickupLoc(MOCK_LOCATIONS[0].id);
+      setReturnLoc(MOCK_LOCATIONS[0].id);
+    }
+  }, [vehicle?.locationId]);
 
   const totalDays = useMemo(() => {
     const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
     return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }, [startDate, endDate]);
 
+  const minEndDate = useMemo(() => {
+    const nextDay = new Date(startDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay.toISOString().split('T')[0];
+  }, [startDate]);
+
+  useEffect(() => {
+    if (endDate <= startDate) {
+      const nextDay = new Date(startDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setEndDate(nextDay.toISOString().split('T')[0]);
+    }
+  }, [startDate, endDate]);
+
   // Reviews for this vehicle
   const reviews = useMemo(() => MOCK_REVIEWS.filter(r => r.vehicleId === id), [id]);
   const avgRating = vehicle?.avgRating ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải chi tiết xe...</div>
+        <Footer />
+      </div>
+    );
+  }
 
   // Rating breakdown
   const ratingBreakdown = useMemo(() => {
@@ -302,6 +367,7 @@ export default function VehicleDetailPage() {
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                     <input
                       type="date" value={startDate}
+                      min={minStartDate}
                       onChange={e => setStartDate(e.target.value)}
                       onClick={e => e.currentTarget.showPicker()}
                       className="w-full bg-[#f4f8f7] border-none rounded-2xl pl-12 pr-3 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-medium cursor-pointer [color-scheme:light]"
@@ -314,6 +380,7 @@ export default function VehicleDetailPage() {
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                     <input
                       type="date" value={endDate}
+                      min={minEndDate}
                       onChange={e => setEndDate(e.target.value)}
                       onClick={e => e.currentTarget.showPicker()}
                       className="w-full bg-[#f4f8f7] border-none rounded-2xl pl-12 pr-3 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-medium cursor-pointer [color-scheme:light]"

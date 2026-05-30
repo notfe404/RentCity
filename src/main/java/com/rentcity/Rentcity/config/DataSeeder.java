@@ -8,6 +8,7 @@ import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@Order(1)
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
@@ -67,28 +69,24 @@ public class DataSeeder implements CommandLineRunner {
         CarCategory hatchback = categoryRepository.save(category("Hatchback", 5));
 
         // ----- Chi nhánh -----
-        Branch hcm = branchRepository.save(
-                branch("Chi nhánh Quận 1", "12 Lê Lợi, Quận 1", "0283822111", "Hồ Chí Minh"));
         Branch hanoi = branchRepository.save(
                 branch("Chi nhánh Cầu Giấy", "88 Trần Thái Tông, Cầu Giấy", "0243766222", "Hà Nội"));
-        Branch danang = branchRepository.save(
-                branch("Chi nhánh Hải Châu", "215 Nguyễn Văn Linh, Hải Châu", "0236355333", "Đà Nẵng"));
 
         // ----- Xe mẫu -----
         carRepository.saveAll(List.of(
-                car(sedan, hcm, "51K-123.45", "Toyota", "Vios", 2022, Transmission.AUTO,
+                car(sedan, hanoi, "51K-123.45", "Toyota", "Vios", 2022, Transmission.AUTO,
                         "700000", "5000000", CarStatus.AVAILABLE,
                         "Sedan hạng B tiết kiệm nhiên liệu, phù hợp đi phố và đi tỉnh."),
-                car(sedan, hcm, "51K-678.90", "Honda", "City", 2023, Transmission.AUTO,
+                car(sedan, hanoi, "51K-678.90", "Honda", "City", 2023, Transmission.AUTO,
                         "750000", "5000000", CarStatus.AVAILABLE,
                         "Sedan hạng B rộng rãi, trang bị nhiều tính năng an toàn."),
                 car(suv, hanoi, "30A-456.78", "Toyota", "Fortuner", 2021, Transmission.AUTO,
                         "1300000", "10000000", CarStatus.AVAILABLE,
                         "SUV 7 chỗ gầm cao, mạnh mẽ, thích hợp đi đường dài và địa hình xấu."),
-                car(suv, danang, "43A-111.22", "Hyundai", "SantaFe", 2022, Transmission.AUTO,
+                car(suv, hanoi, "43A-111.22", "Hyundai", "SantaFe", 2022, Transmission.AUTO,
                         "1400000", "10000000", CarStatus.MAINTENANCE,
                         "SUV 7 chỗ cao cấp, đang trong lịch bảo dưỡng định kỳ."),
-                car(mpv, hcm, "51K-999.88", "Mitsubishi", "Xpander", 2023, Transmission.MANUAL,
+                car(mpv, hanoi, "51K-999.88", "Mitsubishi", "Xpander", 2023, Transmission.MANUAL,
                         "850000", "6000000", CarStatus.AVAILABLE,
                         "MPV 7 chỗ phổ thông, không gian linh hoạt cho gia đình."),
                 car(hatchback, hanoi, "30A-777.66", "Kia", "Morning", 2020, Transmission.MANUAL,

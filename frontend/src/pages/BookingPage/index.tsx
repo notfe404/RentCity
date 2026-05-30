@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import { Shield, Baby, Navigation, Tag, Car } from 'lucide-react';
+import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
 import BookingSidebar from '@/components/booking/BookingSidebar';
-import { MOCK_VEHICLES } from '@/data/mockVehicles';
 import { MOCK_LOCATIONS } from '@/data/mockLocations';
+import { getCarById } from '@/services/carApi';
+import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import { useAuth } from '@/hooks/useAuth';
 import { useBooking } from '@/store/bookingStore';
 import { formatVND } from '@/utils/formatters';
@@ -40,6 +42,8 @@ export default function BookingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [vehicle, setVehicleData] = useState<DisplayVehicle | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const {
     vehicle: bookingVehicle,
     startDate,
@@ -52,6 +56,7 @@ export default function BookingPage() {
     discountAmount,
     totalDays,
     baseAmount,
+    depositAmount,
     totalAmount,
     setVehicle,
     toggleExtra,
@@ -62,9 +67,38 @@ export default function BookingPage() {
 
   const [promoTried, setPromoTried] = useState(false);
 
-  const vehicle = useMemo(() => MOCK_VEHICLES.find(v => v.id === id) ?? null, [id]);
+  useEffect(() => {
+    let cancelled = false;
 
-  // Sync vehicle to store khi truy cập trực tiếp qua URL
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getCarById(id);
+        if (!cancelled) {
+          setVehicleData(mapApiCarToDisplayVehicle(data));
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được xe từ backend');
+          setVehicleData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   useEffect(() => {
     if (vehicle && (!bookingVehicle || bookingVehicle.id !== vehicle.id)) {
       setVehicle(vehicle);
@@ -76,16 +110,26 @@ export default function BookingPage() {
     setPromoTried(true);
   };
 
-  const pickupName = MOCK_LOCATIONS.find(l => l.id === pickupLocationId)?.name ?? '';
-  const returnName = MOCK_LOCATIONS.find(l => l.id === returnLocationId)?.name ?? '';
+  const vehicleBranchName = vehicle?.branchName;
+  const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
+  const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
 
   const lineItems = [
     { label: `Thuê xe (${totalDays} ngày)`, amount: baseAmount },
-    ...EXTRAS.filter(e => extras[e.key]).map(e => ({ label: e.label, amount: e.pricePerDay * totalDays })),
+    ...EXTRAS.filter((e) => extras[e.key]).map((e) => ({ label: e.label, amount: e.pricePerDay * totalDays })),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
 
   if (!vehicle) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+          <Header />
+          <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải xe...</div>
+          <Footer />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
         <Header />
@@ -110,10 +154,7 @@ export default function BookingPage() {
         <BookingStepper currentStep={1} />
 
         <div className="flex flex-col lg:flex-row gap-10">
-          {/* Main Form */}
           <div className="flex-1 w-full space-y-8">
-
-            {/* Driver Details */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">Thông tin người thuê</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -132,19 +173,20 @@ export default function BookingPage() {
                 <div>
                   <label className="text-sm font-bold text-gray-700 ml-2 mb-2 block">Ghi chú</label>
                   <input
-                    type="text" placeholder="VD: Cần ghế trẻ em thêm..."
-                    value={customerNote} onChange={e => setCustomerNote(e.target.value)}
+                    type="text"
+                    placeholder="VD: Cần ghế trẻ em thêm..."
+                    value={customerNote}
+                    onChange={(e) => setCustomerNote(e.target.value)}
                     className="w-full bg-[#f4f8f7] border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-medium"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Extras */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">Dịch vụ bổ sung</h2>
               <div className="space-y-4">
-                {EXTRAS.map(ext => (
+                {EXTRAS.map((ext) => (
                   <label
                     key={ext.key}
                     className={`flex items-start p-5 rounded-2xl border-2 cursor-pointer transition-all ${
@@ -171,16 +213,19 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {/* Promotion Code */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-3">
                 <Tag size={22} className="text-[#78ad44]" /> Mã khuyến mãi
               </h2>
               <div className="flex gap-3">
                 <input
-                  type="text" placeholder="Nhập mã giảm giá..."
+                  type="text"
+                  placeholder="Nhập mã giảm giá..."
                   value={promotionCode}
-                  onChange={e => { setPromotionCode(e.target.value); setPromoTried(false); }}
+                  onChange={(e) => {
+                    setPromotionCode(e.target.value);
+                    setPromoTried(false);
+                  }}
                   className="flex-1 bg-[#f4f8f7] border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-bold uppercase tracking-wider"
                 />
                 <button
@@ -200,7 +245,6 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Sidebar */}
           <BookingSidebar
             vehicle={vehicle}
             pickupLocation={pickupName}
@@ -209,6 +253,7 @@ export default function BookingPage() {
             endDate={endDate}
             totalDays={totalDays}
             lineItems={lineItems}
+            depositAmount={depositAmount}
             totalAmount={totalAmount}
             actionLabel="Tiếp tục xác nhận"
             onAction={() => navigate(`/booking/${id}/confirm`)}

@@ -39,7 +39,7 @@ export const MOCK_NOTIFICATIONS: MockNotification[] = [
   {
     id: 'n-03', userId: 'u-01', type: 'CHECKIN_REMINDER',
     title: 'Nhắc nhận xe',
-    body: 'Bạn có lịch nhận xe Toyota Vios vào ngày mai (28/04) lúc 10:00 tại CN Hoàn Kiếm.',
+    body: 'Bạn có lịch nhận xe Toyota Vios vào ngày mai (28/04) lúc 10:00 tại CN Cầu Giấy.',
     data: { booking_id: 'bk-01' },
     isRead: true, createdAt: '2026-04-27T08:00:00Z',
     icon: NOTIF_ICON.CHECKIN_REMINDER,

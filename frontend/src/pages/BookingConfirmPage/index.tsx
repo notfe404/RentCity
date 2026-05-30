@@ -1,21 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import { Check, AlertCircle, Car } from 'lucide-react';
+import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
 import BookingSidebar from '@/components/booking/BookingSidebar';
-import { MOCK_VEHICLES } from '@/data/mockVehicles';
 import { MOCK_LOCATIONS } from '@/data/mockLocations';
 import { useAuth } from '@/hooks/useAuth';
+import { getCarById } from '@/services/carApi';
+import { createBooking } from '@/services/bookingApi';
 import { useBooking } from '@/store/bookingStore';
+import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import { formatVND } from '@/utils/formatters';
 
 const EXTRAS_CONFIG = [
-  { key: 'insurance' as const, label: 'Bảo hiểm toàn diện',    pricePerDay: 200000 },
+  { key: 'insurance' as const, label: 'Bảo hiểm toàn diện', pricePerDay: 200000 },
   { key: 'childSeat' as const, label: 'Ghế trẻ em (0-4 tuổi)', pricePerDay: 100000 },
-  { key: 'gps'       as const, label: 'Bộ định vị GPS',         pricePerDay: 50000  },
+  { key: 'gps' as const, label: 'Bộ định vị GPS', pricePerDay: 50000 },
 ];
 
 export default function BookingConfirmPage() {
@@ -23,6 +26,9 @@ export default function BookingConfirmPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [agreed, setAgreed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vehicle, setVehicleData] = useState<DisplayVehicle | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     startDate,
@@ -33,24 +39,71 @@ export default function BookingConfirmPage() {
     discountAmount,
     totalDays,
     baseAmount,
+    depositAmount,
     totalAmount,
+    vehicle: bookingVehicle,
   } = useBooking();
 
-  const vehicle = MOCK_VEHICLES.find(v => v.id === id);
+  useEffect(() => {
+    let cancelled = false;
 
-  const pickupName = MOCK_LOCATIONS.find(l => l.id === pickupLocationId)?.name ?? 'CN Hoàn Kiếm';
-  const returnName = MOCK_LOCATIONS.find(l => l.id === returnLocationId)?.name ?? 'CN Hoàn Kiếm';
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getCarById(id);
+        if (!cancelled) {
+          setVehicleData(mapApiCarToDisplayVehicle(data));
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được xe');
+          setVehicleData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const vehicleBranchName = vehicle?.branchName;
+  const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
+  const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
 
   const lineItems = [
     { label: `Thuê xe (${totalDays} ngày)`, amount: baseAmount },
-    ...EXTRAS_CONFIG.filter(e => extras[e.key]).map(e => ({
+    ...EXTRAS_CONFIG.filter((e) => extras[e.key]).map((e) => ({
       label: e.label,
       amount: e.pricePerDay * totalDays,
     })),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
 
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
   if (!vehicle) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+          <Header />
+          <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải xe...</div>
+          <Footer />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
         <Header />
@@ -67,6 +120,50 @@ export default function BookingConfirmPage() {
     );
   }
 
+  const handleCreateBooking = async () => {
+    if (!vehicle || !bookingVehicle || isSubmitting) {
+      return;
+    }
+
+    if (startDate < tomorrowStr) {
+      toast.error('Hiện tại flow booking theo ngày yêu cầu ngày nhận xe từ ngày mai trở đi');
+      return;
+    }
+
+    if (endDate <= startDate) {
+      toast.error('Ngày trả xe phải sau ngày nhận xe ít nhất 1 ngày');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const startTime = `${startDate}T09:00:00`;
+      const endTime = `${endDate}T09:00:00`;
+
+      const { data } = await createBooking({
+        vehicleId: Number(vehicle.id),
+        startTime,
+        endTime,
+        pricingMode: 'DAILY',
+      });
+
+      toast.success('Đã tạo booking thành công');
+      navigate(`/booking/${data.id}/payment`);
+    } catch (error) {
+      const responseData = (error as { response?: { data?: Record<string, string> } }).response?.data;
+      const message =
+        responseData?.error
+        ?? responseData?.startTime
+        ?? responseData?.endTime
+        ?? responseData?.vehicleId
+        ?? Object.values(responseData ?? {})[0]
+        ?? 'Không thể tạo booking';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
@@ -75,14 +172,12 @@ export default function BookingConfirmPage() {
         <BookingStepper currentStep={2} />
 
         <div className="flex flex-col lg:flex-row gap-10">
-          {/* Main */}
           <div className="flex-1 w-full space-y-8">
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-3xl font-black text-gray-900 mb-2">Xem lại đặt xe</h2>
               <p className="text-sm font-medium text-gray-500 mb-8">Vui lòng kiểm tra thông tin trước khi thanh toán.</p>
 
               <div className="space-y-6">
-                {/* Customer Info */}
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin khách hàng</h3>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm font-medium">
@@ -92,11 +187,10 @@ export default function BookingConfirmPage() {
                   </div>
                 </div>
 
-                {/* Extras — dynamic từ booking store */}
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Dịch vụ đã chọn</h3>
                   <ul className="space-y-2 text-sm font-medium text-gray-700">
-                    {EXTRAS_CONFIG.map(e =>
+                    {EXTRAS_CONFIG.map((e) =>
                       extras[e.key] ? (
                         <li key={e.key} className="flex items-center gap-2">
                           <Check size={16} className="text-[#78ad44]" />
@@ -106,31 +200,32 @@ export default function BookingConfirmPage() {
                         <li key={e.key} className="flex items-center gap-2 text-gray-400">
                           <XIcon /> {e.label} (Chưa chọn)
                         </li>
-                      )
+                      ),
                     )}
                   </ul>
                 </div>
 
-                {/* Cancellation Policy */}
                 <div className="p-5 border border-[#78ad44]/30 rounded-2xl bg-[#78ad44]/5 flex items-start gap-4">
                   <AlertCircle className="text-[#78ad44] shrink-0 mt-0.5" size={20} />
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">Chính sách hủy</h4>
                     <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">
-                      Hủy miễn phí trước 48 giờ nhận xe. Nếu hủy trong vòng 48 giờ, phí hủy 50% sẽ được áp dụng.
+                      Quý khách đặt xe theo ngày được hủy miễn phí trước 1 ngày nhận xe. Quý khách hủy đặt xe muộn hơn 1 ngày trước ngày nhận xe sẽ bị mất tiền cọc xe.
                     </p>
                   </div>
                 </div>
 
-                {/* Agreement */}
                 <label className="flex items-start gap-3 mt-6 cursor-pointer">
                   <input
-                    type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
                     className="mt-1 w-5 h-5 rounded border-gray-300 text-[#78ad44] focus:ring-[#78ad44] accent-[#78ad44]"
                   />
                   <span className="text-sm font-medium text-gray-600 leading-relaxed">
                     Tôi đã đọc và đồng ý với{' '}
-                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Điều khoản sử dụng</a>{' '}và{' '}
+                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Điều khoản sử dụng</a>{' '}
+                    và{' '}
                     <a href="#" className="text-[#78ad44] hover:underline font-bold">Chính sách bảo mật</a>.
                   </span>
                 </label>
@@ -138,7 +233,6 @@ export default function BookingConfirmPage() {
             </div>
           </div>
 
-          {/* Sidebar */}
           <BookingSidebar
             vehicle={vehicle}
             pickupLocation={pickupName}
@@ -147,10 +241,11 @@ export default function BookingConfirmPage() {
             endDate={endDate}
             totalDays={totalDays}
             lineItems={lineItems}
+            depositAmount={depositAmount}
             totalAmount={totalAmount}
-            actionLabel="Tiếp tục thanh toán"
-            actionDisabled={!agreed}
-            onAction={() => navigate(`/booking/${id}/payment`)}
+            actionLabel={isSubmitting ? 'Đang tạo booking...' : 'Tạo booking'}
+            actionDisabled={!agreed || isSubmitting}
+            onAction={handleCreateBooking}
           />
         </div>
       </div>

@@ -1,21 +1,66 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import { ChevronLeft, Calendar, MapPin, Download, CheckCircle2, Ticket, XCircle, AlertTriangle, Car } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { MOCK_BOOKINGS, BOOKING_STATUS_LABEL, PAYMENT_STATUS_LABEL } from '@/data/mockBookings';
+import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
+import { downloadBookingInvoice } from '@/utils/bookingInvoice';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
+import type { ApiBookingResponse } from '@/types';
 
 export default function BookingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  const booking = MOCK_BOOKINGS.find(b => b.id === id);
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await getMyBooking(id);
+        if (!cancelled) {
+          setBooking(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setBooking(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải chi tiết booking...</div>
+        <Footer />
+      </div>
+    );
+  }
 
   // 404
   if (!booking) {
@@ -35,11 +80,40 @@ export default function BookingDetailPage() {
     );
   }
 
-  const statusCfg = BOOKING_STATUS_LABEL[booking.status];
+  const statusCfg = BOOKING_STATUS_META[booking.status];
+  const depositCfg = DEPOSIT_STATUS_META[booking.depositStatus];
+  const totalDays = getBookingTotalDays(booking);
+  const vehicleName = getBookingVehicleName(booking);
+  const vehicleImage = getBookingVehicleImage(booking);
 
-  const handleCancel = () => {
-    toast.success('Đã gửi yêu cầu hủy đơn. Tiền cọc sẽ hoàn trong 3-5 ngày.');
-    setShowCancelConfirm(false);
+  const handleCancel = async () => {
+    if (!id || isCancelling) {
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      const { data } = await cancelMyBooking(id);
+      setBooking(data);
+      toast.success('Đã hủy booking thành công');
+      setShowCancelConfirm(false);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể hủy booking';
+      toast.error(message);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleDownloadInvoice = () => {
+    downloadBookingInvoice(booking, {
+      fullName: user?.fullName,
+      email: user?.email,
+      phone: user?.phone,
+    });
+    toast.success('Đã tải hóa đơn booking');
   };
 
   return (
@@ -64,10 +138,10 @@ export default function BookingDetailPage() {
                 </span>
                 <span className="text-gray-400 font-bold text-sm">Mã: <span className="text-white">{booking.bookingCode}</span></span>
               </div>
-              <h1 className="text-3xl font-black text-white">{booking.vehicle.name}</h1>
+              <h1 className="text-3xl font-black text-white">{vehicleName}</h1>
             </div>
             <button
-              onClick={() => toast.info('Tính năng tải hóa đơn sẽ sớm ra mắt!')}
+              onClick={handleDownloadInvoice}
               className="flex items-center gap-2 bg-[#343A40] hover:bg-[#495057] text-white px-5 py-3 rounded-xl font-bold transition-colors text-sm"
             >
               <Download size={16} /> Tải hoá đơn
@@ -87,14 +161,14 @@ export default function BookingDetailPage() {
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><MapPin size={14} className="text-[#78ad44]" /></div>
                         <div>
                           <p className="text-xs font-bold text-gray-400">Nhận xe tại</p>
-                          <p className="text-sm font-bold text-gray-900">{booking.pickupLocationName}</p>
+                          <p className="text-sm font-bold text-gray-900">Chi nhánh Cầu Giấy</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><Calendar size={14} className="text-[#78ad44]" /></div>
                         <div>
                           <p className="text-xs font-bold text-gray-400">Ngày nhận</p>
-                          <p className="text-sm font-bold text-gray-900">{formatDateTime(booking.startDate)}</p>
+                          <p className="text-sm font-bold text-gray-900">{formatDateTime(booking.startTime)}</p>
                         </div>
                       </div>
                     </div>
@@ -103,14 +177,14 @@ export default function BookingDetailPage() {
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><MapPin size={14} className="text-gray-400" /></div>
                         <div>
                           <p className="text-xs font-bold text-gray-400">Trả xe tại</p>
-                          <p className="text-sm font-bold text-gray-900">{booking.returnLocationName}</p>
+                          <p className="text-sm font-bold text-gray-900">Chi nhánh Cầu Giấy</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><Calendar size={14} className="text-gray-400" /></div>
                         <div>
                           <p className="text-xs font-bold text-gray-400">Ngày trả</p>
-                          <p className="text-sm font-bold text-gray-900">{formatDateTime(booking.endDate)}</p>
+                          <p className="text-sm font-bold text-gray-900">{formatDateTime(booking.endTime)}</p>
                         </div>
                       </div>
                     </div>
@@ -126,37 +200,29 @@ export default function BookingDetailPage() {
                       <div><p className="text-xs font-bold text-gray-400 mb-1">Email</p><p className="text-sm font-black text-gray-900">{user?.email ?? '—'}</p></div>
                       <div><p className="text-xs font-bold text-gray-400 mb-1">Điện thoại</p><p className="text-sm font-black text-gray-900">{user?.phone ?? '—'}</p></div>
                       <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">Thanh toán</p>
-                        <p className={`text-sm font-black flex items-center gap-1 ${booking.paymentStatus === 'paid' ? 'text-[#78ad44]' : booking.paymentStatus === 'refunded' ? 'text-gray-500' : 'text-yellow-500'}`}>
-                          {booking.paymentStatus === 'paid' ? <CheckCircle2 size={16} /> : booking.paymentStatus === 'refunded' ? <XCircle size={16} /> : <AlertTriangle size={16} />}
-                          {PAYMENT_STATUS_LABEL[booking.paymentStatus]}
+                        <p className="text-xs font-bold text-gray-400 mb-1">Trạng thái cọc</p>
+                        <p className={`text-sm font-black flex items-center gap-1 ${depositCfg.color}`}>
+                          {booking.depositStatus === 'PAID' ? <CheckCircle2 size={16} /> : booking.depositStatus === 'REFUNDED' ? <XCircle size={16} /> : <AlertTriangle size={16} />}
+                          {depositCfg.label}
                         </p>
                       </div>
                     </div>
                   </div>
                 </section>
 
-                {/* Extras */}
                 <section>
-                  <h3 className="text-lg font-black text-gray-900 mb-6 border-b border-gray-100 pb-2">Dịch vụ đã chọn</h3>
-                  <div className="space-y-3">
-                    {booking.extras.length === 0 && (
-                      <p className="text-sm text-gray-400 font-medium">Không có dịch vụ bổ sung.</p>
-                    )}
-                    {booking.extras.map(e => (
-                      <div key={e} className="flex items-center gap-3 bg-[#f4f8f7] p-4 rounded-xl">
-                        <CheckCircle2 size={18} className="text-[#78ad44]" />
-                        <span className="text-sm font-bold text-gray-900">{e}</span>
-                      </div>
-                    ))}
-                  </div>
+                  
+                    <div className="flex items-center gap-3 bg-[#f4f8f7] p-4 rounded-xl">
+                      <CheckCircle2 size={18} className="text-[#78ad44]" />
+                      <span className="text-sm font-bold text-gray-900">Hủy miễn phí đến: {formatDateTime(booking.freeCancelUntil)}</span>
+                    </div>
+                  
                 </section>
 
-                {/* Customer note */}
-                {booking.customerNote && (
+                {booking.cancelReason && (
                   <section>
-                    <h3 className="text-lg font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Ghi chú</h3>
-                    <p className="text-sm text-gray-600 font-medium bg-[#f4f8f7] p-4 rounded-xl">{booking.customerNote}</p>
+                    <h3 className="text-lg font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Lý do hủy</h3>
+                    <p className="text-sm text-gray-600 font-medium bg-[#f4f8f7] p-4 rounded-xl">{booking.cancelReason}</p>
                   </section>
                 )}
               </div>
@@ -164,32 +230,28 @@ export default function BookingDetailPage() {
               {/* Right — Receipt */}
               <div className="space-y-6">
                 <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                  <img src={booking.vehicle.image} alt={booking.vehicle.name} className="w-full h-48 object-cover" />
+                  {vehicleImage ? (
+                    <img src={vehicleImage} alt={vehicleName} className="w-full h-48 object-cover" />
+                  ) : (
+                    <div className="w-full h-48 bg-gray-200" />
+                  )}
                   <div className="p-6 bg-[#f4f8f7]">
                     <h4 className="text-sm font-black text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
                       <Ticket size={16} /> Chi tiết thanh toán
                     </h4>
                     <div className="space-y-3 text-sm font-medium text-gray-600 mb-6">
                       <div className="flex justify-between">
-                        <span>Thuê xe ({booking.totalDays} ngày)</span>
+                        <span>Thuê xe ({totalDays} ngày)</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.baseAmount)}</span>
                       </div>
-                      {booking.extrasAmount > 0 && (
-                        <div className="flex justify-between">
-                          <span>Dịch vụ bổ sung</span>
-                          <span className="font-bold text-gray-900">{formatVND(booking.extrasAmount)}</span>
-                        </div>
-                      )}
-                      {booking.discountAmount > 0 && (
-                        <div className="flex justify-between text-[#78ad44]">
-                          <span>Giảm giá</span>
-                          <span className="font-bold">-{formatVND(booking.discountAmount)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between">
+                        <span>Tiền cọc</span>
+                        <span className="font-bold text-gray-900">{formatVND(booking.depositAmount)}</span>
+                      </div>
                     </div>
                     <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
                       <span className="font-bold text-gray-500 text-sm">
-                        {booking.paymentStatus === 'refunded' ? 'Đã hoàn' : 'Tổng cộng'}
+                        {booking.depositStatus === 'REFUNDED' ? 'Đã hoàn cọc' : 'Tổng cộng'}
                       </span>
                       <span className="font-black text-2xl text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                     </div>
@@ -197,7 +259,7 @@ export default function BookingDetailPage() {
                 </div>
 
                 {/* Actions */}
-                {booking.status === 'upcoming' && (
+                {isBookingCancellable(booking) && (
                   <>
                     {!showCancelConfirm ? (
                       <button
@@ -213,9 +275,10 @@ export default function BookingDetailPage() {
                         <div className="flex gap-3">
                           <button
                             onClick={handleCancel}
-                            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors"
+                            disabled={isCancelling}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors disabled:bg-red-300"
                           >
-                            Xác nhận hủy
+                            {isCancelling ? 'Đang hủy...' : 'Xác nhận hủy'}
                           </button>
                           <button
                             onClick={() => setShowCancelConfirm(false)}
@@ -229,7 +292,7 @@ export default function BookingDetailPage() {
                   </>
                 )}
 
-                {booking.status === 'completed' && (
+                {booking.status === 'COMPLETED' && (
                   <button
                     onClick={() => navigate(`/vehicles/${booking.vehicleId}`)}
                     className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg"

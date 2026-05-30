@@ -1,32 +1,64 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
 import { Calendar, MapPin, ChevronRight, Car } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
-import { MOCK_BOOKINGS, BOOKING_STATUS_LABEL, type MockBookingStatus } from '@/data/mockBookings';
+import { getMyBookings } from '@/services/bookingApi';
+import { BOOKING_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatVND, formatDate } from '@/utils/formatters';
+import type { ApiBookingResponse, ApiBookingStatus } from '@/types';
 
-type TabFilter = 'all' | MockBookingStatus;
+type TabFilter = 'all' | ApiBookingStatus;
 
 const TABS: { key: TabFilter; label: string }[] = [
   { key: 'all',       label: 'Tất cả' },
-  { key: 'upcoming',  label: 'Sắp tới' },
-  { key: 'active',    label: 'Đang thuê' },
-  { key: 'completed', label: 'Hoàn thành' },
-  { key: 'cancelled', label: 'Đã hủy' },
+  { key: 'PENDING',   label: 'Chờ xác nhận' },
+  { key: 'CONFIRMED', label: 'Đã xác nhận' },
+  { key: 'ONGOING',   label: 'Đang thuê' },
+  { key: 'COMPLETED', label: 'Hoàn thành' },
+  { key: 'CANCELLED', label: 'Đã hủy' },
 ];
 
 export default function MyBookingsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const { data } = await getMyBookings();
+        if (!cancelled) {
+          setBookings(data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Không tải được danh sách booking');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'all') return MOCK_BOOKINGS;
-    return MOCK_BOOKINGS.filter(b => b.status === activeTab);
-  }, [activeTab]);
+    if (activeTab === 'all') return bookings;
+    return bookings.filter((booking) => booking.status === activeTab);
+  }, [activeTab, bookings]);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
@@ -58,9 +90,15 @@ export default function MyBookingsPage() {
 
             {/* Booking list */}
             <div className="space-y-6">
+              {isLoading && (
+                <div className="text-center py-16 text-gray-500 font-bold">Đang tải danh sách booking...</div>
+              )}
               <AnimatePresence mode="popLayout">
-                {filtered.map(booking => {
-                  const statusCfg = BOOKING_STATUS_LABEL[booking.status];
+                {!isLoading && filtered.map((booking) => {
+                  const statusCfg = BOOKING_STATUS_META[booking.status];
+                  const vehicleImage = getBookingVehicleImage(booking);
+                  const vehicleName = getBookingVehicleName(booking);
+                  const totalDays = getBookingTotalDays(booking);
                   return (
                     <motion.div
                       key={booking.id}
@@ -73,7 +111,11 @@ export default function MyBookingsPage() {
                       onClick={() => navigate(`/my-bookings/${booking.id}`)}
                     >
                       <div className="w-full sm:w-48 h-32 shrink-0 rounded-xl overflow-hidden relative">
-                        <img src={booking.vehicle.image} alt={booking.vehicle.name} className="w-full h-full object-cover" />
+                        {vehicleImage ? (
+                          <img src={vehicleImage} alt={vehicleName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200" />
+                        )}
                         <div className={`absolute top-2 left-2 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white ${statusCfg.bg}`}>
                           {statusCfg.label}
                         </div>
@@ -82,7 +124,7 @@ export default function MyBookingsPage() {
                       <div className="flex-1 flex flex-col justify-between py-1">
                         <div>
                           <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-xl font-black text-gray-900">{booking.vehicle.name}</h3>
+                            <h3 className="text-xl font-black text-gray-900">{vehicleName}</h3>
                             <span className="text-lg font-black text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                           </div>
                           <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Mã: {booking.bookingCode}</p>
@@ -90,11 +132,11 @@ export default function MyBookingsPage() {
                           <div className="flex flex-col sm:flex-row gap-x-6 gap-y-2 text-sm text-gray-600 font-medium">
                             <div className="flex items-center gap-2">
                               <Calendar size={16} className="text-[#78ad44]" />
-                              {formatDate(booking.startDate)} – {formatDate(booking.endDate)}
+                              {formatDate(booking.startTime)} – {formatDate(booking.endTime)}
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin size={16} className="text-[#78ad44]" />
-                              {booking.pickupLocationName}
+                              {totalDays} ngày • {booking.pricingMode}
                             </div>
                           </div>
                         </div>
@@ -110,7 +152,7 @@ export default function MyBookingsPage() {
                 })}
               </AnimatePresence>
 
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16">
                   <div className="w-20 h-20 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
                     <Car size={40} />
