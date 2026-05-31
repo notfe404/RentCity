@@ -18,9 +18,12 @@ const VehicleDetailPage = lazy(() => import('@/pages/VehicleDetailPage'));
 const BookingPage = lazy(() => import('@/pages/BookingPage'));
 const BookingConfirmPage = lazy(() => import('@/pages/BookingConfirmPage'));
 const PaymentPage = lazy(() => import('@/pages/PaymentPage'));
+const PayPalRedirect = lazy(() => import('@/pages/PaymentPage/PayPalRedirect'));
+const VNPayQR = lazy(() => import('@/pages/PaymentPage/VNPayQR'));
 const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
 
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const PaymentsPage = lazy(() => import('@/pages/PaymentsPage'));
 const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage'));
 const BookingDetailPage = lazy(() => import('@/pages/BookingDetailPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
@@ -60,10 +63,13 @@ export default function App() {
             <Route path={ROUTES.BOOKING} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingPage /></ProtectedRoute>} />
             <Route path={ROUTES.BOOKING_CONFIRM} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingConfirmPage /></ProtectedRoute>} />
             <Route path={ROUTES.PAYMENT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentPage /></ProtectedRoute>} />
+            <Route path={ROUTES.PAYMENT_PAYPAL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PayPalRedirect /></ProtectedRoute>} />
+            <Route path={ROUTES.PAYMENT_VNPAY} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><VNPayQR /></ProtectedRoute>} />
             <Route path={ROUTES.PAYMENT_RESULT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentResultPage /></ProtectedRoute>} />
 
             {/* ─── User Profile & Dashboard ─── */}
             <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path={ROUTES.PAYMENTS} element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
             <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
             <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
             <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />

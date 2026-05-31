@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { PricingResult } from '../types/pricing.types';
+import type { PricingOption, PricingResult } from '../types/pricing.types';
 import { useRentalDuration } from './useRentalDuration';
 
 interface UsePricingParams {
@@ -68,7 +68,7 @@ export const usePricing = ({
         const remainHrsD = remainHoursD % 24;
         const priceD = fullMonths * MOCK_RULES.monthly_rate + remainWeeksD * MOCK_RULES.weekly_rate + remainDaysD * MOCK_RULES.daily_rate + remainHrsD * MOCK_RULES.hourly_rate;
 
-        const alternatives = [
+        const alternatives: PricingOption[] = [
           {
             mode: 'HOURLY' as const,
             baseAmount: priceA,
@@ -131,7 +131,7 @@ export const usePricing = ({
           totalHours,
           validUntil: new Date(Date.now() + 5 * 60000).toISOString(),
         });
-      } catch (err) {
+      } catch {
         setError('Có lỗi xảy ra khi tính giá');
       } finally {
         setIsLoading(false);

@@ -1,0 +1,133 @@
+###############################################################
+# RentCity - Payment API smoke flow
+#
+# Run from top to bottom with VS Code REST Client or IntelliJ HTTP client.
+# Assumes demo data exists and car id 1 is available in the selected dates.
+###############################################################
+
+@baseUrl = http://localhost:8080/api
+
+###############################################################
+# 1. Login customer and admin
+###############################################################
+
+# @name customerLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@demo.com",
+  "password": "Password123"
+}
+
+###
+@customerToken = {{customerLogin.response.body.accessToken}}
+
+# @name adminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@demo.com",
+  "password": "Password123"
+}
+
+###
+@adminToken = {{adminLogin.response.body.accessToken}}
+
+###############################################################
+# 2. Create booking
+###############################################################
+
+# @name createBooking
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "vehicleId": 1,
+  "startTime": "2026-07-01T09:00:00",
+  "endTime": "2026-07-03T09:00:00",
+  "pricingMode": "DAILY"
+}
+
+###
+@bookingId = {{createBooking.response.body.id}}
+
+###############################################################
+# 3. VNPay mock: create payment then run callback
+###############################################################
+
+# @name createVnpayPayment
+POST {{baseUrl}}/payments/deposit
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "bookingId": {{bookingId}},
+  "gateway": "VNPAY"
+}
+
+###
+@vnpayReference = {{createVnpayPayment.response.body.gatewayReference}}
+
+### Mock VNPay success callback. Expected: payment PAID, booking CONFIRMED.
+GET {{baseUrl}}/payments/vnpay/callback?reference={{vnpayReference}}&vnp_ResponseCode=00&vnp_TransactionNo=VNPAY-TEST-001
+
+###############################################################
+# 4. Payment history and invoice PDF
+###############################################################
+
+### Customer payment history
+GET {{baseUrl}}/payments/me
+Authorization: Bearer {{customerToken}}
+
+### Booking invoice PDF
+GET {{baseUrl}}/invoices/{{bookingId}}/pdf
+Authorization: Bearer {{customerToken}}
+
+###############################################################
+# 5. Cash flow example
+###############################################################
+
+# @name createCashBooking
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "vehicleId": 1,
+  "startTime": "2026-07-10T09:00:00",
+  "endTime": "2026-07-12T09:00:00",
+  "pricingMode": "DAILY"
+}
+
+###
+@cashBookingId = {{createCashBooking.response.body.id}}
+
+# @name createCashPayment
+POST {{baseUrl}}/payments/deposit
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "bookingId": {{cashBookingId}},
+  "gateway": "CASH"
+}
+
+### Admin confirms pending cash payment for booking.
+POST {{baseUrl}}/admin/payments/bookings/{{cashBookingId}}/confirm-cash
+Authorization: Bearer {{adminToken}}
+
+###############################################################
+# 6. Refund after cancellation
+###############################################################
+
+### Cancel booking first.
+POST {{baseUrl}}/bookings/{{bookingId}}/cancel
+Authorization: Bearer {{customerToken}}
+
+### Refund paid deposit if cancellation is at least 24h before start time.
+# Replace payment id with a PAID payment id from /payments/me.
+POST {{baseUrl}}/payments/1/refund
+Authorization: Bearer {{customerToken}}

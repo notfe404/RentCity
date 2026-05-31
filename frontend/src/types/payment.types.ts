@@ -4,7 +4,7 @@
 
 // ---- Payments ----
 export type PaymentType = 'DEPOSIT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
-export type PaymentGateway = 'VNPAY' | 'MOMO' | 'ZALOPAY' | 'CASH' | 'BANK_TRANSFER';
+export type PaymentGateway = 'PAYPAL' | 'VNPAY' | 'CASH';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'EXPIRED';
 
 export interface Payment {
@@ -20,6 +20,32 @@ export interface Payment {
   paidAt?: string;
   expiresAt?: string;
   createdAt: string;
+}
+
+export interface ApiPaymentResponse {
+  id: number;
+  bookingId: number;
+  bookingCode?: string;
+  userId: number;
+  type: PaymentType;
+  gateway: PaymentGateway;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+  gatewayReference: string;
+  gatewayTransactionId?: string;
+  paymentUrl?: string;
+  failureReason?: string;
+  paidAt?: string;
+  refundedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDepositPaymentPayload {
+  bookingId: number;
+  gateway: PaymentGateway;
+  idempotencyKey?: string;
 }
 
 export const PAYMENT_STATUS_CONFIG: Record<

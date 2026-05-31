@@ -1,4 +1,4 @@
-import { User, FileText, Bell, Settings, LogOut, Camera } from 'lucide-react';
+import { User, FileText, Bell, Settings, LogOut, Camera, CreditCard } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRef } from 'react';
@@ -15,6 +15,7 @@ export default function CustomerSidebar() {
   const links = [
     { name: 'Hồ sơ', path: '/profile', icon: User },
     { name: 'Đơn đặt xe', path: '/my-bookings', icon: FileText },
+    { name: 'Lịch sử thanh toán', path: '/payments', icon: CreditCard },
     { name: 'Thông báo', path: '/notifications', icon: Bell, badge: unreadCount },
     { name: 'Cài đặt', path: '/settings', icon: Settings },
   ];

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, Eye, Check, X, CarFront, Play, Flag } from 'lucide-react';
+import { Search, Eye, Check, X, CarFront, Play, Flag, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { confirmBookingForTest, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
+import { confirmBookingForTest, getAdminBooking, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
+import { confirmCashPaymentByBooking } from '@/services/paymentApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
 import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';
@@ -83,6 +84,23 @@ export default function AdminBookingsPage() {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
         ?? 'Không thể cập nhật booking';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const runCashConfirm = async (bookingId: number) => {
+    setActiveBookingId(bookingId);
+    try {
+      await confirmCashPaymentByBooking(bookingId);
+      const { data } = await getAdminBooking(bookingId);
+      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
+      toast.success(`Đã xác nhận tiền mặt cho booking ${data.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể xác nhận thanh toán tiền mặt';
       toast.error(message);
     } finally {
       setActiveBookingId(null);
@@ -198,6 +216,14 @@ export default function AdminBookingsPage() {
                               title="Cancel booking"
                             >
                               <X size={16} />
+                            </button>
+                            <button
+                              disabled={busy}
+                              onClick={() => runCashConfirm(booking.id)}
+                              className="p-2 text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                              title="Confirm cash payment"
+                            >
+                              <Banknote size={16} />
                             </button>
                           </>
                         )}

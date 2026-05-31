@@ -6,8 +6,8 @@ import { ChevronLeft, Calendar, MapPin, Download, CheckCircle2, Ticket, XCircle,
 import { toast } from 'sonner';
 
 import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
+import { downloadBookingInvoicePdf } from '@/services/paymentApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
-import { downloadBookingInvoice } from '@/utils/bookingInvoice';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
 import type { ApiBookingResponse } from '@/types';
@@ -20,6 +20,7 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,13 +108,31 @@ export default function BookingDetailPage() {
     }
   };
 
-  const handleDownloadInvoice = () => {
-    downloadBookingInvoice(booking, {
-      fullName: user?.fullName,
-      email: user?.email,
-      phone: user?.phone,
-    });
+  const handleDownloadInvoice = async () => {
+    if (isDownloadingInvoice) {
+      return;
+    }
+
+    setIsDownloadingInvoice(true);
+    try {
+      const { data } = await downloadBookingInvoicePdf(booking.id);
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rentcity-invoice-${booking.bookingCode}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.success('Đã tải hóa đơn booking');
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể tải hóa đơn';
+      toast.error(message);
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
   };
 
   return (
@@ -142,6 +161,7 @@ export default function BookingDetailPage() {
             </div>
             <button
               onClick={handleDownloadInvoice}
+              disabled={isDownloadingInvoice}
               className="flex items-center gap-2 bg-[#343A40] hover:bg-[#495057] text-white px-5 py-3 rounded-xl font-bold transition-colors text-sm"
             >
               <Download size={16} /> Tải hoá đơn

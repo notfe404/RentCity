@@ -73,6 +73,11 @@ export default function BookingSidebar({
         </div>
 
         <div className="border-t border-gray-100 pt-5 px-2">
+          <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
+            <span>Thời lượng thuê</span>
+            <span>{totalDays} ngày</span>
+          </div>
+
           {lineItems.map((item, i) => (
             <div key={i} className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
               <span>{item.label}</span>

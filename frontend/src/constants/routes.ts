@@ -12,10 +12,13 @@ export const ROUTES = {
   BOOKING: '/booking/:id',
   BOOKING_CONFIRM: '/booking/:id/confirm',
   PAYMENT: '/booking/:id/payment',
+  PAYMENT_PAYPAL: '/booking/:id/payment/paypal',
+  PAYMENT_VNPAY: '/booking/:id/payment/vnpay',
   PAYMENT_RESULT: '/booking/:id/result',
 
   // Customer Profile & My Bookings (Protected)
   PROFILE: '/profile',
+  PAYMENTS: '/payments',
   MY_BOOKINGS: '/my-bookings',
   BOOKING_DETAIL: '/my-bookings/:id',
   NOTIFICATIONS: '/notifications',

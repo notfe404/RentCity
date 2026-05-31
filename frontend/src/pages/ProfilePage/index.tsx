@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { Save, Upload, X, FileText, Check, Edit3 } from 'lucide-react';
+import { Save, Upload, X, FileText, Check, Edit3, CreditCard } from 'lucide-react';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
+import TransactionsTab from './TransactionsTab';
 import { toast } from 'sonner';
 import { getMe, getMyDocuments, updateProfile, uploadDocument } from '@/services/userApi';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const { updateUser } = useAuth();
   const [profileErrors, setProfileErrors] = useState<ProfileFieldErrors>({});
+  const [activeTab, setActiveTab] = useState<'profile' | 'transactions'>('profile');
 
   // Local state for displaying & editing
   const [firstName, setFirstName] = useState('');
@@ -231,7 +233,34 @@ const [backId, setBackId] = useState<{
         
         <div className="flex-1 space-y-8 animate-in fade-in duration-500 relative">
           
-          <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
+          {/* Tab Navigation */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex gap-4">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'profile'
+                  ? 'bg-[#78ad44] text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Edit3 size={18} />
+              Hồ sơ
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'transactions'
+                  ? 'bg-[#78ad44] text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <CreditCard size={18} />
+              Giao dịch
+            </button>
+          </div>
+
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
             {/* Header: Personal Info */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-5 mb-8 gap-4">
               <div>
@@ -462,6 +491,22 @@ const [backId, setBackId] = useState<{
             )}
 
           </div>
+          )}
+
+          {/* Transactions Tab */}
+          {activeTab === 'transactions' && (
+          <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
+            <div className="mb-8">
+              <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+                <CreditCard size={24} />
+                Lịch sử thanh toán
+              </h2>
+              <p className="text-sm text-gray-500 mt-1 font-medium">Xem và quản lý tất cả giao dịch thanh toán của bạn</p>
+            </div>
+            <TransactionsTab />
+          </div>
+          )}
+
         </div>
 
       </div>
