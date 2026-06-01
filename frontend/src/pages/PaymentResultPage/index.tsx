@@ -7,7 +7,7 @@ import { CheckCircle2, FileText, Home, Clock3, Shield, CalendarDays, CarFront } 
 import { toast } from 'sonner';
 
 import { getMyBooking } from '@/services/bookingApi';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 import type { ApiBookingResponse } from '@/types';
 
@@ -112,7 +112,7 @@ export default function PaymentResultPage() {
   const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
   const vehicleName = getBookingVehicleName(booking);
   const vehicleImage = getBookingVehicleImage(booking);
-  const totalDays = getBookingTotalDays(booking);
+  const durationLabel = getBookingDurationLabel(booking);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
@@ -232,7 +232,7 @@ export default function PaymentResultPage() {
               <div className="space-y-3 text-sm font-bold text-gray-600">
                 <div className="flex justify-between items-center">
                   <span>Thời lượng thuê</span>
-                  <span className="text-gray-900">{totalDays} ngày</span>
+                  <span className="text-gray-900">{durationLabel}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Giá thuê</span>

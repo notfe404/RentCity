@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -118,7 +117,7 @@ public class CarService {
      * Chỉ trả về xe trạng thái AVAILABLE và không có booking active chồng lấn khoảng thời gian.
      */
     @Transactional(readOnly = true)
-    public List<CarResponse> getAvailable(LocalDate from, LocalDate to, Long branchId) {
+    public List<CarResponse> getAvailable(LocalDateTime from, LocalDateTime to, Long branchId) {
         if (from == null || to == null) {
             throw new IllegalArgumentException("Cần cung cấp đầy đủ ngày bắt đầu (from) và ngày kết thúc (to)");
         }
@@ -133,9 +132,7 @@ public class CarService {
             return List.of();
         }
 
-        LocalDateTime startTime = from.atStartOfDay();
-        LocalDateTime endTime = to.atStartOfDay();
-        Set<Long> unavailableCarIds = bookingAvailabilityService.findUnavailableCarIds(startTime, endTime);
+        Set<Long> unavailableCarIds = bookingAvailabilityService.findUnavailableCarIds(from, to);
 
         return cars.stream()
                 .filter(car -> !unavailableCarIds.contains(car.getId()))

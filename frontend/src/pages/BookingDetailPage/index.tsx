@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
 import { downloadBookingInvoicePdf } from '@/services/paymentApi';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
 import type { ApiBookingResponse } from '@/types';
@@ -83,7 +83,7 @@ export default function BookingDetailPage() {
 
   const statusCfg = BOOKING_STATUS_META[booking.status];
   const depositCfg = DEPOSIT_STATUS_META[booking.depositStatus];
-  const totalDays = getBookingTotalDays(booking);
+  const durationLabel = getBookingDurationLabel(booking);
   const vehicleName = getBookingVehicleName(booking);
   const vehicleImage = getBookingVehicleImage(booking);
 
@@ -261,7 +261,7 @@ export default function BookingDetailPage() {
                     </h4>
                     <div className="space-y-3 text-sm font-medium text-gray-600 mb-6">
                       <div className="flex justify-between">
-                        <span>Thuê xe ({totalDays} ngày)</span>
+                        <span>Thuê xe ({durationLabel})</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.baseAmount)}</span>
                       </div>
                       <div className="flex justify-between">

@@ -1,9 +1,23 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle2, QrCode } from 'lucide-react';
-import { completeVnpayMockCallback, createDepositPayment } from '@/services/paymentApi';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  QrCode,
+  Receipt,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
+
+import Header from '../LandingPage/Header';
+import Footer from '../LandingPage/Footer';
+import BookingStepper from '@/components/booking/BookingStepper';
 import { getMyBooking } from '@/services/bookingApi';
+import { completeVnpayMockCallback, createDepositPayment } from '@/services/paymentApi';
+import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
+import { formatDateTime, formatVND } from '@/utils/formatters';
 import { generateVNPayQRCode } from '@/utils/qrCodeGenerator';
 import { parsePaymentError } from '@/utils/paymentErrorHandler';
 import type { ApiBookingResponse } from '@/types';
@@ -29,34 +43,26 @@ export default function VNPayQR() {
       }
 
       try {
-        // Get booking info
         const { data: bookingData } = await getMyBooking(id);
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setBooking(bookingData);
 
-        // Create deposit payment
         const { data: createdPayment } = await createDepositPayment({
-          bookingId: parseInt(id),
+          bookingId: parseInt(id, 10),
           gateway: 'VNPAY',
         });
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
-        // Generate QR code
         const qr = generateVNPayQRCode(createdPayment.amount, bookingData.bookingCode);
         setQrImage(qr);
         setGatewayReference(createdPayment.gatewayReference);
         setStatus('qr_display');
-
-        // Auto-confirm after 3 seconds (simulate scanning)
-        const timer = setTimeout(() => {
-          if (mounted) {
-            simulateQRScan(createdPayment.gatewayReference);
-          }
-        }, 3000);
-
-        return () => clearTimeout(timer);
       } catch (error) {
         if (mounted) {
           const paymentError = parsePaymentError(error);
@@ -67,16 +73,17 @@ export default function VNPayQR() {
       }
     };
 
-    initPayment();
+    void initPayment();
 
     return () => {
       mounted = false;
     };
   }, [id]);
 
-  // Countdown timer for auto-confirm
   useEffect(() => {
-    if (status !== 'qr_display') return;
+    if (status !== 'qr_display') {
+      return;
+    }
 
     let countdown = 3;
     setAutoConfirmCountdown(countdown);
@@ -92,33 +99,41 @@ export default function VNPayQR() {
     return () => clearInterval(timer);
   }, [status]);
 
+  useEffect(() => {
+    if (status !== 'qr_display' || !gatewayReference) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void simulateQRScan(gatewayReference);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [status, gatewayReference]);
+
   const simulateQRScan = async (reference: string) => {
-    if (status !== 'qr_display') return;
+    if (!reference || status === 'processing' || status === 'success') {
+      return;
+    }
 
     setStatus('processing');
 
     try {
-      // Simulate processing delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Call VNPay mock callback
       const { data: result } = await completeVnpayMockCallback(reference);
 
-      if (result.status === 'PAID') {
-        setStatus('success');
-
-        // Refresh booking
-        if (id) {
-          await getMyBooking(id);
-        }
-
-        // Redirect after showing success
-        setTimeout(() => {
-          navigate(`/booking/${id}/result`);
-        }, 1500);
-      } else {
+      if (result.status !== 'PAID') {
         throw new Error('Thanh toán chưa hoàn tất');
       }
+
+      setStatus('success');
+      if (id) {
+        await getMyBooking(id);
+      }
+
+      setTimeout(() => {
+        navigate(`/booking/${id}/result`);
+      }, 1500);
     } catch (error) {
       const paymentError = parsePaymentError(error);
       setStatus('error');
@@ -129,123 +144,228 @@ export default function VNPayQR() {
 
   const handleManualConfirm = () => {
     if (gatewayReference && status === 'qr_display') {
-      simulateQRScan(gatewayReference);
+      void simulateQRScan(gatewayReference);
     }
   };
 
+  const depositMeta = booking ? DEPOSIT_STATUS_META[booking.depositStatus] : null;
+  const vehicleImage = useMemo(() => (booking ? getBookingVehicleImage(booking) : undefined), [booking]);
+  const vehicleName = useMemo(() => (booking ? getBookingVehicleName(booking) : 'Booking'), [booking]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center px-4">
-      <div className="max-w-lg w-full">
-        {/* VNPay Logo Area */}
-        <div className="mb-12 text-center">
-          <div className="inline-block mb-6 p-4 bg-white rounded-full shadow-lg">
-            <QrCode size={64} className="text-blue-600" />
-          </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">VNPay</h1>
-          <p className="text-gray-500 font-medium">Quét mã QR để thanh toán</p>
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+      <Header />
+
+      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full flex-1">
+        <BookingStepper currentStep={3} />
+
+        <div className="mb-8">
+          <button
+            onClick={() => navigate(`/booking/${id}/payment`)}
+            className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft size={16} /> Quay lại chọn thanh toán
+          </button>
         </div>
 
-        {/* Status Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
-          {status === 'loading' && (
-            <div className="text-center space-y-4">
-              <Loader2 size={48} className="text-blue-600 animate-spin mx-auto" />
-              <h2 className="text-xl font-black text-gray-900">Đang tạo mã QR...</h2>
-              <p className="text-sm text-gray-500">Vui lòng chờ một lát</p>
-            </div>
-          )}
-
-          {status === 'qr_display' && (
-            <div className="text-center space-y-6">
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 inline-block w-full">
-                {qrImage && (
-                  <img
-                    src={qrImage}
-                    alt="VNPay QR Code"
-                    className="w-full max-w-xs mx-auto rounded-xl shadow-lg border-4 border-white"
-                  />
-                )}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-10">
+          <section className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100">
+            <div className="flex items-start gap-4 mb-8">
+              <div className="w-14 h-14 rounded-2xl bg-[#e8f1ff] flex items-center justify-center text-blue-600 shrink-0">
+                <QrCode size={28} />
               </div>
-
               <div>
-                <h2 className="text-xl font-black text-gray-900 mb-2">Quét mã QR để thanh toán</h2>
-                <p className="text-sm text-gray-500 mb-4">Dùng ứng dụng ngân hàng hoặc VNPay để quét mã</p>
-
-                {booking && (
-                  <div className="bg-blue-50 rounded-xl p-4 mb-4 text-sm">
-                    <p className="text-gray-700">
-                      Số tiền: <span className="font-black text-blue-600">{booking.depositAmount?.toLocaleString()} VND</span>
-                    </p>
-                    <p className="text-gray-500 text-xs mt-1">Booking: {booking.bookingCode}</p>
-                  </div>
-                )}
-
-                <div className="text-xs text-gray-500 font-medium">
-                  <p>Thanh toán sẽ được xác nhận trong {autoConfirmCountdown}s...</p>
-                </div>
+                <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán VNPay</h1>
+                <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                  Quét mã QR ngay trong giao diện RentCity để hoàn tất thanh toán cọc cho booking
+                  {booking && <span className="font-black text-gray-900"> {booking.bookingCode}</span>}.
+                </p>
               </div>
-
-              <button
-                onClick={handleManualConfirm}
-                disabled={status !== 'qr_display'}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-colors disabled:bg-gray-300"
-              >
-                Xác nhận thanh toán
-              </button>
             </div>
-          )}
 
-          {status === 'processing' && (
-            <div className="text-center space-y-4">
-              <Loader2 size={48} className="text-purple-600 animate-spin mx-auto" />
-              <h2 className="text-xl font-black text-gray-900">Đang xử lý thanh toán...</h2>
-              <p className="text-sm text-gray-500">Vui lòng chờ, đang xác nhận giao dịch VNPay</p>
-            </div>
-          )}
+            {status === 'loading' && (
+              <div className="rounded-[1.75rem] border border-gray-100 bg-[#f4f8f7] p-12 text-center">
+                <Loader2 size={48} className="text-blue-600 animate-spin mx-auto mb-4" />
+                <h2 className="text-xl font-black text-gray-900">Đang tạo mã QR...</h2>
+                <p className="text-sm text-gray-500 mt-2">Vui lòng chờ trong giây lát</p>
+              </div>
+            )}
 
-          {status === 'success' && (
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="p-3 bg-green-100 rounded-full">
+            {status === 'qr_display' && (
+              <div className="space-y-8">
+                <div className="rounded-[1.75rem] bg-gradient-to-br from-blue-50 via-white to-sky-50 border border-blue-100 p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-[0.95fr_1.05fr] gap-8 items-center">
+                    <div className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-gray-100">
+                      {qrImage && (
+                        <img
+                          src={qrImage}
+                          alt="VNPay QR Code"
+                          className="w-full max-w-[280px] mx-auto rounded-xl"
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-900 mb-3">Quét mã QR để thanh toán</h2>
+                      <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                        Dùng ứng dụng ngân hàng hoặc VNPay trên điện thoại để quét mã. Hệ thống đang mô phỏng
+                        xác nhận tự động sau vài giây.
+                      </p>
+
+                      {booking && (
+                        <div className="bg-white rounded-2xl border border-blue-100 p-5 space-y-3">
+                          <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
+                            <span>Số tiền cần thanh toán</span>
+                            <span className="text-blue-600">{formatVND(booking.depositAmount)}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
+                            <span>Mã booking</span>
+                            <span className="text-gray-900">{booking.bookingCode}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
+                            <span>Tự động xác nhận sau</span>
+                            <span className="text-gray-900">{autoConfirmCountdown}s</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={handleManualConfirm}
+                    disabled={status !== 'qr_display'}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-colors disabled:bg-gray-300"
+                  >
+                    Xác nhận thanh toán
+                  </button>
+                  <button
+                    onClick={() => navigate(`/booking/${id}/payment`)}
+                    className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-bold py-4 rounded-2xl transition-colors border-2 border-gray-200"
+                  >
+                    Đổi phương thức khác
+                  </button>
+                </div>
+
+                
+              </div>
+            )}
+
+            {status === 'processing' && (
+              <div className="rounded-[1.75rem] border border-gray-100 bg-[#f4f8f7] p-12 text-center">
+                <Loader2 size={48} className="text-purple-600 animate-spin mx-auto mb-4" />
+                <h2 className="text-xl font-black text-gray-900">Đang xử lý thanh toán...</h2>
+                <p className="text-sm text-gray-500 mt-2">Vui lòng chờ, hệ thống đang xác nhận giao dịch VNPay</p>
+              </div>
+            )}
+
+            {status === 'success' && (
+              <div className="rounded-[1.75rem] border border-green-100 bg-green-50 p-12 text-center">
+                <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <CheckCircle2 size={48} className="text-green-600" />
                 </div>
+                <h2 className="text-xl font-black text-gray-900">Thanh toán thành công</h2>
+                <p className="text-sm text-gray-500 mt-2">Giao dịch đã được xác nhận. Đang chuyển hướng về kết quả booking...</p>
               </div>
-              <h2 className="text-xl font-black text-gray-900">Thanh toán thành công!</h2>
-              <p className="text-sm text-gray-500">Giao dịch của bạn đã được xác nhận. Đang chuyển hướng...</p>
-            </div>
-          )}
+            )}
 
-          {status === 'error' && (
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="p-3 bg-red-100 rounded-full">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-red-600">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="15" y1="9" x2="9" y2="15" />
-                    <line x1="9" y1="9" x2="15" y2="15" />
-                  </svg>
+            {status === 'error' && (
+              <div className="rounded-[1.75rem] border border-red-100 bg-red-50 p-12 text-center">
+                <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <Receipt size={40} className="text-red-600" />
+                </div>
+                <h2 className="text-xl font-black text-gray-900">Thanh toán thất bại</h2>
+                <p className="text-sm text-gray-600 font-medium mt-2">{errorMessage}</p>
+                <button
+                  onClick={() => navigate(`/booking/${id}/payment`)}
+                  className="mt-6 w-full sm:w-auto px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-colors"
+                >
+                  Quay lại thanh toán
+                </button>
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-6">
+            <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100">
+              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Tóm tắt booking</h3>
+
+              {booking && (
+                <>
+                  <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl mb-6">
+                    {vehicleImage ? (
+                      <img src={vehicleImage} alt={vehicleName} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
+                    ) : (
+                      <div className="w-24 h-16 rounded-xl bg-gray-200" />
+                    )}
+                    <div>
+                      <h4 className="font-black text-gray-900">{vehicleName}</h4>
+                      <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'Chưa có biển số'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-sm font-bold text-gray-600 px-2">
+                    <div className="flex justify-between gap-4">
+                      <span>Nhận xe</span>
+                      <span className="text-gray-900 text-right">{formatDateTime(booking.startTime)}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Trả xe</span>
+                      <span className="text-gray-900 text-right">{formatDateTime(booking.endTime)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tổng tiền</span>
+                      <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tiền cọc</span>
+                      <span className="text-blue-600">{formatVND(booking.depositAmount)}</span>
+                    </div>
+                    {depositMeta && (
+                      <div className="flex justify-between">
+                        <span>Trạng thái cọc</span>
+                        <span className={depositMeta.color}>{depositMeta.label}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="mt-8 space-y-3">
+                <button
+                  onClick={() => navigate(`/booking/${id}/payment`)}
+                  className="w-full bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2"
+                >
+                  <CreditCard size={18} /> Quay lại trang thanh toán
+                </button>
+                <Link
+                  to={`/my-bookings/${id}`}
+                  className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl py-4 transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
+                >
+                  <Receipt size={18} /> Xem chi tiết booking
+                </Link>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#eef5ff] text-blue-600 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <h4 className="font-black text-gray-900">Thanh toán trong giao diện web</h4>
+                  <p className="text-sm text-gray-500 font-medium mt-2 leading-relaxed">
+                    Mã QR VNPay giờ được hiển thị ngay trong giao diện RentCity thay vì một màn hình tách rời kiểu standalone.
+                  </p>
                 </div>
               </div>
-              <h2 className="text-xl font-black text-gray-900">Thanh toán thất bại</h2>
-              <p className="text-sm text-gray-600 font-medium">{errorMessage}</p>
-              <button
-                onClick={() => navigate(`/booking/${id}/payment`)}
-                className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-colors"
-              >
-                Quay lại thanh toán
-              </button>
             </div>
-          )}
+          </aside>
         </div>
-
-        {/* Footer Info */}
-        {status === 'qr_display' && (
-          <div className="mt-6 text-center text-xs text-gray-500 font-medium">
-            <p>✓ Thanh toán an toàn qua VNPay</p>
-            <p className="mt-1">Bạn sẽ được chuyển hướng sau khi xác nhận</p>
-          </div>
-        )}
       </div>
+
+      <Footer />
     </div>
   );
 }

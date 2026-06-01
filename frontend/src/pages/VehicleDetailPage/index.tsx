@@ -11,6 +11,14 @@ import { MOCK_REVIEWS } from '@/data/mockReviews';
 import { getCarById } from '@/services/carApi';
 import { formatVND, formatDate } from '@/utils/formatters';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
+import {
+  ensureFutureEndDateTime,
+  getDefaultBookingRange,
+  getDurationDays,
+  getDurationHours,
+  getDurationLabel,
+  inferPricingMode,
+} from '@/utils/bookingDateTime';
 import RatingStars from '@/components/ui/RatingStars';
 import { useBooking } from '@/store/bookingStore';
 
@@ -60,14 +68,11 @@ export default function VehicleDetailPage() {
     };
   }, [id]);
 
-  // Reservation state
-  const now = new Date();
-  const defaultStart = new Date(now); defaultStart.setDate(now.getDate() + 1);
-  const defaultEnd = new Date(now); defaultEnd.setDate(now.getDate() + 4);
-  const minStartDate = defaultStart.toISOString().split('T')[0];
+  const initialRange = useMemo(() => getDefaultBookingRange(), []);
+  const minStartDate = initialRange.startDate;
 
-  const [startDate, setStartDate] = useState(defaultStart.toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(defaultEnd.toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(initialRange.startDate);
+  const [endDate, setEndDate] = useState(initialRange.endDate);
   const [pickupLoc, setPickupLoc] = useState(MOCK_LOCATIONS[0]?.id ?? 'loc-cau-giay');
   const [returnLoc, setReturnLoc] = useState(MOCK_LOCATIONS[0]?.id ?? 'loc-cau-giay');
 
@@ -78,27 +83,38 @@ export default function VehicleDetailPage() {
     }
   }, [vehicle?.locationId]);
 
-  const totalDays = useMemo(() => {
-    const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
-    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  }, [startDate, endDate]);
+  const pricingMode = useMemo(() => inferPricingMode(startDate, endDate), [startDate, endDate]);
+  const totalHours = useMemo(() => getDurationHours(startDate, endDate), [startDate, endDate]);
+  const totalDays = useMemo(() => getDurationDays(startDate, endDate), [startDate, endDate]);
+  const durationLabel = useMemo(() => getDurationLabel(startDate, endDate, pricingMode), [startDate, endDate, pricingMode]);
+  const unitRateAmount = useMemo(
+    () => pricingMode === 'HOURLY' ? Math.round((vehicle?.price ?? 0) / 24) : (vehicle?.price ?? 0),
+    [pricingMode, vehicle?.price],
+  );
 
   const minEndDate = useMemo(() => {
-    const nextDay = new Date(startDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    return nextDay.toISOString().split('T')[0];
+    return ensureFutureEndDateTime(startDate, startDate);
   }, [startDate]);
 
   useEffect(() => {
-    if (endDate <= startDate) {
-      const nextDay = new Date(startDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setEndDate(nextDay.toISOString().split('T')[0]);
+    const safeEnd = ensureFutureEndDateTime(startDate, endDate);
+    if (safeEnd !== endDate) {
+      setEndDate(safeEnd);
     }
   }, [startDate, endDate]);
 
   // Reviews for this vehicle
   const reviews = useMemo(() => MOCK_REVIEWS.filter(r => r.vehicleId === id), [id]);
+  const ratingBreakdown = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0]; // 1-5 stars
+    reviews.forEach(r => { if (r.overallRating >= 1 && r.overallRating <= 5) counts[r.overallRating - 1]++; });
+    const total = reviews.length || 1;
+    return [5, 4, 3, 2, 1].map(star => ({
+      star,
+      count: counts[star - 1],
+      pct: Math.round((counts[star - 1] / total) * 100),
+    }));
+  }, [reviews]);
   const avgRating = vehicle?.avgRating ?? 0;
 
   if (isLoading) {
@@ -110,18 +126,6 @@ export default function VehicleDetailPage() {
       </div>
     );
   }
-
-  // Rating breakdown
-  const ratingBreakdown = useMemo(() => {
-    const counts = [0, 0, 0, 0, 0]; // 1-5 stars
-    reviews.forEach(r => { if (r.overallRating >= 1 && r.overallRating <= 5) counts[r.overallRating - 1]++; });
-    const total = reviews.length || 1;
-    return [5, 4, 3, 2, 1].map(star => ({
-      star,
-      count: counts[star - 1],
-      pct: Math.round((counts[star - 1] / total) * 100),
-    }));
-  }, [reviews]);
 
   // 404
   if (!vehicle) {
@@ -366,7 +370,7 @@ export default function VehicleDetailPage() {
                   <div className="relative">
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                     <input
-                      type="date" value={startDate}
+                      type="datetime-local" value={startDate}
                       min={minStartDate}
                       onChange={e => setStartDate(e.target.value)}
                       onClick={e => e.currentTarget.showPicker()}
@@ -379,7 +383,7 @@ export default function VehicleDetailPage() {
                   <div className="relative">
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                     <input
-                      type="date" value={endDate}
+                      type="datetime-local" value={endDate}
                       min={minEndDate}
                       onChange={e => setEndDate(e.target.value)}
                       onClick={e => e.currentTarget.showPicker()}
@@ -394,15 +398,15 @@ export default function VehicleDetailPage() {
             <div className="border-t border-gray-100 pt-6 mt-2">
               <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
                 <span>Đơn giá</span>
-                <span>{formatVND(vehicle.price)}/ngày</span>
+                <span>{formatVND(unitRateAmount)}/{pricingMode === 'HOURLY' ? 'giờ' : 'ngày'}</span>
               </div>
               <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
-                <span>Số ngày thuê</span>
-                <span>{totalDays} ngày</span>
+                <span>Thời lượng thuê</span>
+                <span>{durationLabel}</span>
               </div>
               <div className="flex justify-between items-center text-lg font-black text-gray-900 mt-6 bg-[#f4f8f7] p-4 rounded-xl">
                 <span>Tạm tính</span>
-                <span className="text-[#78ad44]">{formatVND(vehicle.price * totalDays)}</span>
+                <span className="text-[#78ad44]">{formatVND(unitRateAmount * (pricingMode === 'HOURLY' ? totalHours : totalDays))}</span>
               </div>
             </div>
 

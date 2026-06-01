@@ -23,6 +23,19 @@ export function getBookingTotalDays(booking: ApiBookingResponse): number {
   return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
 }
 
+export function getBookingTotalHours(booking: ApiBookingResponse): number {
+  const start = new Date(booking.startTime).getTime();
+  const end = new Date(booking.endTime).getTime();
+  return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60)));
+}
+
+export function getBookingDurationLabel(booking: ApiBookingResponse): string {
+  if (booking.pricingMode === 'HOURLY') {
+    return `${getBookingTotalHours(booking)} giờ`;
+  }
+  return `${getBookingTotalDays(booking)} ngày`;
+}
+
 export function getBookingVehicleFallback(booking: ApiBookingResponse) {
   return MOCK_VEHICLES.find((vehicle) => Number(vehicle.id) === booking.vehicleId) ?? null;
 }

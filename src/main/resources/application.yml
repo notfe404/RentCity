@@ -10,9 +10,9 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
   datasource:
-    url: jdbc:postgresql://localhost:5432/rentcity
-    username: postgres
-    password: bdminh
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/rentcity}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

@@ -1,5 +1,5 @@
 import type { ApiBookingResponse } from '@/types';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingTotalDays, getBookingVehicleName } from '@/utils/bookingMapper';
+import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 
 interface InvoiceCustomer {
@@ -21,7 +21,7 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
   const bookingStatus = BOOKING_STATUS_META[booking.status];
   const depositStatus = DEPOSIT_STATUS_META[booking.depositStatus];
   const vehicleName = getBookingVehicleName(booking);
-  const totalDays = getBookingTotalDays(booking);
+  const durationLabel = getBookingDurationLabel(booking);
   const generatedAt = formatDateTime(new Date().toISOString());
 
   const rows = [
@@ -35,7 +35,7 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
     ['Biển số', booking.vehicleLicensePlate ?? '-'],
     ['Nhận xe', formatDateTime(booking.startTime)],
     ['Trả xe', formatDateTime(booking.endTime)],
-    ['Số ngày thuê', `${totalDays} ngày`],
+    ['Thời lượng thuê', durationLabel],
     ['Hình thức tính giá', booking.pricingMode],
     ['Hủy miễn phí đến', formatDateTime(booking.freeCancelUntil)],
     ['Giá thuê', formatVND(booking.baseAmount)],

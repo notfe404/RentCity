@@ -11,6 +11,12 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { getAvailableCars } from '@/services/carApi';
 import { useBooking } from '@/store/bookingStore';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
+import {
+  ensureFutureEndDateTime,
+  getDefaultBookingRange,
+  getMinimumEndDateTime,
+  toBackendDateTime,
+} from '@/utils/bookingDateTime';
 import { formatVND } from '@/utils/formatters';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'trips';
@@ -53,30 +59,20 @@ export default function SearchPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Dates auto-fill
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  const futureDate = new Date(now);
-  futureDate.setDate(now.getDate() + 4);
-  const futureStr = futureDate.toISOString().split('T')[0];
-  const [searchStart, setSearchStart] = useState(tomorrowStr);
-  const [searchEnd, setSearchEnd] = useState(futureStr);
+  const initialRange = useMemo(() => getDefaultBookingRange(), []);
+  const [searchStart, setSearchStart] = useState(initialRange.startDate);
+  const [searchEnd, setSearchEnd] = useState(initialRange.endDate);
 
   const brandFilter = searchParams.get('brand');
   const categoryFilter = searchParams.get('category');
   const minReturnDate = useMemo(() => {
-    const nextDay = new Date(searchStart);
-    nextDay.setDate(nextDay.getDate() + 1);
-    return nextDay.toISOString().split('T')[0];
+    return getMinimumEndDateTime(searchStart);
   }, [searchStart]);
 
   useEffect(() => {
-    if (searchEnd <= searchStart) {
-      const nextDay = new Date(searchStart);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setSearchEnd(nextDay.toISOString().split('T')[0]);
+    const safeEnd = ensureFutureEndDateTime(searchStart, searchEnd);
+    if (safeEnd !== searchEnd) {
+      setSearchEnd(safeEnd);
     }
   }, [searchStart, searchEnd]);
 
@@ -84,7 +80,7 @@ export default function SearchPage() {
     let cancelled = false;
 
     const run = async () => {
-      if (searchStart >= searchEnd) {
+      if (new Date(searchStart).getTime() >= new Date(searchEnd).getTime()) {
         setIsLoading(false);
         return;
       }
@@ -92,8 +88,8 @@ export default function SearchPage() {
       try {
         setIsLoading(true);
         const { data } = await getAvailableCars({
-          from: searchStart,
-          to: searchEnd,
+          from: toBackendDateTime(searchStart),
+          to: toBackendDateTime(searchEnd),
           ...(selectedLocation ? { branchId: Number(selectedLocation) } : {}),
         });
         if (!cancelled) {
@@ -191,8 +187,9 @@ export default function SearchPage() {
     setSelectedFuel([]);
     setSelectedTransmission([]);
     setSelectedLocation('');
-    setSearchStart(tomorrowStr);
-    setSearchEnd(futureStr);
+    const freshRange = getDefaultBookingRange();
+    setSearchStart(freshRange.startDate);
+    setSearchEnd(freshRange.endDate);
     navigate('/search');
   };
 
@@ -354,10 +351,10 @@ export default function SearchPage() {
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
               <div className="flex-1 relative flex items-center">
                 <input
-                  type="date"
+                  type="datetime-local"
                   className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
                   value={searchStart}
-                  min={tomorrowStr}
+                  min={initialRange.startDate}
                   onChange={e => setSearchStart(e.target.value)}
                   onClick={e => e.currentTarget.showPicker()}
                 />
@@ -373,7 +370,7 @@ export default function SearchPage() {
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
               <div className="flex-1 relative flex items-center">
                 <input
-                  type="date"
+                  type="datetime-local"
                   className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
                   value={searchEnd}
                   min={minReturnDate}

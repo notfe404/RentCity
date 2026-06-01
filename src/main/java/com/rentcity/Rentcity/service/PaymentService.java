@@ -31,6 +31,7 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final BookingStateMachineService bookingStateMachineService;
+    private final BookingCancellationPolicyService bookingCancellationPolicyService;
 
     @Value("${payment.public-base-url:http://localhost:8080/api}")
     private String publicBaseUrl;
@@ -200,7 +201,7 @@ public class PaymentService {
         if (booking.getStatus() != BookingStatus.CANCELLED || booking.getCancelledAt() == null) {
             throw new IllegalArgumentException("Booking must be cancelled before refund");
         }
-        if (!isCancelledAtLeast24HoursBeforeStart(booking)) {
+        if (!bookingCancellationPolicyService.isFreeCancellation(booking, booking.getCancelledAt())) {
             throw new IllegalArgumentException("Refund is only allowed when booking is cancelled at least 24 hours before start time");
         }
 
@@ -302,10 +303,6 @@ public class PaymentService {
 
     private boolean isStaffOrAdmin(User user) {
         return user.getRole() == Role.ADMIN || user.getRole() == Role.STAFF;
-    }
-
-    private boolean isCancelledAtLeast24HoursBeforeStart(Booking booking) {
-        return !booking.getCancelledAt().isAfter(booking.getStartTime().minusHours(24));
     }
 
     private User findUserByEmail(String email) {

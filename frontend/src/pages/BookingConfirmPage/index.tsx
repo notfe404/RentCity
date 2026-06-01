@@ -13,6 +13,7 @@ import { getCarById } from '@/services/carApi';
 import { createBooking } from '@/services/bookingApi';
 import { useBooking } from '@/store/bookingStore';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
+import { toBackendDateTime } from '@/utils/bookingDateTime';
 import { formatVND } from '@/utils/formatters';
 
 const EXTRAS_CONFIG = [
@@ -37,6 +38,8 @@ export default function BookingConfirmPage() {
     returnLocationId,
     extras,
     discountAmount,
+    pricingMode,
+    durationLabel,
     totalDays,
     baseAmount,
     depositAmount,
@@ -81,18 +84,13 @@ export default function BookingConfirmPage() {
   const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
 
   const lineItems = [
-    { label: `Thuê xe (${totalDays} ngày)`, amount: baseAmount },
+    { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
     ...EXTRAS_CONFIG.filter((e) => extras[e.key]).map((e) => ({
       label: e.label,
       amount: e.pricePerDay * totalDays,
     })),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
-
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
   if (!vehicle) {
     if (isLoading) {
@@ -125,26 +123,23 @@ export default function BookingConfirmPage() {
       return;
     }
 
-    if (startDate < tomorrowStr) {
-      toast.error('Hiện tại flow booking theo ngày yêu cầu ngày nhận xe từ ngày mai trở đi');
+    if (new Date(startDate).getTime() <= Date.now()) {
+      toast.error('Thời gian nhận xe phải ở tương lai');
       return;
     }
 
-    if (endDate <= startDate) {
-      toast.error('Ngày trả xe phải sau ngày nhận xe ít nhất 1 ngày');
+    if (new Date(endDate).getTime() <= new Date(startDate).getTime()) {
+      toast.error('Thời gian trả xe phải sau thời gian nhận xe');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const startTime = `${startDate}T09:00:00`;
-      const endTime = `${endDate}T09:00:00`;
-
       const { data } = await createBooking({
         vehicleId: Number(vehicle.id),
-        startTime,
-        endTime,
-        pricingMode: 'DAILY',
+        startTime: toBackendDateTime(startDate),
+        endTime: toBackendDateTime(endDate),
+        pricingMode,
       });
 
       toast.success('Đã tạo booking thành công');
@@ -210,7 +205,7 @@ export default function BookingConfirmPage() {
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">Chính sách hủy</h4>
                     <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">
-                      Quý khách đặt xe theo ngày được hủy miễn phí trước 1 ngày nhận xe. Quý khách hủy đặt xe muộn hơn 1 ngày trước ngày nhận xe sẽ bị mất tiền cọc xe.
+                      Chỉ được hoàn cọc nếu booking được hủy ít nhất 24 giờ trước thời điểm nhận xe. Nếu thời gian đặt xe tính tới thời gian nhận xe còn dưới 24 giờ, booking đó sẽ không đủ điều kiện để được hoàn cọc.
                     </p>
                   </div>
                 </div>
@@ -239,7 +234,7 @@ export default function BookingConfirmPage() {
             returnLocation={returnName}
             startDate={startDate}
             endDate={endDate}
-            totalDays={totalDays}
+            durationLabel={durationLabel}
             lineItems={lineItems}
             depositAmount={depositAmount}
             totalAmount={totalAmount}

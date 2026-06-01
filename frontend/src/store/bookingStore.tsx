@@ -1,5 +1,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { MockVehicle } from '@/data/mockVehicles';
+import type { ApiPricingMode } from '@/types';
+import {
+  getDefaultBookingRange,
+  getDurationDays,
+  getDurationHours,
+  getDurationLabel,
+  inferPricingMode,
+} from '@/utils/bookingDateTime';
 
 // ============================================================
 // Booking Context — Quản lý luồng đặt xe
@@ -21,7 +29,7 @@ interface BookingState {
   vehicle: MockVehicle | null;
   pickupLocationId: string;
   returnLocationId: string;
-  startDate: string;       // yyyy-mm-dd
+  startDate: string;       // yyyy-mm-ddThh:mm
   endDate: string;
   extras: BookingExtras;
   customerNote: string;
@@ -30,7 +38,12 @@ interface BookingState {
 }
 
 interface BookingContextValue extends BookingState {
+  pricingMode: ApiPricingMode;
+  totalHours: number;
   totalDays: number;
+  durationLabel: string;
+  billingUnitLabel: string;
+  unitRateAmount: number;
   baseAmount: number;
   extrasAmount: number;
   totalAmount: number;
@@ -50,23 +63,11 @@ interface BookingContextValue extends BookingState {
 
 const BookingContext = createContext<BookingContextValue | null>(null);
 
-function getDefaultDates() {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() + 1);
-  const end = new Date(now);
-  end.setDate(now.getDate() + 4);
-  return {
-    startDate: start.toISOString().split('T')[0],
-    endDate: end.toISOString().split('T')[0],
-  };
-}
-
 const INITIAL: BookingState = {
   vehicle: null,
   pickupLocationId: 'loc-cau-giay',
   returnLocationId: 'loc-cau-giay',
-  ...getDefaultDates(),
+  ...getDefaultBookingRange(),
   extras: { insurance: true, childSeat: false, gps: false },
   customerNote: '',
   promotionCode: '',
@@ -76,15 +77,21 @@ const INITIAL: BookingState = {
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BookingState>(INITIAL);
 
-  const totalDays = Math.max(1, Math.ceil(
-    (new Date(state.endDate).getTime() - new Date(state.startDate).getTime()) / (1000 * 60 * 60 * 24)
-  ));
-  const baseAmount = (state.vehicle?.price ?? 0) * totalDays;
+  const pricingMode = inferPricingMode(state.startDate, state.endDate);
+  const totalHours = getDurationHours(state.startDate, state.endDate);
+  const totalDays = getDurationDays(state.startDate, state.endDate);
+  const durationLabel = getDurationLabel(state.startDate, state.endDate, pricingMode);
+  const billingUnitLabel = pricingMode === 'HOURLY' ? 'giờ' : 'ngày';
+  const unitRateAmount = pricingMode === 'HOURLY'
+    ? Math.round((state.vehicle?.price ?? 0) / 24)
+    : (state.vehicle?.price ?? 0);
+  const billableUnits = pricingMode === 'HOURLY' ? totalHours : totalDays;
+  const baseAmount = unitRateAmount * billableUnits;
   const extrasAmount = Object.entries(state.extras).reduce(
     (sum, [key, on]) => sum + (on ? EXTRAS_PRICE[key as keyof BookingExtras] * totalDays : 0), 0
   );
   const totalAmount = Math.max(0, baseAmount + extrasAmount - state.discountAmount);
-  const depositAmount = Math.round(totalAmount * 0.1);
+  const depositAmount = Math.round(totalAmount * 0.3);
 
   const setVehicle = useCallback((v: MockVehicle) => setState(s => ({ ...s, vehicle: v })), []);
   const setPickupLocation = useCallback((id: string) => setState(s => ({ ...s, pickupLocationId: id })), []);
@@ -105,11 +112,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   }, [state.promotionCode, baseAmount]);
 
-  const reset = useCallback(() => setState(INITIAL), []);
+  const reset = useCallback(() => setState({
+    ...INITIAL,
+    ...getDefaultBookingRange(),
+  }), []);
 
   return (
     <BookingContext.Provider value={{
-      ...state, totalDays, baseAmount, extrasAmount, totalAmount, depositAmount,
+      ...state, pricingMode, totalHours, totalDays, durationLabel, billingUnitLabel, unitRateAmount,
+      baseAmount, extrasAmount, totalAmount, depositAmount,
       setVehicle, setPickupLocation, setReturnLocation, setStartDate, setEndDate,
       toggleExtra, setCustomerNote, setPromotionCode, applyPromotion, reset,
     }}>

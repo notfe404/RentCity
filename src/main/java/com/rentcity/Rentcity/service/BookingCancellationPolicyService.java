@@ -11,9 +11,11 @@ import java.time.LocalDateTime;
 public class BookingCancellationPolicyService {
 
     public LocalDateTime calculateFreeCancelUntil(LocalDateTime startTime, PricingMode pricingMode) {
-        return pricingMode == PricingMode.HOURLY
-                ? startTime.minusHours(1)
-                : startTime.minusDays(1);
+        return startTime.minusHours(24);
+    }
+
+    public boolean isFreeCancellation(Booking booking, LocalDateTime cancelledAt) {
+        return booking.getFreeCancelUntil() != null && !cancelledAt.isAfter(booking.getFreeCancelUntil());
     }
 
     public DepositStatus determineDepositStatusAfterCustomerCancel(Booking booking, LocalDateTime cancelledAt) {
@@ -26,7 +28,7 @@ public class BookingCancellationPolicyService {
             return currentStatus;
         }
 
-        boolean freeCancellation = !cancelledAt.isAfter(booking.getFreeCancelUntil());
+        boolean freeCancellation = isFreeCancellation(booking, cancelledAt);
         if (currentStatus == DepositStatus.PAID) {
             return freeCancellation ? DepositStatus.REFUNDED : DepositStatus.FORFEITED;
         }

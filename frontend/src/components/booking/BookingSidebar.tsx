@@ -1,5 +1,5 @@
 import { MapPin, Calendar, ChevronRight } from 'lucide-react';
-import { formatVND, formatDate } from '@/utils/formatters';
+import { formatVND, formatDateTime } from '@/utils/formatters';
 import type { MockVehicle } from '@/data/mockVehicles';
 
 interface PriceLineItem {
@@ -13,7 +13,7 @@ interface BookingSidebarProps {
   returnLocation: string;
   startDate: string;
   endDate: string;
-  totalDays: number;
+  durationLabel: string;
   lineItems: PriceLineItem[];
   depositAmount: number;
   totalAmount: number;
@@ -28,7 +28,7 @@ export default function BookingSidebar({
   returnLocation,
   startDate,
   endDate,
-  totalDays,
+  durationLabel,
   lineItems,
   depositAmount,
   totalAmount,
@@ -57,7 +57,7 @@ export default function BookingSidebar({
             <div>
               <p className="text-xs font-bold text-gray-400">Nhận xe</p>
               <p className="text-sm font-bold text-gray-900">{pickupLocation}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{formatDate(startDate)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{formatDateTime(startDate)}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -67,7 +67,7 @@ export default function BookingSidebar({
             <div>
               <p className="text-xs font-bold text-gray-400">Trả xe</p>
               <p className="text-sm font-bold text-gray-900">{returnLocation}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{formatDate(endDate)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{formatDateTime(endDate)}</p>
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function BookingSidebar({
         <div className="border-t border-gray-100 pt-5 px-2">
           <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
             <span>Thời lượng thuê</span>
-            <span>{totalDays} ngày</span>
+            <span>{durationLabel}</span>
           </div>
 
           {lineItems.map((item, i) => (

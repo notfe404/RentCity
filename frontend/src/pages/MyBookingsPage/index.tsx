@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { getMyBookings } from '@/services/bookingApi';
-import { BOOKING_STATUS_META, getBookingTotalDays, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
+import { BOOKING_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatVND, formatDate } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiBookingStatus } from '@/types';
 
@@ -98,7 +98,7 @@ export default function MyBookingsPage() {
                   const statusCfg = BOOKING_STATUS_META[booking.status];
                   const vehicleImage = getBookingVehicleImage(booking);
                   const vehicleName = getBookingVehicleName(booking);
-                  const totalDays = getBookingTotalDays(booking);
+                  const durationLabel = getBookingDurationLabel(booking);
                   return (
                     <motion.div
                       key={booking.id}
@@ -136,7 +136,7 @@ export default function MyBookingsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin size={16} className="text-[#78ad44]" />
-                              {totalDays} ngày • {booking.pricingMode}
+                              {durationLabel} • {booking.pricingMode}
                             </div>
                           </div>
                         </div>

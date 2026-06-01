@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class BookingPricingService {
 
     private static final BigDecimal HOURS_PER_DAY = BigDecimal.valueOf(24);
-    private static final BigDecimal TEN_PERCENT = new BigDecimal("0.10");
+    private static final BigDecimal THIRTY_PERCENT = new BigDecimal("0.30");
     private static final long MINUTES_PER_HOUR = 60;
     private static final long MINUTES_PER_DAY = 24 * 60;
 
@@ -35,7 +35,7 @@ public class BookingPricingService {
             case MONTHLY -> calculateMonthlyAmount(car.getPricePerDay(), totalMinutes);
         };
 
-        BigDecimal depositAmount = baseAmount.multiply(TEN_PERCENT).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal depositAmount = baseAmount.multiply(THIRTY_PERCENT).setScale(0, RoundingMode.HALF_UP);
 
         return BookingQuote.builder()
                 .baseAmount(baseAmount)

@@ -54,6 +54,7 @@ export default function BookingPage() {
     customerNote,
     promotionCode,
     discountAmount,
+    durationLabel,
     totalDays,
     baseAmount,
     depositAmount,
@@ -115,7 +116,7 @@ export default function BookingPage() {
   const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
 
   const lineItems = [
-    { label: `Thuê xe (${totalDays} ngày)`, amount: baseAmount },
+    { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
     ...EXTRAS.filter((e) => extras[e.key]).map((e) => ({ label: e.label, amount: e.pricePerDay * totalDays })),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
@@ -251,7 +252,7 @@ export default function BookingPage() {
             returnLocation={returnName}
             startDate={startDate}
             endDate={endDate}
-            totalDays={totalDays}
+            durationLabel={durationLabel}
             lineItems={lineItems}
             depositAmount={depositAmount}
             totalAmount={totalAmount}

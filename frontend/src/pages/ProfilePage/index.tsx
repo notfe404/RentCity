@@ -261,6 +261,7 @@ const [backId, setBackId] = useState<{
 
           {/* Profile Tab */}
           {activeTab === 'profile' && (
+            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
             {/* Header: Personal Info */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-5 mb-8 gap-4">
               <div>
