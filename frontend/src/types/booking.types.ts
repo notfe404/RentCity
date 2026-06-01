@@ -132,3 +132,17 @@ export interface AdminBookingTransitionPayload {
   reason?: string;
   note?: string;
 }
+
+export interface AdminDashboardHotVehicle {
+  vehicleId: number;
+  vehicleName: string;
+  licensePlate?: string | null;
+  bookingCount: number;
+}
+
+export interface AdminDashboardMonthlyStats {
+  month: string;
+  totalBookings: number;
+  completedRevenue: number;
+  hotVehicle?: AdminDashboardHotVehicle | null;
+}

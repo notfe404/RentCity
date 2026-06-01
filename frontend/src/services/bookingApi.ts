@@ -1,6 +1,7 @@
 import api from './api';
 import type {
   AdminBookingTransitionPayload,
+  AdminDashboardMonthlyStats,
   ApiBookingResponse,
   ApiBookingStatus,
   BackendCreateBookingRequest,
@@ -47,4 +48,8 @@ export const transitionAdminBooking = (
 
 export const confirmBookingForTest = (id: number | string) => {
   return api.post<ApiBookingResponse>(`/bookings/${id}/confirm-for-test`);
+};
+
+export const getAdminMonthlyDashboard = () => {
+  return api.get<AdminDashboardMonthlyStats[]>('/admin/dashboard/monthly');
 };
