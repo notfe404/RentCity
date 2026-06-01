@@ -53,3 +53,11 @@ backend/target/
 backend/.env
 backend/*.log
 backend/spring_boot_error*.log
+
+### Uploads — ignore user-uploaded files but keep seed images and directory structure ###
+backend/uploads/**/*.jpg
+backend/uploads/**/*.jpeg
+backend/uploads/**/*.png
+backend/uploads/**/*.webp
+backend/uploads/**/*.gif
+!backend/uploads/cars/hyundai-santafe-2022.jpg

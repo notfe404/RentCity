@@ -241,7 +241,14 @@ export default function VehicleDetailPage() {
               <AnimatePresence mode="wait">
                 <motion.img
                   key={activeImage}
-                  src={vehicle.images[activeImage]}
+                  src={(vehicle.images.length > 0 ? vehicle.images : [''])[activeImage] || [
+                    vehicle.images[0] || "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1503376713196-5fd1c87a544a?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=800&q=80"
+                  ][activeImage]}
                   alt={vehicle.name}
                   className="w-full h-full object-cover"
                   initial={{ opacity: 0 }}
@@ -251,21 +258,27 @@ export default function VehicleDetailPage() {
                 />
               </AnimatePresence>
             </div>
-            {vehicle.images.length > 1 && (
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                {vehicle.images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImage(idx)}
-                    className={`relative h-20 rounded-xl overflow-hidden transition-all ${
-                      activeImage === idx ? 'ring-2 ring-offset-2 ring-[#78ad44]' : 'opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt="thumbnail" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
+            
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              {[
+                vehicle.images[0] || "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+                vehicle.images[1] || "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=800&q=80",
+                vehicle.images[2] || "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
+                vehicle.images[3] || "https://images.unsplash.com/photo-1503376713196-5fd1c87a544a?auto=format&fit=crop&w=800&q=80",
+                vehicle.images[4] || "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=800&q=80",
+                vehicle.images[5] || "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=800&q=80"
+              ].map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImage(idx)}
+                  className={`relative h-20 sm:h-24 rounded-xl overflow-hidden transition-all ${
+                    activeImage === idx ? 'ring-2 ring-offset-2 ring-[#78ad44]' : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="thumbnail" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Vehicle Info Cards */}
