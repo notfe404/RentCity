@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Search, MapPin, Calendar, Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { Search, MapPin, Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
+import DateTime24hField from '@/components/ui/DateTime24hField';
 import { VehicleCard } from '@/components/vehicle/VehicleCard';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getAvailableCars } from '@/services/carApi';
@@ -65,6 +66,7 @@ export default function SearchPage() {
 
   const brandFilter = searchParams.get('brand');
   const categoryFilter = searchParams.get('category');
+  const minStartDate = initialRange.startDate;
   const minReturnDate = useMemo(() => {
     return getMinimumEndDateTime(searchStart);
   }, [searchStart]);
@@ -349,17 +351,16 @@ export default function SearchPage() {
 
             {/* Pickup date */}
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
-              <div className="flex-1 relative flex items-center">
-                <input
-                  type="datetime-local"
-                  className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
-                  value={searchStart}
-                  min={initialRange.startDate}
-                  onChange={e => setSearchStart(e.target.value)}
-                  onClick={e => e.currentTarget.showPicker()}
-                />
-                <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none" size={18} />
-              </div>
+              <DateTime24hField
+                value={searchStart}
+                min={minStartDate}
+                onChange={setSearchStart}
+                containerClassName="flex-1 relative flex items-center"
+                controlsClassName="w-full pl-12 pr-2 flex items-center gap-2"
+                dateInputClassName="min-w-0 flex-1 bg-transparent py-4 focus:outline-none text-gray-700 text-sm font-bold [color-scheme:light]"
+                timeSelectClassName="w-24 bg-transparent py-4 pr-1 focus:outline-none text-gray-700 text-sm font-bold appearance-none cursor-pointer text-right"
+                iconClassName="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none"
+              />
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
                 Nhận xe
@@ -368,17 +369,16 @@ export default function SearchPage() {
 
             {/* Return date */}
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
-              <div className="flex-1 relative flex items-center">
-                <input
-                  type="datetime-local"
-                  className="w-full bg-transparent py-4 pl-12 pr-2 focus:outline-none text-gray-700 text-sm font-bold cursor-pointer [color-scheme:light] caret-transparent select-none"
-                  value={searchEnd}
-                  min={minReturnDate}
-                  onChange={e => setSearchEnd(e.target.value)}
-                  onClick={e => e.currentTarget.showPicker()}
-                />
-                <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none" size={18} />
-              </div>
+              <DateTime24hField
+                value={searchEnd}
+                min={minReturnDate}
+                onChange={setSearchEnd}
+                containerClassName="flex-1 relative flex items-center"
+                controlsClassName="w-full pl-12 pr-2 flex items-center gap-2"
+                dateInputClassName="min-w-0 flex-1 bg-transparent py-4 focus:outline-none text-gray-700 text-sm font-bold [color-scheme:light]"
+                timeSelectClassName="w-24 bg-transparent py-4 pr-1 focus:outline-none text-gray-700 text-sm font-bold appearance-none cursor-pointer text-right"
+                iconClassName="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none"
+              />
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
                 Trả xe

@@ -7,6 +7,8 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
+export const TIME_OPTIONS_24H = Array.from({ length: 24 }, (_, hour) => `${pad(hour)}:00`);
+
 export function formatDateTimeLocalValue(date: Date): string {
   return [
     date.getFullYear(),
@@ -17,6 +19,34 @@ export function formatDateTimeLocalValue(date: Date): string {
 
 export function parseDateTimeLocalValue(value: string): Date {
   return new Date(value);
+}
+
+export function splitDateTimeLocalValue(value: string): { datePart: string; timePart: string } {
+  const date = parseDateTimeLocalValue(value);
+  return {
+    datePart: [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+    ].join('-'),
+    timePart: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  };
+}
+
+export function combineDateAndTimeParts(datePart: string, timePart: string): string {
+  return `${datePart}T${timePart}`;
+}
+
+export function clampDateTimeLocalValue(value: string, minValue?: string): string {
+  if (!minValue) {
+    return value;
+  }
+
+  if (parseDateTimeLocalValue(value).getTime() < parseDateTimeLocalValue(minValue).getTime()) {
+    return minValue;
+  }
+
+  return value;
 }
 
 export function addHours(date: Date, hours: number): Date {

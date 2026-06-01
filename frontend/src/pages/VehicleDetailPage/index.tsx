@@ -12,12 +12,16 @@ import { getCarById } from '@/services/carApi';
 import { formatVND, formatDate } from '@/utils/formatters';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import {
+  clampDateTimeLocalValue,
+  combineDateAndTimeParts,
   ensureFutureEndDateTime,
   getDefaultBookingRange,
   getDurationDays,
   getDurationHours,
   getDurationLabel,
   inferPricingMode,
+  splitDateTimeLocalValue,
+  TIME_OPTIONS_24H,
 } from '@/utils/bookingDateTime';
 import RatingStars from '@/components/ui/RatingStars';
 import { useBooking } from '@/store/bookingStore';
@@ -117,6 +121,25 @@ export default function VehicleDetailPage() {
   }, [reviews]);
   const avgRating = vehicle?.avgRating ?? 0;
 
+  const formatBookingDateLabel = (value: string) => {
+    const { datePart } = splitDateTimeLocalValue(value);
+    const [year, month, day] = datePart.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  const updateBookingDateTime = (
+    currentValue: string,
+    nextDatePart: string,
+    nextTimePart: string,
+    minValue?: string,
+  ) => {
+    const fallbackDatePart = splitDateTimeLocalValue(currentValue).datePart;
+    return clampDateTimeLocalValue(
+      combineDateAndTimeParts(nextDatePart || fallbackDatePart, nextTimePart),
+      minValue,
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
@@ -197,7 +220,7 @@ export default function VehicleDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 pb-20 w-full flex flex-col lg:flex-row gap-10">
 
         {/* Left Column */}
-        <div className="flex-1 w-full flex flex-col gap-10">
+        <div className="order-2 lg:order-1 flex-1 w-full flex flex-col gap-10">
 
           {/* Gallery */}
           <div className="bg-white rounded-[2rem] p-4 shadow-xl border border-gray-100 flex flex-col gap-4">
@@ -327,7 +350,7 @@ export default function VehicleDetailPage() {
         </div>
 
         {/* Right Column: Reservation */}
-        <aside className="w-full lg:w-[400px] shrink-0">
+        <aside className="order-1 lg:order-2 w-full lg:w-[400px] shrink-0">
           <div className="sticky top-24 bg-white rounded-[2.5rem] p-8 shadow-2xl border border-gray-100 flex flex-col gap-6">
             <h3 className="text-2xl font-black text-gray-900 border-b border-gray-100 pb-4">Đặt xe</h3>
 
@@ -364,31 +387,83 @@ export default function VehicleDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Ngày nhận</label>
-                  <div className="relative">
+                  <div className="relative bg-[#f4f8f7] rounded-2xl pl-12 pr-3 py-2.5 flex items-center gap-3">
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                    <input
-                      type="datetime-local" value={startDate}
-                      min={minStartDate}
-                      onChange={e => setStartDate(e.target.value)}
-                      onClick={e => e.currentTarget.showPicker()}
-                      className="w-full bg-[#f4f8f7] border-none rounded-2xl pl-12 pr-3 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-medium cursor-pointer [color-scheme:light]"
-                    />
+                    <div className="relative min-w-0 flex-1">
+                      <div className="truncate text-sm text-gray-700 font-medium leading-5">
+                        {formatBookingDateLabel(startDate)}
+                      </div>
+                      <input
+                        type="date"
+                        value={splitDateTimeLocalValue(startDate).datePart}
+                        min={splitDateTimeLocalValue(minStartDate).datePart}
+                        onChange={(e) => setStartDate(updateBookingDateTime(
+                          startDate,
+                          e.target.value,
+                          splitDateTimeLocalValue(startDate).timePart,
+                          minStartDate,
+                        ))}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <select
+                      value={splitDateTimeLocalValue(startDate).timePart}
+                      onChange={(e) => setStartDate(updateBookingDateTime(
+                        startDate,
+                        splitDateTimeLocalValue(startDate).datePart,
+                        e.target.value,
+                        minStartDate,
+                      ))}
+                      className="w-24 rounded-xl bg-white px-3 py-2 text-sm focus:outline-none text-gray-700 font-semibold appearance-none cursor-pointer text-center shadow-sm"
+                    >
+                      {TIME_OPTIONS_24H.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Ngày trả</label>
-                  <div className="relative">
+                  <div className="relative bg-[#f4f8f7] rounded-2xl pl-12 pr-3 py-2.5 flex items-center gap-3">
                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                    <input
-                      type="datetime-local" value={endDate}
-                      min={minEndDate}
-                      onChange={e => setEndDate(e.target.value)}
-                      onClick={e => e.currentTarget.showPicker()}
-                      className="w-full bg-[#f4f8f7] border-none rounded-2xl pl-12 pr-3 py-3.5 text-sm focus:ring-2 focus:ring-[#78ad44] outline-none text-gray-700 font-medium cursor-pointer [color-scheme:light]"
-                    />
+                    <div className="relative min-w-0 flex-1">
+                      <div className="truncate text-sm text-gray-700 font-medium leading-5">
+                        {formatBookingDateLabel(endDate)}
+                      </div>
+                      <input
+                        type="date"
+                        value={splitDateTimeLocalValue(endDate).datePart}
+                        min={splitDateTimeLocalValue(minEndDate).datePart}
+                        onChange={(e) => setEndDate(updateBookingDateTime(
+                          endDate,
+                          e.target.value,
+                          splitDateTimeLocalValue(endDate).timePart,
+                          minEndDate,
+                        ))}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <select
+                      value={splitDateTimeLocalValue(endDate).timePart}
+                      onChange={(e) => setEndDate(updateBookingDateTime(
+                        endDate,
+                        splitDateTimeLocalValue(endDate).datePart,
+                        e.target.value,
+                        minEndDate,
+                      ))}
+                      className="w-24 rounded-xl bg-white px-3 py-2 text-sm focus:outline-none text-gray-700 font-semibold appearance-none cursor-pointer text-center shadow-sm"
+                    >
+                      {TIME_OPTIONS_24H.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
