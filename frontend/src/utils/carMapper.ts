@@ -5,6 +5,7 @@ export type DisplayVehicle = MockVehicle & {
   branchId?: number | null;
   branchName?: string | null;
   licensePlate?: string;
+  deposit?: number | null;
   backendStatus?: ApiCarResponse['status'];
 };
 
@@ -42,6 +43,7 @@ export function mapApiCarToDisplayVehicle(car: ApiCarResponse): DisplayVehicle {
     branchId: car.branchId,
     branchName: car.branchName,
     licensePlate: car.licensePlate,
+    deposit: car.deposit ?? null,
     backendStatus: car.status,
   };
 }
