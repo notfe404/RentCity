@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, Loader2, CreditCard, Download, Calendar, Filter } from 'lucide-react';
+import { Eye, Loader2, CreditCard, Download, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { getMyPayments, downloadBookingInvoicePdf } from '@/services/paymentApi';
@@ -57,7 +57,7 @@ export default function TransactionsTab() {
   const handleDownloadInvoice = async (bookingId: number, bookingCode: string) => {
     setIsDownloading(bookingId);
     try {
-      const blob = await downloadBookingInvoicePdf(bookingId);
+      const { data: blob } = await downloadBookingInvoicePdf(bookingId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -171,7 +171,7 @@ export default function TransactionsTab() {
                   {/* Download Button */}
                   {payment.status === 'PAID' && (
                     <button
-                      onClick={() => handleDownloadInvoice(payment.bookingId, payment.bookingCode)}
+                      onClick={() => handleDownloadInvoice(payment.bookingId, payment.bookingCode ?? String(payment.bookingId))}
                       disabled={isDownloading === payment.bookingId}
                       className="p-2 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
                       title="Tải hoá đơn"

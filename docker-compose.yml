@@ -5,11 +5,11 @@ services:
     image: postgres:15-alpine
     container_name: rentcity_postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: rentcity_user
+      POSTGRES_PASSWORD: rentcity_pass
       POSTGRES_DB: rentcity
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped

@@ -27,10 +27,15 @@ const PaymentsPage = lazy(() => import('@/pages/PaymentsPage'));
 const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage'));
 const BookingDetailPage = lazy(() => import('@/pages/BookingDetailPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const ReviewPage = lazy(() => import('@/pages/ReviewPage'));
 
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const AdminVehicles = lazy(() => import('@/pages/AdminVehicles'));
 const AdminBookings = lazy(() => import('@/pages/AdminBookings'));
+const AdminUsers = lazy(() => import('@/pages/AdminUsers'));
+const AdminPayments = lazy(() => import('@/pages/AdminPayments'));
+const AdminBranches = lazy(() => import('@/pages/AdminBranches'));
+const AdminCategories = lazy(() => import('@/pages/AdminCategories'));
 
 // Loading Fallback Full Screen
 function PageLoader() {
@@ -46,43 +51,48 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <BookingProvider>
-        {/* Global Toast */}
-        <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
+          {/* Global Toast */}
+          <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
 
-        {/* Global Auth Modal */}
-        <AuthModal />
+          {/* Global Auth Modal */}
+          <AuthModal />
 
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* ─── Public ─── */}
-            <Route path={ROUTES.HOME} element={<LandingPage />} />
-            <Route path={ROUTES.SEARCH} element={<SearchPage />} />
-            <Route path={ROUTES.VEHICLE_DETAIL} element={<VehicleDetailPage />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* ─── Public ─── */}
+              <Route path={ROUTES.HOME} element={<LandingPage />} />
+              <Route path={ROUTES.SEARCH} element={<SearchPage />} />
+              <Route path={ROUTES.VEHICLE_DETAIL} element={<VehicleDetailPage />} />
 
-            {/* ─── Booking Flow (Customer) ─── */}
-            <Route path={ROUTES.BOOKING} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingPage /></ProtectedRoute>} />
-            <Route path={ROUTES.BOOKING_CONFIRM} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingConfirmPage /></ProtectedRoute>} />
-            <Route path={ROUTES.PAYMENT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentPage /></ProtectedRoute>} />
-            <Route path={ROUTES.PAYMENT_PAYPAL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PayPalRedirect /></ProtectedRoute>} />
-            <Route path={ROUTES.PAYMENT_VNPAY} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><VNPayQR /></ProtectedRoute>} />
-            <Route path={ROUTES.PAYMENT_RESULT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentResultPage /></ProtectedRoute>} />
+              {/* ─── Booking Flow (Customer) ─── */}
+              <Route path={ROUTES.BOOKING} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingPage /></ProtectedRoute>} />
+              <Route path={ROUTES.BOOKING_CONFIRM} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingConfirmPage /></ProtectedRoute>} />
+              <Route path={ROUTES.PAYMENT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentPage /></ProtectedRoute>} />
+              <Route path={ROUTES.PAYMENT_PAYPAL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PayPalRedirect /></ProtectedRoute>} />
+              <Route path={ROUTES.PAYMENT_VNPAY} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><VNPayQR /></ProtectedRoute>} />
+              <Route path={ROUTES.PAYMENT_RESULT} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><PaymentResultPage /></ProtectedRoute>} />
 
-            {/* ─── User Profile & Dashboard ─── */}
-            <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path={ROUTES.PAYMENTS} element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
-            <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
-            <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
-            <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+              {/* ─── User Profile & Dashboard ─── */}
+              <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path={ROUTES.PAYMENTS} element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.REVIEW} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><ReviewPage /></ProtectedRoute>} />
 
-            {/* ─── Admin ─── */}
-            <Route path={ROUTES.ADMIN} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path={ROUTES.ADMIN_VEHICLES} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminVehicles /></ProtectedRoute>} />
-            <Route path={ROUTES.ADMIN_BOOKINGS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminBookings /></ProtectedRoute>} />
+              {/* ─── Admin ─── */}
+              <Route path={ROUTES.ADMIN} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_VEHICLES} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminVehicles /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_BOOKINGS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminBookings /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_PAYMENTS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminPayments /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_BRANCHES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminBranches /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_CATEGORIES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminCategories /></ProtectedRoute>} />
 
-            {/* ─── Fallback ─── */}
-            <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
-          </Routes>
-        </Suspense>
+              {/* ─── Fallback ─── */}
+              <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
+            </Routes>
+          </Suspense>
         </BookingProvider>
       </AuthProvider>
     </BrowserRouter>

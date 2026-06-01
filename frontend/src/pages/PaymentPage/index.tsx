@@ -19,8 +19,6 @@ import { toast } from 'sonner';
 import BookingStepper from '@/components/booking/BookingStepper';
 import { getMyBooking } from '@/services/bookingApi';
 import {
-  capturePaypalPayment,
-  completeVnpayMockCallback,
   createDepositPayment,
   getMyPayments,
 } from '@/services/paymentApi';

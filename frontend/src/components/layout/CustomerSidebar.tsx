@@ -1,8 +1,7 @@
-import { User, FileText, Bell, Settings, LogOut, Camera, CreditCard } from 'lucide-react';
+import { User, FileText, Bell, LogOut, Camera, CreditCard } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRef } from 'react';
-import { MOCK_NOTIFICATIONS } from '@/data/mockNotifications';
 
 export default function CustomerSidebar() {
   const location = useLocation();
@@ -10,14 +9,11 @@ export default function CustomerSidebar() {
   const { user, logout, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const unreadCount = MOCK_NOTIFICATIONS.filter(n => !n.isRead).length;
-
   const links = [
     { name: 'Hồ sơ', path: '/profile', icon: User },
     { name: 'Đơn đặt xe', path: '/my-bookings', icon: FileText },
     { name: 'Lịch sử thanh toán', path: '/payments', icon: CreditCard },
-    { name: 'Thông báo', path: '/notifications', icon: Bell, badge: unreadCount },
-    { name: 'Cài đặt', path: '/settings', icon: Settings },
+    { name: 'Thông báo', path: '/notifications', icon: Bell },
   ];
 
   const handleAvatarClick = () => {
@@ -65,17 +61,12 @@ export default function CustomerSidebar() {
         {links.map(link => {
           const isActive = location.pathname === link.path || (link.path !== '/profile' && location.pathname.startsWith(link.path));
           return (
-            <button 
+            <button
               key={link.name}
               onClick={() => navigate(link.path)}
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold transition-all relative ${isActive ? 'bg-[#78ad44] text-white shadow-md shadow-[#78ad44]/20' : 'text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44]'}`}
             >
               <link.icon size={18} /> {link.name}
-              {'badge' in link && link.badge! > 0 && (
-                <span className={`ml-auto text-xs font-black rounded-full w-5 h-5 flex items-center justify-center ${isActive ? 'bg-white text-[#78ad44]' : 'bg-red-500 text-white'}`}>
-                  {link.badge}
-                </span>
-              )}
             </button>
           );
         })}

@@ -1,253 +1,265 @@
-###############################################################
-# Rent-City — Test API Module B (Quản lý xe & chi nhánh)
-#
-# Cách dùng:
-#  - VS Code: cài extension "REST Client" rồi bấm "Send Request"
-#  - IntelliJ IDEA: mở file này và bấm nút ▶ ở mỗi request
-#  - Chạy lần lượt từ trên xuống. Request "Login admin" phải chạy
-#    trước để lấy token cho các thao tác cần quyền ADMIN.
-#
-# Tài khoản admin được DataSeeder tạo sẵn:
-#    admin@rentcity.com / Admin1234
-###############################################################
+### Module B — Fleet Management
+### Base URL: http://localhost:8081/api
+### Requires admin token in @adminToken variable
 
-@baseUrl = http://localhost:8080/api
+@base = http://localhost:8081/api
+@adminToken = <paste-admin-jwt-here>
+@staffToken = <paste-staff-jwt-here>
 
-###############################################################
-# 1. ĐĂNG NHẬP — lấy token ADMIN
-###############################################################
+### ─────────────────────────────────────────────────────────────
+### B1 — Xem danh sách loại xe (public)
+### ─────────────────────────────────────────────────────────────
 
-# @name login
-POST {{baseUrl}}/auth/login
+### Lấy tất cả loại xe (bao gồm inactive — cho admin)
+GET {{base}}/categories
+Accept: application/json
+
+###
+
+### Chỉ loại xe đang hoạt động (cho khách hàng)
+GET {{base}}/categories/active
+Accept: application/json
+
+###
+
+### Chi tiết một loại xe
+GET {{base}}/categories/1
+Accept: application/json
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### Admin: CRUD loại xe
+### ─────────────────────────────────────────────────────────────
+
+### Thêm loại xe mới
+POST {{base}}/categories
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
-  "email": "admin@rentcity.com",
-  "password": "Admin1234"
+  "name": "SUV",
+  "seats": 7,
+  "description": "Xe gầm cao, không gian rộng, phù hợp gia đình",
+  "basePriceDay": 1200000,
+  "depositRate": 0.30,
+  "isActive": true
 }
 
 ###
-# Token được lấy tự động từ response của request "login" ở trên
-@token = {{login.response.body.accessToken}}
 
-
-###############################################################
-# 2. LOẠI XE (/categories) — cần cho việc gán loại cho xe
-###############################################################
-
-### Lấy tất cả loại xe (công khai)
-GET {{baseUrl}}/categories
-
-### Tạo loại xe mới (ADMIN)
-POST {{baseUrl}}/categories
+### Sửa loại xe
+PUT {{base}}/categories/1
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
-Authorization: Bearer {{token}}
 
 {
-  "name": "Pickup",
-  "seats": 5
-}
-
-### Xem 1 loại xe
-GET {{baseUrl}}/categories/1
-
-
-###############################################################
-# 3. CHI NHÁNH (/branches) — B2: CRUD chi nhánh
-###############################################################
-
-### B2 - Lấy tất cả chi nhánh (công khai)
-GET {{baseUrl}}/branches
-
-### B2 - Tạo chi nhánh mới (ADMIN)
-# @name createBranch
-POST {{baseUrl}}/branches
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-  "name": "Chi nhánh Thủ Đức",
-  "address": "1 Võ Văn Ngân, Thủ Đức",
-  "phone": "0288999444",
-  "city": "Hồ Chí Minh"
+  "name": "Sedan",
+  "seats": 5,
+  "description": "Xe 4 cửa, thiết kế thanh lịch",
+  "basePriceDay": 800000,
+  "depositRate": 0.25,
+  "isActive": true
 }
 
 ###
-@branchId = {{createBranch.response.body.id}}
 
-### B2 - Xem chi tiết 1 chi nhánh
-GET {{baseUrl}}/branches/{{branchId}}
+### Xóa loại xe (chỉ khi không có xe nào gán vào)
+DELETE {{base}}/categories/99
+Authorization: Bearer {{adminToken}}
 
-### B2 - Cập nhật chi nhánh (ADMIN)
-PUT {{baseUrl}}/branches/{{branchId}}
+###
+
+### ─────────────────────────────────────────────────────────────
+### B1 — Xem danh sách xe (public search)
+### ─────────────────────────────────────────────────────────────
+
+### Tìm kiếm xe cơ bản
+GET {{base}}/cars/search?page=0&size=10&sortBy=pricePerDay&direction=asc
+Accept: application/json
+
+###
+
+### Tìm theo hãng + loại xe + khoảng giá
+GET {{base}}/cars/search?brand=Toyota&categoryId=1&minPrice=500000&maxPrice=2000000
+Accept: application/json
+
+###
+
+### Tìm theo keyword
+GET {{base}}/cars/search?keyword=vios&status=AVAILABLE
+Accept: application/json
+
+###
+
+### Xe có sẵn theo ngày
+GET {{base}}/cars/available?from=2026-07-01T08:00:00&to=2026-07-05T08:00:00
+Accept: application/json
+
+###
+
+### Xe có sẵn theo ngày + chi nhánh
+GET {{base}}/cars/available?from=2026-07-01T08:00:00&to=2026-07-05T08:00:00&branchId=1
+Accept: application/json
+
+###
+
+### Chi tiết xe
+GET {{base}}/cars/1
+Accept: application/json
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### B2 — Thêm xe mới (Admin)
+### ─────────────────────────────────────────────────────────────
+
+POST {{base}}/admin/cars
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
-Authorization: Bearer {{token}}
 
 {
-  "name": "Chi nhánh Thủ Đức (cập nhật)",
-  "address": "1 Võ Văn Ngân, TP Thủ Đức",
-  "phone": "0288999444",
-  "city": "Hồ Chí Minh"
-}
-
-### B2 - Xóa chi nhánh (ADMIN) — chỉ xóa được khi chưa có xe nào thuộc chi nhánh
-DELETE {{baseUrl}}/branches/{{branchId}}
-Authorization: Bearer {{token}}
-
-
-###############################################################
-# 4. XE (/cars) — B1: CRUD xe
-###############################################################
-
-### B1 - Tạo xe mới (ADMIN)
-# @name createCar
-POST {{baseUrl}}/cars
-Content-Type: application/json
-Authorization: Bearer {{token}}
-
-{
-  "categoryId": 1,
-  "branchId": 1,
-  "licensePlate": "51K-321.99",
-  "brand": "Mazda",
-  "model": "Mazda 3",
-  "year": 2023,
+  "licensePlate": "51A-12345",
+  "brand": "Toyota",
+  "model": "Vios",
+  "year": 2022,
   "transmission": "AUTO",
-  "pricePerDay": 820000,
-  "deposit": 6000000,
+  "pricePerDay": 850000,
+  "deposit": 2000000,
+  "seats": 5,
   "status": "AVAILABLE",
-  "description": "Sedan hạng C, thiết kế đẹp, vận hành êm."
+  "description": "Xe Toyota Vios đời 2022, tiết kiệm nhiên liệu",
+  "categoryId": 1,
+  "branchId": 1
 }
 
 ###
-@carId = {{createCar.response.body.id}}
 
-### B1 - Xem chi tiết 1 xe (công khai)
-GET {{baseUrl}}/cars/{{carId}}
+### ─────────────────────────────────────────────────────────────
+### B3 — Sửa thông tin xe (Admin)
+### ─────────────────────────────────────────────────────────────
 
-### B1 - Cập nhật xe (ADMIN)
-PUT {{baseUrl}}/cars/{{carId}}
+PUT {{base}}/admin/cars/1
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
-Authorization: Bearer {{token}}
 
 {
-  "categoryId": 1,
-  "branchId": 2,
-  "licensePlate": "51K-321.99",
-  "brand": "Mazda",
-  "model": "Mazda 3",
+  "licensePlate": "51A-12345",
+  "brand": "Toyota",
+  "model": "Vios G",
   "year": 2023,
   "transmission": "AUTO",
-  "pricePerDay": 900000,
-  "deposit": 6000000,
-  "status": "MAINTENANCE",
-  "description": "Sedan hạng C — đã tăng giá thuê."
+  "pricePerDay": 950000,
+  "deposit": 2500000,
+  "seats": 5,
+  "status": "AVAILABLE",
+  "description": "Xe Toyota Vios G đời 2023, nâng cấp nội thất",
+  "categoryId": 1,
+  "branchId": 1
 }
 
-### B1 - Xóa xe (ADMIN)
-DELETE {{baseUrl}}/cars/{{carId}}
-Authorization: Bearer {{token}}
+###
 
+### ─────────────────────────────────────────────────────────────
+### B4 — Xóa mềm xe (Admin) — set status = RETIRED
+### ─────────────────────────────────────────────────────────────
 
-###############################################################
-# 5. B3 + B5 — SEARCH có điều kiện + PHÂN TRANG + SẮP XẾP
-###############################################################
+DELETE {{base}}/admin/cars/5
+Authorization: Bearer {{adminToken}}
 
-### B3 - Tìm tất cả xe (mặc định trang 0, 10 dòng/trang)
-GET {{baseUrl}}/cars/search
+###
 
-### B3 - Lọc theo chi nhánh
-GET {{baseUrl}}/cars/search?branchId=1
+### ─────────────────────────────────────────────────────────────
+### B5 — Upload ảnh xe (Admin)
+### ─────────────────────────────────────────────────────────────
 
-### B3 - Lọc theo loại xe
-GET {{baseUrl}}/cars/search?categoryId=2
+### Upload một ảnh, đặt làm primary
+POST {{base}}/admin/cars/1/images/single
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=boundary
 
-### B3 - Lọc theo hộp số
-GET {{baseUrl}}/cars/search?transmission=AUTO
-
-### B3 - Lọc theo khoảng giá (600k - 1 triệu / ngày)
-GET {{baseUrl}}/cars/search?minPrice=600000&maxPrice=1000000
-
-### B3 - Tìm theo từ khóa (hãng / dòng xe / biển số)
-GET {{baseUrl}}/cars/search?keyword=toyota
-
-### B3 - Kết hợp nhiều điều kiện
-GET {{baseUrl}}/cars/search?branchId=1&transmission=AUTO&maxPrice=800000&status=AVAILABLE
-
-### B5 - Phân trang: trang 0, 3 dòng/trang
-GET {{baseUrl}}/cars/search?page=0&size=3
-
-### B5 - Sắp xếp theo giá tăng dần
-GET {{baseUrl}}/cars/search?sortBy=pricePerDay&direction=asc
-
-### B5 - Sắp xếp theo giá giảm dần
-GET {{baseUrl}}/cars/search?sortBy=pricePerDay&direction=desc
-
-### B5 - Sắp xếp theo năm sản xuất, phân trang
-GET {{baseUrl}}/cars/search?sortBy=year&direction=desc&page=0&size=5
-
-
-###############################################################
-# 6. B4 — CHECK XE TRỐNG THEO NGÀY
-###############################################################
-
-### B4 - Xe trống trong khoảng ngày
-GET {{baseUrl}}/cars/available?from=2026-06-01&to=2026-06-05
-
-### B4 - Xe trống lọc thêm theo chi nhánh
-GET {{baseUrl}}/cars/available?from=2026-06-01&to=2026-06-05&branchId=1
-
-### B4 - Trường hợp lỗi: ngày bắt đầu sau ngày kết thúc (mong đợi HTTP 400)
-GET {{baseUrl}}/cars/available?from=2026-06-10&to=2026-06-05
-
-
-###############################################################
-# 7. B6 — UPLOAD ẢNH XE
-# Lưu ý: thay đường dẫn file ảnh bên dưới bằng ảnh có thật trên máy.
-###############################################################
-
-### B6 - Upload ảnh cho xe id = 1 (ADMIN), đặt làm ảnh đại diện
-POST {{baseUrl}}/cars/1/image?primary=true
-Authorization: Bearer {{token}}
-Content-Type: multipart/form-data; boundary=----RentCityBoundary
-
-------RentCityBoundary
-Content-Disposition: form-data; name="file"; filename="car.jpg"
+--boundary
+Content-Disposition: form-data; name="file"; filename="car1.jpg"
 Content-Type: image/jpeg
 
-< ./sample-car.jpg
-------RentCityBoundary--
+< ./car1.jpg
+--boundary
+Content-Disposition: form-data; name="primary"
 
-### Xem lại ảnh đã upload (URL trả về trong primaryImageUrl, ví dụ /uploads/cars/xxx.jpg)
-GET {{baseUrl}}/cars/1
+true
+--boundary--
 
+###
 
-###############################################################
-# 8. KIỂM TRA PHÂN QUYỀN (các trường hợp lỗi mong đợi)
-###############################################################
+### Upload nhiều ảnh cùng lúc, ảnh index 0 làm primary
+POST {{base}}/admin/cars/1/images
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=boundary2
 
-### Tạo xe KHÔNG có token — mong đợi HTTP 401 Unauthorized
-POST {{baseUrl}}/cars
-Content-Type: application/json
+--boundary2
+Content-Disposition: form-data; name="files"; filename="img1.jpg"
+Content-Type: image/jpeg
 
-{
-  "licensePlate": "99X-000.00",
-  "brand": "Test",
-  "model": "Test",
-  "year": 2024,
-  "transmission": "AUTO",
-  "pricePerDay": 500000
-}
+< ./img1.jpg
+--boundary2
+Content-Disposition: form-data; name="files"; filename="img2.jpg"
+Content-Type: image/jpeg
 
-### Tạo xe thiếu trường bắt buộc — mong đợi HTTP 400 với chi tiết lỗi validation
-POST {{baseUrl}}/cars
-Content-Type: application/json
-Authorization: Bearer {{token}}
+< ./img2.jpg
+--boundary2
+Content-Disposition: form-data; name="primaryIndex"
 
-{
-  "brand": "Toyota",
-  "transmission": "AUTO"
-}
+0
+--boundary2--
 
-### Xem xe không tồn tại — mong đợi HTTP 404 Not Found
-GET {{baseUrl}}/cars/999999
+###
+
+### Đặt ảnh id=3 làm primary cho xe id=1
+PATCH {{base}}/admin/cars/1/images/3/primary
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Xóa ảnh id=4 của xe id=1
+DELETE {{base}}/admin/cars/1/images/4
+Authorization: Bearer {{adminToken}}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### B6 — Đổi trạng thái xe (Admin/Staff)
+### ─────────────────────────────────────────────────────────────
+
+### Admin: chuyển xe sang MAINTENANCE
+PATCH {{base}}/admin/cars/1/status?status=MAINTENANCE
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Staff: chuyển xe sang AVAILABLE
+PATCH {{base}}/admin/cars/1/status?status=AVAILABLE
+Authorization: Bearer {{staffToken}}
+
+###
+
+### Admin: set RETIRED (xóa mềm qua status, không cần dùng DELETE)
+PATCH {{base}}/admin/cars/1/status?status=RETIRED
+Authorization: Bearer {{adminToken}}
+
+###
+
+### ─────────────────────────────────────────────────────────────
+### Admin: Danh sách xe (view cả RETIRED)
+### ─────────────────────────────────────────────────────────────
+
+GET {{base}}/admin/cars?page=0&size=20&sortBy=id&direction=desc
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+###
+
+GET {{base}}/admin/cars?status=RETIRED&page=0&size=20
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+###

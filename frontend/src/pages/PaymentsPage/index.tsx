@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import {
-  ArrowUpRight,
-  ArrowDownLeft,
   Calendar,
   CreditCard,
   Download,
@@ -250,7 +248,7 @@ export default function PaymentsPage() {
       if (filters.searchTerm) {
         const term = filters.searchTerm.toLowerCase();
         if (
-          !payment.bookingCode.toLowerCase().includes(term) &&
+          !(payment.bookingCode ?? '').toLowerCase().includes(term) &&
           !payment.id.toString().includes(term)
         ) {
           return false;
@@ -292,7 +290,7 @@ export default function PaymentsPage() {
 
   const handleDownloadInvoice = async (bookingId: number) => {
     try {
-      const blob = await downloadBookingInvoicePdf(bookingId);
+      const { data: blob } = await downloadBookingInvoicePdf(bookingId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

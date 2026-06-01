@@ -22,9 +22,14 @@ export const ROUTES = {
   MY_BOOKINGS: '/my-bookings',
   BOOKING_DETAIL: '/my-bookings/:id',
   NOTIFICATIONS: '/notifications',
+  REVIEW: '/review/:bookingId',
 
   // Admin Dashboard (Admin Only)
   ADMIN: '/admin',
   ADMIN_VEHICLES: '/admin/vehicles',
   ADMIN_BOOKINGS: '/admin/bookings',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_PAYMENTS: '/admin/payments',
+  ADMIN_BRANCHES: '/admin/branches',
+  ADMIN_CATEGORIES: '/admin/categories',
 } as const;

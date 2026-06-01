@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { ChevronLeft, Calendar, MapPin, Download, CheckCircle2, Ticket, XCircle, AlertTriangle, Car } from 'lucide-react';
+import { ChevronLeft, Calendar, MapPin, Download, CheckCircle2, Ticket, XCircle, AlertTriangle, Car, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
@@ -313,12 +313,20 @@ export default function BookingDetailPage() {
                 )}
 
                 {booking.status === 'COMPLETED' && (
-                  <button
-                    onClick={() => navigate(`/vehicles/${booking.vehicleId}`)}
-                    className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg"
-                  >
-                    Đặt lại xe này
-                  </button>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => navigate(`/review/${booking.id}`)}
+                      className="w-full bg-[#f99200] hover:bg-[#e08800] text-white font-bold py-4 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <Star size={18} className="fill-white" /> Đánh giá chuyến xe
+                    </button>
+                    <button
+                      onClick={() => navigate(`/vehicles/${booking.vehicleId}`)}
+                      className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg"
+                    >
+                      Đặt lại xe này
+                    </button>
+                  </div>
                 )}
 
                 <p className="text-xs text-center text-gray-400 font-medium">
