@@ -4,7 +4,7 @@
 
 // ---- Payments ----
 export type PaymentType = 'DEPOSIT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
-export type PaymentGateway = 'PAYPAL' | 'VNPAY' | 'CASH';
+export type PaymentGateway = 'PAYPAL' | 'VNPAY';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'EXPIRED';
 
 export interface Payment {

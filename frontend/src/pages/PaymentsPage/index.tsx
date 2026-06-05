@@ -39,7 +39,6 @@ const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: s
 const GATEWAY_META: Record<PaymentGateway, { label: string; icon: string; color: string }> = {
   PAYPAL: { label: 'PayPal', icon: '🔵', color: '#003087' },
   VNPAY: { label: 'VNPay', icon: '💳', color: '#003087' },
-  CASH: { label: 'Tiền mặt', icon: '💵', color: '#78ad44' },
 };
 
 interface PaymentDetailsModalProps {
@@ -397,7 +396,6 @@ export default function PaymentsPage() {
                   <option value="ALL">Tất cả</option>
                   <option value="PAYPAL">PayPal</option>
                   <option value="VNPAY">VNPay</option>
-                  <option value="CASH">Tiền mặt</option>
                 </select>
               </div>
 

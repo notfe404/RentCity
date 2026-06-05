@@ -29,10 +29,6 @@ export const refundPayment = (id: number | string) => {
   return api.post<ApiPaymentResponse>(`/payments/${id}/refund`);
 };
 
-export const confirmCashPaymentByBooking = (bookingId: number | string) => {
-  return api.post<ApiPaymentResponse>(`/admin/payments/bookings/${bookingId}/confirm-cash`);
-};
-
 export const downloadBookingInvoicePdf = (bookingId: number | string) => {
   return api.get<Blob>(`/invoices/${bookingId}/pdf`, {
     responseType: 'blob',

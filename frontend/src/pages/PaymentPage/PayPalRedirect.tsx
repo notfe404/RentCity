@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { capturePaypalPayment, createDepositPayment } from '@/services/paymentApi';
 import { toast } from 'sonner';
 import { getMyBooking } from '@/services/bookingApi';
@@ -11,66 +11,109 @@ export default function PayPalRedirect() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'redirecting' | 'processing' | 'success' | 'error'>('redirecting');
   const [errorMessage, setErrorMessage] = useState('');
+  const [payment, setPayment] = useState<any>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    const processPayment = async () => {
-      if (!id) {
-        setStatus('error');
-        setErrorMessage('Booking không tồn tại');
-        return;
-      }
-
-      try {
-        // Step 1: Create deposit payment
-        const { data: createdPayment } = await createDepositPayment({
-          bookingId: parseInt(id),
-          gateway: 'PAYPAL',
-        });
-
-        if (!mounted) return;
-
-        // Step 2: Simulate PayPal processing
-        setStatus('processing');
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        if (!mounted) return;
-
-        // Step 3: Capture payment (complete transaction)
-        const { data: capturedPayment } = await capturePaypalPayment(createdPayment.id);
-
-        if (!mounted) return;
-
-        if (capturedPayment.status === 'PAID') {
-          setStatus('success');
-
-          // Refresh booking info
-          await getMyBooking(id);
-
-          // Redirect after showing success
-          setTimeout(() => {
-            navigate(`/booking/${id}/result`);
-          }, 1500);
-        } else {
-          throw new Error('Thanh toán chưa hoàn tất');
-        }
-      } catch (error) {
-        if (mounted) {
-          const paymentError = parsePaymentError(error);
-          setStatus('error');
-          setErrorMessage(paymentError.userMessage);
-          toast.error(paymentError.userMessage);
-        }
-      }
+    // Dynamically load PayPal SDK
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
+    script.async = true;
+    script.onload = () => {
+      initializePayPal();
     };
-
-    processPayment();
+    script.onerror = () => {
+      toast.error('Failed to load PayPal SDK');
+      setStatus('error');
+      setErrorMessage('Không thể tải PayPal SDK');
+    };
+    document.body.appendChild(script);
 
     return () => {
-      mounted = false;
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, [id, navigate]);
+  }, []);
+
+  const initializePayPal = async () => {
+    if (!id) {
+      setStatus('error');
+      setErrorMessage('Booking không tồn tại');
+      return;
+    }
+
+    try {
+      // Create deposit payment in backend
+      const { data: createdPayment } = await createDepositPayment({
+        bookingId: parseInt(id),
+        gateway: 'PAYPAL',
+      });
+
+      setPayment(createdPayment);
+      setStatus('processing');
+
+      // Initialize PayPal Buttons
+      // Initialize PayPal Buttons with a slight delay so React can render the container
+      setTimeout(() => {
+        if ((window as any).paypal) {
+            
+          const container = document.getElementById('paypal-button-container');
+          if (container) container.innerHTML = '';
+
+          (window as any).paypal.Buttons({
+            createOrder: async (_data: any, actions: any) => {
+              return actions.order.create({
+                purchase_units: [
+                  {
+                    description: `Thanh toán cọc cho Booking: ${id}`,
+                    amount: {
+                      currency_code: "USD",
+                      value: "100.00" 
+                    }
+                  }
+                ]
+              });
+            },
+            onApprove: async (data: any, actions: any) => {
+              try {
+                // Capture payment after user approves
+                const { data: capturedPayment } = await capturePaypalPayment(createdPayment.id);
+
+                if (capturedPayment.status === 'PAID') {
+                  setStatus('success');
+                  
+                  // Refresh booking info
+                  await getMyBooking(id);
+
+                  // Redirect after showing success
+                  setTimeout(() => {
+                    navigate(`/booking/${id}/result`);
+                  }, 2000);
+                } else {
+                  throw new Error('Payment not completed');
+                }
+              } catch (error) {
+                const paymentError = parsePaymentError(error);
+                setStatus('error');
+                setErrorMessage(paymentError.userMessage);
+                toast.error(paymentError.userMessage);
+              }
+            },
+            onError: (err: any) => {
+              setStatus('error');
+              setErrorMessage(`PayPal Error: ${err}`);
+              toast.error(`PayPal Error: ${err}`);
+            },
+          }).render('#paypal-button-container');
+        }
+      }, 150); // 150ms delay
+    } catch (error) {
+      const paymentError = parsePaymentError(error);
+      setStatus('error');
+      setErrorMessage(paymentError.userMessage);
+      toast.error(paymentError.userMessage);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center px-4">
@@ -95,61 +138,49 @@ export default function PayPalRedirect() {
               <div className="flex justify-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Đang chuyển hướng...</h2>
-              <p className="text-sm text-gray-500">Vui lòng chờ, bạn sẽ được chuyển đến trang thanh toán PayPal</p>
+              <h2 className="text-xl font-black text-gray-900">Đang tải...</h2>
+              <p className="text-sm text-gray-500">Vui lòng chờ, đang khởi động PayPal</p>
             </div>
           )}
 
           {status === 'processing' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex justify-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Đang xử lý thanh toán...</h2>
-              <p className="text-sm text-gray-500">Vui lòng không đóng trang này, đang kiểm tra giao dịch</p>
+              <h2 className="text-xl font-black text-gray-900">Chọn phương thức thanh toán</h2>
+              <div id="paypal-button-container" className="bg-gray-50 rounded-xl p-4 min-h-[150px]"></div>
+              <p className="text-xs text-gray-400 italic">
+                Bạn sẽ được chuyển hướng đến PayPal để hoàn tất thanh toán
+              </p>
             </div>
           )}
 
           {status === 'success' && (
             <div className="space-y-4">
               <div className="flex justify-center">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <CheckCircle2 size={48} className="text-green-600" />
-                </div>
+                <CheckCircle2 size={64} className="text-green-500" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Thanh toán thành công!</h2>
-              <p className="text-sm text-gray-500">Giao dịch của bạn đã được xác nhận. Đang chuyển hướng...</p>
+              <h2 className="text-2xl font-black text-gray-900">Thanh toán thành công!</h2>
+              <p className="text-gray-600">Đơn đặt xe của bạn đã được xác nhận. Đang chuyển hướng...</p>
             </div>
           )}
 
           {status === 'error' && (
             <div className="space-y-4">
               <div className="flex justify-center">
-                <div className="p-3 bg-red-100 rounded-full">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-red-600">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="15" y1="9" x2="9" y2="15" />
-                    <line x1="9" y1="9" x2="15" y2="15" />
-                  </svg>
-                </div>
+                <AlertCircle size={64} className="text-red-500" />
               </div>
               <h2 className="text-xl font-black text-gray-900">Thanh toán thất bại</h2>
-              <p className="text-sm text-gray-600 font-medium">{errorMessage}</p>
+              <p className="text-sm text-red-600">{errorMessage}</p>
               <button
-                onClick={() => navigate(`/booking/${id}/payment`)}
-                className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-colors"
+                onClick={() => navigate(`/booking/${id}`)}
+                className="w-full mt-4 px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
               >
-                Quay lại thanh toán
+                Quay lại
               </button>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500 font-medium">
-            ✓ Giao dịch được bảo vệ bởi PayPal Buyer Protection
-          </p>
         </div>
       </div>
     </div>

@@ -4,7 +4,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import {
-  Banknote,
   CheckCircle2,
   Clock3,
   CreditCard,
@@ -45,12 +44,6 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     title: 'VNPay',
     description: 'Quét mã QR để thanh toán. Hỗ trợ tất cả ngân hàng và ví điện tử.',
     icon: <CreditCard size={22} />,
-  },
-  {
-    gateway: 'CASH',
-    title: 'Tiền mặt',
-    description: 'Thanh toán tại showroom. Staff sẽ xác nhận ngay.',
-    icon: <Banknote size={22} />,
   },
 ];
 
@@ -139,18 +132,6 @@ export default function PaymentPage() {
         navigate(`/booking/${booking.id}/payment/vnpay`);
         return;
       }
-
-      // For CASH payment, create it and show confirmation
-      if (selectedGateway === 'CASH') {
-        const { data: createdPayment } = await createDepositPayment({
-          bookingId: booking.id,
-          gateway: 'CASH',
-        });
-
-        setPayments((current) => [createdPayment, ...current.filter((payment) => payment.id !== createdPayment.id)]);
-        toast.success('Đã ghi nhận thanh toán tiền mặt, vui lòng chờ staff xác nhận');
-        return;
-      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -233,7 +214,7 @@ export default function PaymentPage() {
                 className="mt-6 w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <ShieldCheck size={18} />
-                {isPaying ? 'Đang xử lý...' : selectedGateway === 'CASH' ? 'Ghi nhận thanh toán tiền mặt' : 'Thanh toán cọc'}
+                {isPaying ? 'Đang xử lý...' : 'Thanh toán cọc'}
               </button>
 
               {!canPay && (

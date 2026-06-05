@@ -279,6 +279,14 @@ export default function BookingDetailPage() {
                 </div>
 
                 {/* Actions */}
+                {booking.status === 'PENDING' && booking.depositStatus === 'UNPAID' && (
+                  <button
+                    onClick={() => navigate(`/booking/${booking.id}/payment`)}
+                    className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg mb-3"
+                  >
+                    Tiếp tục thanh toán cọc
+                  </button>
+                )}
                 {isBookingCancellable(booking) && (
                   <>
                     {!showCancelConfirm ? (

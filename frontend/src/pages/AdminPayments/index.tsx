@@ -18,7 +18,6 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 const GATEWAY_LABEL: Record<string, string> = {
   PAYPAL: 'PayPal',
   VNPAY: 'VNPay',
-  CASH: 'Tiền mặt',
 };
 
 const FILTERS: { key: StatusFilter; label: string }[] = [

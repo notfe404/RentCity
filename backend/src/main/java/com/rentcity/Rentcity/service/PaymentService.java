@@ -144,40 +144,9 @@ public class PaymentService {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("payment", paymentId));
         ensurePaymentOwner(user, payment);
-        ensureOnlineGateway(payment);
 
         String transactionId = payment.getGateway().name() + "-MOCK-" + UUID.randomUUID();
         return completePayment(payment, transactionId, payment.getGateway().name() + "_MOCK_SUCCESS", "Mock gateway success", user);
-    }
-
-    @Transactional
-    public PaymentResponse confirmCashPayment(Long paymentId, String actorEmail) {
-        User actor = findUserByEmail(actorEmail);
-        ensureStaffOrAdmin(actor);
-
-        Payment payment = paymentRepository.findByIdForUpdate(paymentId)
-                .orElseThrow(() -> new ResourceNotFoundException("payment", paymentId));
-        ensureGateway(payment, PaymentGateway.CASH);
-
-        String transactionId = "CASH-" + UUID.randomUUID();
-        return completePayment(payment, transactionId, "CASH_CONFIRMED", "Cash deposit confirmed by staff", actor);
-    }
-
-    @Transactional
-    public PaymentResponse confirmCashPaymentByBooking(Long bookingId, String actorEmail) {
-        User actor = findUserByEmail(actorEmail);
-        ensureStaffOrAdmin(actor);
-
-        Payment payment = paymentRepository.findFirstByBookingIdAndGatewayAndTypeAndStatusOrderByCreatedAtDesc(
-                        bookingId,
-                        PaymentGateway.CASH,
-                        PaymentType.DEPOSIT,
-                        PaymentStatus.PENDING
-                )
-                .orElseThrow(() -> new IllegalArgumentException("No pending cash payment found for this booking"));
-
-        String transactionId = "CASH-" + UUID.randomUUID();
-        return completePayment(payment, transactionId, "CASH_CONFIRMED", "Cash deposit confirmed by staff", actor);
     }
 
     @Transactional
@@ -286,12 +255,6 @@ public class PaymentService {
     private void ensureGateway(Payment payment, PaymentGateway gateway) {
         if (payment.getGateway() != gateway) {
             throw new IllegalArgumentException("Payment gateway must be " + gateway);
-        }
-    }
-
-    private void ensureOnlineGateway(Payment payment) {
-        if (payment.getGateway() == PaymentGateway.CASH) {
-            throw new IllegalArgumentException("Cash payments must be confirmed by staff");
         }
     }
 

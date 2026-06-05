@@ -17,7 +17,6 @@ const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: s
 const GATEWAY_COLORS: Record<string, string> = {
   PAYPAL: 'bg-blue-100 text-blue-700',
   VNPAY: 'bg-indigo-100 text-indigo-700',
-  CASH: 'bg-green-100 text-green-700',
 };
 
 export default function TransactionsTab() {

@@ -22,20 +22,4 @@ public class AdminPaymentController {
     public ResponseEntity<List<PaymentResponse>> getPayments() {
         return ResponseEntity.ok(paymentService.getAdminPayments());
     }
-
-    @PostMapping("/{id}/confirm-cash")
-    public ResponseEntity<PaymentResponse> confirmCashPayment(
-            Authentication authentication,
-            @PathVariable Long id
-    ) {
-        return ResponseEntity.ok(paymentService.confirmCashPayment(id, authentication.getName()));
-    }
-
-    @PostMapping("/bookings/{bookingId}/confirm-cash")
-    public ResponseEntity<PaymentResponse> confirmCashPaymentByBooking(
-            Authentication authentication,
-            @PathVariable Long bookingId
-    ) {
-        return ResponseEntity.ok(paymentService.confirmCashPaymentByBooking(bookingId, authentication.getName()));
-    }
 }
