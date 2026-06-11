@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
-import { Calendar, MapPin, ChevronRight, Car } from 'lucide-react';
+import { Calendar, MapPin, ChevronRight, Car, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { getMyBookings } from '@/services/bookingApi';
+import { getMyBookingReview } from '@/services/reviewApi';
 import { BOOKING_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatVND, formatDate } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiBookingStatus } from '@/types';
@@ -28,6 +29,7 @@ export default function MyBookingsPage() {
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +39,20 @@ export default function MyBookingsPage() {
         const { data } = await getMyBookings();
         if (!cancelled) {
           setBookings(data);
+        }
+        const completedBookings = data.filter((booking) => booking.status === 'COMPLETED');
+        const reviewChecks = await Promise.allSettled(
+          completedBookings.map(async (booking) => {
+            await getMyBookingReview(booking.id);
+            return booking.id;
+          })
+        );
+        if (!cancelled) {
+          setReviewedBookingIds(new Set(
+            reviewChecks
+              .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
+              .map((result) => result.value)
+          ));
         }
       } catch {
         if (!cancelled) {
@@ -141,7 +157,23 @@ export default function MyBookingsPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 sm:mt-0 flex justify-end">
+                        <div className="mt-4 sm:mt-0 flex flex-wrap justify-end gap-2">
+                          {booking.status === 'COMPLETED' && !reviewedBookingIds.has(booking.id) && (
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                navigate(`/review/${booking.id}`);
+                              }}
+                              className="text-sm font-bold bg-[#fff8f0] hover:bg-orange-100 text-orange-600 px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1"
+                            >
+                              <Star size={16} className="fill-orange-500 text-orange-500" /> Đánh giá
+                            </button>
+                          )}
+                          {booking.status === 'COMPLETED' && reviewedBookingIds.has(booking.id) && (
+                            <span className="text-sm font-bold bg-[#f4f8f7] text-[#78ad44] px-5 py-2.5 rounded-xl flex items-center gap-1">
+                              <Star size={16} className="fill-[#78ad44] text-[#78ad44]" /> Đã đánh giá
+                            </span>
+                          )}
                           <button className="text-sm font-bold bg-[#f4f8f7] hover:bg-gray-100 text-gray-900 px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1">
                             Xem chi tiết <ChevronRight size={16} />
                           </button>

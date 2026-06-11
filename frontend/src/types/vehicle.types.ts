@@ -121,6 +121,8 @@ export interface ApiCarResponse {
   deposit?: number | null;
   status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED';
   description?: string | null;
+  averageRating?: number | null;
+  reviewCount?: number | null;
   primaryImageUrl?: string | null;
   images: ApiCarImageResponse[];
 }

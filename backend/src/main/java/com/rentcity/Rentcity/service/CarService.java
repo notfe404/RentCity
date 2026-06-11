@@ -40,6 +40,7 @@ public class CarService {
     private final CarImageRepository carImageRepository;
     private final FileStorageService fileStorageService;
     private final BookingAvailabilityService bookingAvailabilityService;
+    private final ReviewService reviewService;
 
     // ---------------------------------------------------------------
     // B2 — Thêm xe
@@ -340,6 +341,8 @@ public class CarService {
                 .deposit(car.getDeposit())
                 .status(car.getStatus())
                 .description(car.getDescription())
+                .averageRating(reviewService.getAverageVisibleRating(car.getId()))
+                .reviewCount(reviewService.getVisibleReviewCount(car.getId()))
                 .primaryImageUrl(primaryUrl)
                 .images(images)
                 .build();

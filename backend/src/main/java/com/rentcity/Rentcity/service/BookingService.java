@@ -42,6 +42,7 @@ public class BookingService {
     private final BookingPricingService bookingPricingService;
     private final BookingStateMachineService bookingStateMachineService;
     private final BookingCancellationPolicyService bookingCancellationPolicyService;
+    private final NotificationService notificationService;
 
     @Transactional
     public BookingResponse createBooking(String email, CreateBookingRequest request) {
@@ -90,6 +91,7 @@ public class BookingService {
                 "Booking được tạo ở trạng thái chờ xác nhận"
         );
 
+        notificationService.notifyBookingCreated(savedBooking, user, car);
         return mapToResponse(savedBooking);
     }
 
@@ -177,6 +179,7 @@ public class BookingService {
         booking.setCancelledBy(user.getEmail());
 
         Booking savedBooking = bookingRepository.save(booking);
+        notificationService.notifyBookingStatusChanged(savedBooking, BookingStatus.CANCELLED);
         return mapToResponse(savedBooking);
     }
 
@@ -219,6 +222,7 @@ public class BookingService {
         }
 
         Booking savedBooking = bookingRepository.save(booking);
+        notificationService.notifyBookingStatusChanged(savedBooking, request.getTargetStatus());
         return mapToResponse(savedBooking);
     }
 

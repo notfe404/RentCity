@@ -30,8 +30,8 @@ export function mapApiCarToDisplayVehicle(car: ApiCarResponse): DisplayVehicle {
     fuelType: 'Xăng',
     luggage: Math.max(2, Math.min(5, car.seats ?? 3)),
     year: car.year ?? new Date().getFullYear(),
-    avgRating: 4.8,
-    totalTrips: 0,
+    avgRating: Number(car.averageRating ?? 0),
+    totalTrips: Number(car.reviewCount ?? 0),
     locationId: car.branchId ? String(car.branchId) : '',
     description: car.description ?? 'Chưa có mô tả cho xe này.',
     features: [

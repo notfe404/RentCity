@@ -32,6 +32,7 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final BookingStateMachineService bookingStateMachineService;
     private final BookingCancellationPolicyService bookingCancellationPolicyService;
+    private final NotificationService notificationService;
 
     @Value("${payment.public-base-url:http://localhost:8080/api}")
     private String publicBaseUrl;
@@ -86,6 +87,7 @@ public class PaymentService {
                 .build();
 
         Payment savedPayment = paymentRepository.save(payment);
+        notificationService.notifyPaymentPending(savedPayment, booking);
         return mapToResponse(savedPayment, booking);
     }
 
@@ -135,7 +137,9 @@ public class PaymentService {
 
         payment.setStatus(PaymentStatus.FAILED);
         payment.setFailureReason("VNPay response code: " + responseCode);
-        return mapToResponse(paymentRepository.save(payment));
+        Payment savedPayment = paymentRepository.save(payment);
+        notificationService.notifyPaymentStatusChanged(savedPayment, PaymentStatus.FAILED);
+        return mapToResponse(savedPayment);
     }
 
     @Transactional
@@ -179,7 +183,9 @@ public class PaymentService {
         booking.setDepositStatus(DepositStatus.REFUNDED);
 
         bookingRepository.save(booking);
-        return mapToResponse(paymentRepository.save(payment), booking);
+        Payment savedPayment = paymentRepository.save(payment);
+        notificationService.notifyPaymentStatusChanged(savedPayment, PaymentStatus.REFUNDED);
+        return mapToResponse(savedPayment, booking);
     }
 
     private PaymentResponse completePayment(
@@ -215,7 +221,8 @@ public class PaymentService {
             booking.setDepositStatus(DepositStatus.PAID);
         }
 
-        if (booking.getStatus() == BookingStatus.PENDING) {
+        boolean bookingWasPending = booking.getStatus() == BookingStatus.PENDING;
+        if (bookingWasPending) {
             bookingStateMachineService.transition(
                     booking,
                     BookingStatus.CONFIRMED,
@@ -228,6 +235,10 @@ public class PaymentService {
 
         bookingRepository.save(booking);
         Payment savedPayment = paymentRepository.save(payment);
+        notificationService.notifyPaymentStatusChanged(savedPayment, PaymentStatus.PAID);
+        if (bookingWasPending) {
+            notificationService.notifyBookingStatusChanged(booking, BookingStatus.CONFIRMED);
+        }
         return mapToResponse(savedPayment, booking);
     }
 

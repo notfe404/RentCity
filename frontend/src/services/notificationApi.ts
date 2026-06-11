@@ -1,8 +1,11 @@
 import api from './api';
-import type { Notification } from '@/types';
+import type { Notification, NotificationUnreadCountResponse } from '@/types';
 
-export const getMyNotifications = () =>
-  api.get<Notification[]>('/notifications');
+export const getMyNotifications = (params?: { unreadOnly?: boolean }) =>
+  api.get<Notification[]>('/notifications', { params });
+
+export const getUnreadNotificationCount = () =>
+  api.get<NotificationUnreadCountResponse>('/notifications/unread-count');
 
 export const markNotificationRead = (id: string | number) =>
   api.patch<Notification>(`/notifications/${id}/read`);

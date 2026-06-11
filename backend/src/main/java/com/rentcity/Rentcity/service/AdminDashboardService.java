@@ -1,17 +1,29 @@
 package com.rentcity.Rentcity.service;
 
+import com.rentcity.Rentcity.dto.AdminDashboardBookingOperationsResponse;
+import com.rentcity.Rentcity.dto.AdminDashboardFleetStatusResponse;
 import com.rentcity.Rentcity.dto.AdminDashboardHotVehicleResponse;
 import com.rentcity.Rentcity.dto.AdminDashboardMonthlyResponse;
+import com.rentcity.Rentcity.dto.AdminDashboardOverviewResponse;
+import com.rentcity.Rentcity.dto.AdminDashboardPaymentStatusResponse;
+import com.rentcity.Rentcity.dto.AdminDashboardRecentBookingResponse;
 import com.rentcity.Rentcity.entity.Booking;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.entity.Car;
+import com.rentcity.Rentcity.entity.CarStatus;
+import com.rentcity.Rentcity.entity.KycStatus;
+import com.rentcity.Rentcity.entity.PaymentStatus;
+import com.rentcity.Rentcity.entity.User;
 import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.CarRepository;
+import com.rentcity.Rentcity.repository.PaymentRepository;
+import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.LinkedHashMap;
@@ -30,6 +42,8 @@ public class AdminDashboardService {
 
     private final BookingRepository bookingRepository;
     private final CarRepository carRepository;
+    private final PaymentRepository paymentRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<AdminDashboardMonthlyResponse> getMonthlyDashboard() {
@@ -54,6 +68,136 @@ public class AdminDashboardService {
         return monthlyData.entrySet().stream()
                 .map(entry -> entry.getValue().toResponse(entry.getKey(), carsById))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDashboardOverviewResponse getDashboardOverview() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime tomorrowStart = today.plusDays(1).atStartOfDay();
+        LocalDateTime twelveMonthsAgo = YearMonth.now()
+                .minusMonths(DASHBOARD_MONTHS - 1L)
+                .atDay(1)
+                .atStartOfDay();
+        LocalDateTime nextMonthStart = YearMonth.now()
+                .plusMonths(1)
+                .atDay(1)
+                .atStartOfDay();
+
+        long totalBookingsLast12Months = bookingRepository
+                .countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(twelveMonthsAgo, nextMonthStart);
+        long cancelledBookingsLast12Months = bookingRepository
+                .countByStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                        BookingStatus.CANCELLED,
+                        twelveMonthsAgo,
+                        nextMonthStart
+                );
+
+        return AdminDashboardOverviewResponse.builder()
+                .bookingOperations(buildBookingOperations(todayStart, tomorrowStart))
+                .fleetStatus(buildFleetStatus())
+                .paymentStatus(buildPaymentStatus())
+                .totalBookingsLast12Months(totalBookingsLast12Months)
+                .cancelledBookingsLast12Months(cancelledBookingsLast12Months)
+                .cancellationRate(calculateRate(cancelledBookingsLast12Months, totalBookingsLast12Months))
+                .pendingKycUsers(userRepository.countByKycStatus(KycStatus.PENDING))
+                .recentBookings(buildRecentBookings())
+                .build();
+    }
+
+    private AdminDashboardBookingOperationsResponse buildBookingOperations(
+            LocalDateTime todayStart,
+            LocalDateTime tomorrowStart
+    ) {
+        return AdminDashboardBookingOperationsResponse.builder()
+                .pendingBookings(bookingRepository.countByStatus(BookingStatus.PENDING))
+                .confirmedPickupsToday(bookingRepository.countByStatusAndStartTimeGreaterThanEqualAndStartTimeLessThan(
+                        BookingStatus.CONFIRMED,
+                        todayStart,
+                        tomorrowStart
+                ))
+                .ongoingBookings(bookingRepository.countByStatus(BookingStatus.ONGOING))
+                .returnsToday(bookingRepository.countByStatusInAndEndTimeGreaterThanEqualAndEndTimeLessThan(
+                        List.of(BookingStatus.CONFIRMED, BookingStatus.ONGOING),
+                        todayStart,
+                        tomorrowStart
+                ))
+                .build();
+    }
+
+    private AdminDashboardFleetStatusResponse buildFleetStatus() {
+        return AdminDashboardFleetStatusResponse.builder()
+                .totalCars(carRepository.count())
+                .availableCars(carRepository.countByStatus(CarStatus.AVAILABLE))
+                .maintenanceCars(carRepository.countByStatus(CarStatus.MAINTENANCE))
+                .retiredCars(carRepository.countByStatus(CarStatus.RETIRED))
+                .carsWithoutImages(carRepository.countCarsWithoutImages())
+                .build();
+    }
+
+    private AdminDashboardPaymentStatusResponse buildPaymentStatus() {
+        return AdminDashboardPaymentStatusResponse.builder()
+                .pendingPayments(paymentRepository.countByStatus(PaymentStatus.PENDING))
+                .paidPayments(paymentRepository.countByStatus(PaymentStatus.PAID))
+                .failedPayments(paymentRepository.countByStatus(PaymentStatus.FAILED))
+                .refundedPayments(paymentRepository.countByStatus(PaymentStatus.REFUNDED))
+                .expiredPayments(paymentRepository.countByStatus(PaymentStatus.EXPIRED))
+                .build();
+    }
+
+    private List<AdminDashboardRecentBookingResponse> buildRecentBookings() {
+        List<Booking> bookings = bookingRepository.findTop5ByOrderByCreatedAtDesc();
+        if (bookings.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> userIds = bookings.stream().map(Booking::getUserId).collect(Collectors.toSet());
+        Set<Long> carIds = bookings.stream().map(Booking::getCarId).collect(Collectors.toSet());
+        Map<Long, User> usersById = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        Map<Long, Car> carsById = carRepository.findAllById(carIds).stream()
+                .collect(Collectors.toMap(Car::getId, Function.identity()));
+
+        return bookings.stream()
+                .map(booking -> mapRecentBooking(booking, usersById, carsById))
+                .toList();
+    }
+
+    private AdminDashboardRecentBookingResponse mapRecentBooking(
+            Booking booking,
+            Map<Long, User> usersById,
+            Map<Long, Car> carsById
+    ) {
+        User user = usersById.get(booking.getUserId());
+        Car car = carsById.get(booking.getCarId());
+
+        return AdminDashboardRecentBookingResponse.builder()
+                .id(booking.getId())
+                .bookingCode(booking.getBookingCode())
+                .vehicleId(booking.getCarId())
+                .vehicleName(car != null ? buildVehicleName(car) : "Vehicle #" + booking.getCarId())
+                .vehicleLicensePlate(car != null ? car.getLicensePlate() : null)
+                .userId(booking.getUserId())
+                .customerName(user != null ? user.getFullName() : null)
+                .customerEmail(user != null ? user.getEmail() : null)
+                .status(booking.getStatus())
+                .depositStatus(booking.getDepositStatus())
+                .totalAmount(booking.getTotalAmount())
+                .startTime(booking.getStartTime())
+                .endTime(booking.getEndTime())
+                .createdAt(booking.getCreatedAt())
+                .build();
+    }
+
+    private double calculateRate(long part, long total) {
+        if (total == 0) {
+            return 0;
+        }
+        return (double) part / total;
+    }
+
+    private String buildVehicleName(Car car) {
+        return (car.getBrand() + " " + car.getModel()).trim();
     }
 
     private Map<YearMonth, MonthlyAccumulator> initializeMonths(YearMonth startMonth) {

@@ -1,13 +1,36 @@
 import { User, FileText, Bell, LogOut, Camera, CreditCard } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getUnreadNotificationCount } from '@/services/notificationApi';
 
 export default function CustomerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUnreadCount = async () => {
+      try {
+        const { data } = await getUnreadNotificationCount();
+        if (!cancelled) setUnreadNotifications(data.count);
+      } catch {
+        if (!cancelled) setUnreadNotifications(0);
+      }
+    };
+
+    loadUnreadCount();
+    const timer = window.setInterval(loadUnreadCount, 60000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const links = [
     { name: 'Hồ sơ', path: '/profile', icon: User },
@@ -67,6 +90,13 @@ export default function CustomerSidebar() {
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold transition-all relative ${isActive ? 'bg-[#78ad44] text-white shadow-md shadow-[#78ad44]/20' : 'text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44]'}`}
             >
               <link.icon size={18} /> {link.name}
+              {link.path === '/notifications' && unreadNotifications > 0 && (
+                <span className={`ml-auto min-w-5 h-5 px-1.5 rounded-full text-[11px] font-black flex items-center justify-center ${
+                  isActive ? 'bg-white text-[#78ad44]' : 'bg-red-500 text-white'
+                }`}>
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              )}
             </button>
           );
         })}

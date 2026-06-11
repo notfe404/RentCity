@@ -48,6 +48,10 @@ public class User implements UserDetails {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -80,6 +84,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }

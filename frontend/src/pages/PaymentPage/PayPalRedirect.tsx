@@ -11,7 +11,6 @@ export default function PayPalRedirect() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'redirecting' | 'processing' | 'success' | 'error'>('redirecting');
   const [errorMessage, setErrorMessage] = useState('');
-  const [payment, setPayment] = useState<any>(null);
 
   useEffect(() => {
     // Dynamically load PayPal SDK
@@ -49,7 +48,6 @@ export default function PayPalRedirect() {
         gateway: 'PAYPAL',
       });
 
-      setPayment(createdPayment);
       setStatus('processing');
 
       // Initialize PayPal Buttons
@@ -74,7 +72,7 @@ export default function PayPalRedirect() {
                 ]
               });
             },
-            onApprove: async (data: any, actions: any) => {
+            onApprove: async (_data: any, _actions: any) => {
               try {
                 // Capture payment after user approves
                 const { data: capturedPayment } = await capturePaypalPayment(createdPayment.id);

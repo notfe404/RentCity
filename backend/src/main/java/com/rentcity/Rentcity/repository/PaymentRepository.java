@@ -49,4 +49,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<Payment> findAllByOrderByCreatedAtDesc();
+
+    long countByStatus(PaymentStatus status);
 }

@@ -1,6 +1,7 @@
 package com.rentcity.Rentcity.controller;
 
 import com.rentcity.Rentcity.dto.AdminDashboardMonthlyResponse;
+import com.rentcity.Rentcity.dto.AdminDashboardOverviewResponse;
 import com.rentcity.Rentcity.service.AdminDashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,5 +23,10 @@ public class AdminDashboardController {
     @GetMapping("/monthly")
     public ResponseEntity<List<AdminDashboardMonthlyResponse>> getMonthlyDashboard() {
         return ResponseEntity.ok(adminDashboardService.getMonthlyDashboard());
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<AdminDashboardOverviewResponse> getDashboardOverview() {
+        return ResponseEntity.ok(adminDashboardService.getDashboardOverview());
     }
 }

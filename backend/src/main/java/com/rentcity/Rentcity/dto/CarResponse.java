@@ -32,6 +32,8 @@ public class CarResponse {
     private BigDecimal deposit;
     private CarStatus status;
     private String description;
+    private Double averageRating;
+    private Long reviewCount;
 
     /** Ảnh đại diện (is_primary = true), null nếu xe chưa có ảnh. */
     private String primaryImageUrl;

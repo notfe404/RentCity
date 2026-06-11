@@ -2,7 +2,9 @@ package com.rentcity.Rentcity.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,6 +34,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, String>> handleDisabledException(DisabledException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Account is disabled");
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException ex) {
         Map<String, String> error = new HashMap<>();
@@ -44,6 +53,13 @@ public class GlobalExceptionHandler {
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDeniedException(AccessDeniedException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Access denied");
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(RuntimeException.class)

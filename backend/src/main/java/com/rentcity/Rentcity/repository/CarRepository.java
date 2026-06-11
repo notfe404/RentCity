@@ -30,6 +30,15 @@ public interface CarRepository extends JpaRepository<Car, Long>, JpaSpecificatio
     /** Kiểm tra còn xe nào thuộc loại — chặn xóa loại xe đang được dùng. */
     boolean existsByCategoryId(Long categoryId);
 
+    long countByStatus(CarStatus status);
+
+    @Query("""
+            select count(c)
+            from Car c
+            where c.images is empty
+            """)
+    long countCarsWithoutImages();
+
     List<Car> findByStatus(CarStatus status);
 
     List<Car> findByStatusAndBranchId(CarStatus status, Long branchId);

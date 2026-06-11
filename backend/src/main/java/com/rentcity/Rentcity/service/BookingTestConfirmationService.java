@@ -25,6 +25,7 @@ public class BookingTestConfirmationService {
     private final UserRepository userRepository;
     private final CarRepository carRepository;
     private final BookingStateMachineService bookingStateMachineService;
+    private final NotificationService notificationService;
     private final Environment environment;
 
     @Transactional
@@ -52,6 +53,7 @@ public class BookingTestConfirmationService {
         booking.setDepositStatus(DepositStatus.PAID);
 
         Booking savedBooking = bookingRepository.save(booking);
+        notificationService.notifyBookingStatusChanged(savedBooking, BookingStatus.CONFIRMED);
         return mapToResponse(savedBooking);
     }
 

@@ -3,7 +3,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import { Search, Eye, Check, X, CarFront, Play, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { confirmBookingForTest, getAdminBooking, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
+import { confirmBookingForTest, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
 import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';

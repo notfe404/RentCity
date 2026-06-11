@@ -1,6 +1,4 @@
-// ============================================================
-// Payment, Promotion, Review, Notification Types — B2C
-// ============================================================
+// Payment, promotion, review, and notification types.
 
 // ---- Payments ----
 export type PaymentType = 'DEPOSIT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
@@ -52,11 +50,11 @@ export const PAYMENT_STATUS_CONFIG: Record<
   PaymentStatus,
   { label: string; color: 'yellow' | 'green' | 'red' | 'gray' }
 > = {
-  PENDING:  { label: 'Chờ thanh toán', color: 'yellow' },
-  PAID:     { label: 'Đã thanh toán',  color: 'green' },
-  FAILED:   { label: 'Thất bại',       color: 'red' },
-  REFUNDED: { label: 'Đã hoàn tiền',   color: 'gray' },
-  EXPIRED:  { label: 'Hết hạn',        color: 'gray' },
+  PENDING: { label: 'Chờ thanh toán', color: 'yellow' },
+  PAID: { label: 'Đã thanh toán', color: 'green' },
+  FAILED: { label: 'Thất bại', color: 'red' },
+  REFUNDED: { label: 'Đã hoàn tiền', color: 'gray' },
+  EXPIRED: { label: 'Hết hạn', color: 'gray' },
 };
 
 // ---- Promotions & Coupons ----
@@ -68,11 +66,11 @@ export interface Promotion {
   name: string;
   description?: string;
   discountType: DiscountType;
-  discountValue: number;            // % hoặc VND
-  maxDiscount?: number;             // giảm tối đa
-  minOrderValue?: number;           // đơn tối thiểu
+  discountValue: number;
+  maxDiscount?: number;
+  minOrderValue?: number;
   usageLimit?: number;
-  usagePerUser: number;             // mỗi user dùng được mấy lần
+  usagePerUser: number;
   usedCount: number;
   validFrom: string;
   validUntil: string;
@@ -84,37 +82,69 @@ export interface CouponUsage {
   promotionId: string;
   userId: string;
   bookingId: string;
-  discountApplied: number;          // số tiền thực tế được giảm
+  discountApplied: number;
   usedAt: string;
 }
 
-// Response khi validate coupon code
 export interface CouponValidateResponse {
   valid: boolean;
   promotion?: Promotion;
-  discountAmount?: number;          // số tiền sẽ được giảm
+  discountAmount?: number;
   message?: string;
 }
 
 // ---- Reviews ----
-export interface Review {
-  id: string;
-  bookingId: string;
-  customerId: string;
-  vehicleId: string;
-  overallRating: number;            // 1–5
-  vehicleRating: number;            // rating tình trạng xe
-  serviceRating: number;            // rating phục vụ nhân viên
+  export interface Review {
+  id: string | number;
+  bookingId: string | number;
+  bookingCode?: string;
+  customerId?: string;
+  userId?: number;
+  customerName?: string;
+  customerEmail?: string;
+  vehicleId: string | number;
+  vehicleName?: string;
+  vehicleLicensePlate?: string;
+  overallRating: number;
+  vehicleRating: number;
+  serviceRating: number;
   comment?: string;
   isVisible: boolean;
-  staffReply?: string;              // phản hồi công ty
-  repliedBy?: string;
+  staffReply?: string;
+  repliedBy?: string | number;
+  repliedByName?: string;
   createdAt: string;
-}
+    updatedAt?: string;
+  }
+
+  export interface PublicReview {
+    id: string | number;
+    customerName?: string;
+    overallRating: number;
+    vehicleRating: number;
+    serviceRating: number;
+    comment?: string;
+    staffReply?: string;
+    repliedByName?: string;
+    createdAt: string;
+  }
+
+  export interface CarReviewsResponse {
+    content: PublicReview[];
+    page: number;
+    size: number;
+    totalElements: number;
+    reviewCount: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+    averageRating: number;
+    ratingCounts: Record<number, number>;
+  }
 
 export interface CreateReviewRequest {
-  bookingId: string;
-  vehicleId: string;
+  bookingId: number;
+  vehicleId: number;
   overallRating: number;
   vehicleRating: number;
   serviceRating: number;
@@ -123,22 +153,41 @@ export interface CreateReviewRequest {
 
 // ---- Notifications ----
 export type NotificationType =
+  | 'BOOKING_CREATED'
   | 'BOOKING_CONFIRMED'
+  | 'BOOKING_ONGOING'
+  | 'BOOKING_COMPLETED'
   | 'CHECKIN_REMINDER'
   | 'CHECKOUT_REMINDER'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_PAID'
   | 'PAYMENT_SUCCESS'
   | 'PAYMENT_FAILED'
+  | 'PAYMENT_REFUNDED'
+  | 'PAYMENT_EXPIRED'
   | 'BOOKING_CANCELLED'
+  | 'KYC_PENDING'
+  | 'SYSTEM'
   | 'PROMOTION_NEW'
   | 'REVIEW_REQUEST';
 
+export type NotificationAudience = 'USER' | 'ADMIN' | 'STAFF' | 'ADMIN_AND_STAFF';
+
 export interface Notification {
-  id: string;
-  userId: string;
+  id: string | number;
+  userId?: string;
+  recipientUserId?: number;
+  audience?: NotificationAudience;
   type: NotificationType;
   title: string;
-  body: string;
-  data?: Record<string, string>;    // { booking_id, vehicle_id } để FE điều hướng
+  message?: string;
+  body?: string;
+  data?: Record<string, string | number | undefined>;
   isRead: boolean;
+  readAt?: string;
   createdAt: string;
+}
+
+export interface NotificationUnreadCountResponse {
+  count: number;
 }

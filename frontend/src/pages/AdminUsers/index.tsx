@@ -4,6 +4,7 @@ import { Search, Users, Shield, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminGetUsers, adminToggleUserStatus, type ApiAdminUser } from '@/services/adminApi';
 import { formatDateTime } from '@/utils/formatters';
+import { useAuth } from '@/hooks/useAuth';
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
   CUSTOMER: { label: 'Khách hàng', color: 'bg-blue-50 text-blue-600 border-blue-100' },
@@ -12,6 +13,7 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 };
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<ApiAdminUser[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'CUSTOMER' | 'ADMIN' | 'STAFF'>('ALL');
@@ -146,6 +148,7 @@ export default function AdminUsersPage() {
               {!isLoading && filtered.map((user) => {
                 const roleMeta = ROLE_META[user.role] ?? { label: user.role, color: 'bg-gray-50 text-gray-600 border-gray-100' };
                 const busy = activeId === user.id;
+                const isCurrentUser = Number(currentUser?.id) === user.id;
                 return (
                   <tr key={user.id} className="hover:bg-gray-50/60 transition-colors group">
                     <td className="p-5">
@@ -176,8 +179,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="p-5 text-right">
                       <button
-                        disabled={busy}
+                        disabled={busy || isCurrentUser}
                         onClick={() => handleToggleStatus(user)}
+                        title={isCurrentUser ? 'Không thể khóa tài khoản đang đăng nhập' : undefined}
                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 ${
                           user.isActive
                             ? 'bg-red-50 text-red-500 hover:bg-red-100'
@@ -185,7 +189,7 @@ export default function AdminUsersPage() {
                         }`}
                       >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : user.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
-                        {user.isActive ? 'Khóa' : 'Mở khóa'}
+                        {isCurrentUser ? 'Tài khoản hiện tại' : user.isActive ? 'Khóa' : 'Mở khóa'}
                       </button>
                     </td>
                   </tr>

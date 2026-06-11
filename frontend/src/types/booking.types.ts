@@ -146,3 +146,54 @@ export interface AdminDashboardMonthlyStats {
   completedRevenue: number;
   hotVehicle?: AdminDashboardHotVehicle | null;
 }
+
+export interface AdminDashboardBookingOperations {
+  pendingBookings: number;
+  confirmedPickupsToday: number;
+  ongoingBookings: number;
+  returnsToday: number;
+}
+
+export interface AdminDashboardFleetStatus {
+  totalCars: number;
+  availableCars: number;
+  maintenanceCars: number;
+  retiredCars: number;
+  carsWithoutImages: number;
+}
+
+export interface AdminDashboardPaymentStatus {
+  pendingPayments: number;
+  paidPayments: number;
+  failedPayments: number;
+  refundedPayments: number;
+  expiredPayments: number;
+}
+
+export interface AdminDashboardRecentBooking {
+  id: number;
+  bookingCode: string;
+  vehicleId: number;
+  vehicleName?: string;
+  vehicleLicensePlate?: string | null;
+  userId: number;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  status: ApiBookingStatus;
+  depositStatus: ApiDepositStatus;
+  totalAmount: number;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+}
+
+export interface AdminDashboardOverview {
+  bookingOperations: AdminDashboardBookingOperations;
+  fleetStatus: AdminDashboardFleetStatus;
+  paymentStatus: AdminDashboardPaymentStatus;
+  totalBookingsLast12Months: number;
+  cancelledBookingsLast12Months: number;
+  cancellationRate: number;
+  pendingKycUsers: number;
+  recentBookings: AdminDashboardRecentBooking[];
+}

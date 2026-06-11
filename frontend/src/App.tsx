@@ -34,6 +34,8 @@ const AdminVehicles = lazy(() => import('@/pages/AdminVehicles'));
 const AdminBookings = lazy(() => import('@/pages/AdminBookings'));
 const AdminUsers = lazy(() => import('@/pages/AdminUsers'));
 const AdminPayments = lazy(() => import('@/pages/AdminPayments'));
+const AdminNotifications = lazy(() => import('@/pages/AdminNotifications'));
+const AdminReviews = lazy(() => import('@/pages/AdminReviews'));
 const AdminBranches = lazy(() => import('@/pages/AdminBranches'));
 const AdminCategories = lazy(() => import('@/pages/AdminCategories'));
 
@@ -86,6 +88,8 @@ export default function App() {
               <Route path={ROUTES.ADMIN_BOOKINGS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminBookings /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_PAYMENTS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminPayments /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_NOTIFICATIONS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminNotifications /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_REVIEWS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminReviews /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_BRANCHES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminBranches /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_CATEGORIES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminCategories /></ProtectedRoute>} />
 

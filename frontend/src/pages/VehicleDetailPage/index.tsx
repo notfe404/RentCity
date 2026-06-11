@@ -5,14 +5,14 @@ import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import {
   Car, Users, Settings, Briefcase, MapPin, Calendar, Check, Star,
-  ShieldCheck, ChevronRight, Fuel, MessageSquare, ThumbsUp,
+  ShieldCheck, ChevronLeft, ChevronRight, Fuel, MessageSquare, ThumbsUp,
   CreditCard, Hash, Building2, CalendarDays, Gauge, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { MOCK_LOCATIONS } from '@/data/mockLocations';
-import { MOCK_REVIEWS } from '@/data/mockReviews';
 import { getCarById } from '@/services/carApi';
+import { getCarReviews } from '@/services/reviewApi';
 import { formatVND, formatDate } from '@/utils/formatters';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import {
@@ -29,6 +29,7 @@ import {
 } from '@/utils/bookingDateTime';
 import RatingStars from '@/components/ui/RatingStars';
 import { useBooking } from '@/store/bookingStore';
+import type { CarReviewsResponse, PublicReview } from '@/types';
 
 const STATUS_META = {
   AVAILABLE: { label: 'Sẵn sàng cho thuê', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
@@ -41,7 +42,11 @@ export default function VehicleDetailPage() {
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
   const [vehicle, setVehicleData] = useState<DisplayVehicle | null>(null);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<CarReviewsResponse | null>(null);
+  const [reviewPage, setReviewPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReviewsLoading, setIsReviewsLoading] = useState(true);
   const {
     setVehicle,
     setStartDate: setBookingStart,
@@ -49,6 +54,10 @@ export default function VehicleDetailPage() {
     setPickupLocation,
     setReturnLocation,
   } = useBooking();
+
+  useEffect(() => {
+    setReviewPage(0);
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,12 +72,46 @@ export default function VehicleDetailPage() {
           setVehicleData(null);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
     run();
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!id) {
+        setIsReviewsLoading(false);
+        return;
+      }
+
+      setIsReviewsLoading(true);
+      try {
+        const { data } = await getCarReviews(id, reviewPage, 5);
+        if (!cancelled) {
+          setReviews(data.content);
+          setReviewSummary(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setReviews([]);
+          setReviewSummary(null);
+        }
+      } finally {
+        if (!cancelled) setIsReviewsLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reviewPage]);
 
   const initialRange = useMemo(() => getDefaultBookingRange(), []);
   const minStartDate = initialRange.startDate;
@@ -102,16 +145,14 @@ export default function VehicleDetailPage() {
     if (safeEnd !== endDate) setEndDate(safeEnd);
   }, [startDate, endDate]);
 
-  const reviews = useMemo(() => MOCK_REVIEWS.filter(r => r.vehicleId === id), [id]);
   const ratingBreakdown = useMemo(() => {
-    const counts = [0, 0, 0, 0, 0];
-    reviews.forEach(r => { if (r.overallRating >= 1 && r.overallRating <= 5) counts[r.overallRating - 1]++; });
-    const total = reviews.length || 1;
+    const total = reviewSummary?.reviewCount || 1;
     return [5, 4, 3, 2, 1].map(star => ({
-      star, count: counts[star - 1],
-      pct: Math.round((counts[star - 1] / total) * 100),
+      star,
+      count: reviewSummary?.ratingCounts[star] ?? 0,
+      pct: Math.round(((reviewSummary?.ratingCounts[star] ?? 0) / total) * 100),
     }));
-  }, [reviews]);
+  }, [reviewSummary]);
 
   const formatBookingDateLabel = (value: string) => {
     const { datePart } = splitDateTimeLocalValue(value);
@@ -199,7 +240,7 @@ export default function VehicleDetailPage() {
                 <div className="flex items-center text-[#f99200]">
                   <Star size={16} className="fill-current" />
                   <span className="ml-1 font-bold text-white">{vehicle.avgRating}</span>
-                  <span className="ml-1 text-gray-400 text-sm">({vehicle.totalTrips} chuyến)</span>
+                  <span className="ml-1 text-gray-400 text-sm">({vehicle.totalTrips} đánh giá)</span>
                 </div>
                 <div className="flex items-center text-[#78ad44] text-sm font-semibold">
                   <ShieldCheck size={16} className="mr-1" /> Có bảo hiểm
@@ -380,14 +421,20 @@ export default function VehicleDetailPage() {
               <h3 className="text-2xl font-black text-gray-900 flex items-center gap-3">
                 <MessageSquare size={22} className="text-[#78ad44]" /> Đánh giá
               </h3>
-              <span className="text-sm font-bold text-gray-500">{reviews.length} đánh giá</span>
+              <span className="text-sm font-bold text-gray-500">
+                {reviewSummary?.reviewCount ?? vehicle.totalTrips} đánh giá
+              </span>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-8 mb-10 p-6 bg-[#f4f8f7] rounded-2xl">
               <div className="flex flex-col items-center justify-center min-w-[120px]">
-                <div className="text-5xl font-black text-gray-900">{vehicle.avgRating}</div>
-                <RatingStars rating={vehicle.avgRating} size={18} showValue={false} className="mt-2" />
-                <p className="text-xs text-gray-500 mt-2 font-medium">{vehicle.totalTrips} chuyến</p>
+                <div className="text-5xl font-black text-gray-900">
+                  {(reviewSummary?.averageRating ?? vehicle.avgRating).toFixed(1)}
+                </div>
+                <RatingStars rating={reviewSummary?.averageRating ?? vehicle.avgRating} size={18} showValue={false} className="mt-2" />
+                <p className="text-xs text-gray-500 mt-2 font-medium">
+                  {reviewSummary?.reviewCount ?? vehicle.totalTrips} đánh giá
+                </p>
               </div>
               <div className="flex-1 space-y-2">
                 {ratingBreakdown.map(item => (
@@ -403,20 +450,35 @@ export default function VehicleDetailPage() {
             </div>
 
             <div className="space-y-6">
-              {reviews.length === 0 && (
+              {isReviewsLoading && (
+                <p className="text-center text-gray-400 py-8 font-medium">Đang tải đánh giá...</p>
+              )}
+              {!isReviewsLoading && reviews.length === 0 && (
                 <p className="text-center text-gray-400 py-8 font-medium">Chưa có đánh giá nào cho xe này.</p>
               )}
-              {reviews.map(review => (
+              {!isReviewsLoading && reviews.map(review => (
                 <div key={review.id} className="border-b border-gray-100 pb-6 last:border-none last:pb-0">
                   <div className="flex items-start gap-4">
-                    <img src={review.customerAvatar} alt={review.customerName} className="w-10 h-10 rounded-full object-cover" />
+                    <img
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(review.customerName || 'Customer')}&background=78ad44&color=fff`}
+                      alt={review.customerName || 'Customer'}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-bold text-gray-900">{review.customerName}</h4>
+                        <h4 className="font-bold text-gray-900">{review.customerName || 'Khách hàng RentCity'}</h4>
                         <span className="text-xs text-gray-400 font-medium">{formatDate(review.createdAt)}</span>
                       </div>
                       <RatingStars rating={review.overallRating} size={14} showValue={false} className="mb-2" />
-                      <p className="text-sm text-gray-600 font-medium leading-relaxed">{review.comment}</p>
+                      {review.comment && (
+                        <p className="text-sm text-gray-600 font-medium leading-relaxed">{review.comment}</p>
+                      )}
+                      {review.staffReply && (
+                        <div className="mt-4 bg-[#f4f8f7] rounded-xl p-4">
+                          <p className="text-xs font-black text-[#78ad44] mb-1">Phản hồi từ RentCity</p>
+                          <p className="text-sm text-gray-600 font-medium leading-relaxed">{review.staffReply}</p>
+                        </div>
+                      )}
                       <button className="flex items-center gap-1.5 mt-3 text-xs font-bold text-gray-400 hover:text-[#78ad44] transition-colors">
                         <ThumbsUp size={13} /> Hữu ích
                       </button>
@@ -425,6 +487,32 @@ export default function VehicleDetailPage() {
                 </div>
               ))}
             </div>
+
+            {!isReviewsLoading && reviewSummary && reviewSummary.totalPages > 1 && (
+              <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={() => setReviewPage((page) => Math.max(0, page - 1))}
+                  disabled={reviewSummary.first}
+                  className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#78ad44] hover:text-[#78ad44] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  aria-label="Trang đánh giá trước"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="text-sm font-bold text-gray-500">
+                  Trang {reviewSummary.page + 1}/{reviewSummary.totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setReviewPage((page) => page + 1)}
+                  disabled={reviewSummary.last}
+                  className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#78ad44] hover:text-[#78ad44] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  aria-label="Trang đánh giá tiếp theo"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

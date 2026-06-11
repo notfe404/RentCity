@@ -53,6 +53,33 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
 
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    List<Booking> findTop5ByOrderByCreatedAtDesc();
+
+    long countByStatus(BookingStatus status);
+
+    long countByStatusAndStartTimeGreaterThanEqualAndStartTimeLessThan(
+            BookingStatus status,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    long countByStatusInAndEndTimeGreaterThanEqualAndEndTimeLessThan(
+            Collection<BookingStatus> statuses,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    long countByStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            BookingStatus status,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
     List<Booking> findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
             LocalDateTime from,
             LocalDateTime to

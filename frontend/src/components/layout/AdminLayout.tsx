@@ -8,6 +8,7 @@ import {
   Tag,
   LogOut,
   Bell,
+  MessageSquare,
   Menu,
   X,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import AdminNotificationBell from './AdminNotificationBell';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -25,6 +27,8 @@ const NAV_LINKS = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, exact: true },
   { name: 'Quản lý xe', path: '/admin/vehicles', icon: Car },
   { name: 'Booking', path: '/admin/bookings', icon: ListOrdered },
+  { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
+  { name: 'Thông báo', path: '/admin/notifications', icon: Bell },
   { name: 'Thanh toán', path: '/admin/payments', icon: CreditCard },
   { name: 'Người dùng', path: '/admin/users', icon: Users },
   { name: 'Chi nhánh', path: '/admin/branches', icon: MapPin },
@@ -127,10 +131,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             <h1 className="text-xl font-black text-gray-900">{title}</h1>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative text-gray-400 hover:text-[#78ad44] transition-colors p-2">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
-            </button>
+            <AdminNotificationBell />
             <div className="flex items-center gap-3 border-l border-gray-200 pl-4 cursor-pointer">
               <div className="hidden sm:block text-right">
                 <p className="text-sm font-bold text-gray-900">{user?.fullName ?? 'Admin'}</p>

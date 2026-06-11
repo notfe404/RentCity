@@ -2,6 +2,7 @@ package com.rentcity.Rentcity.service;
 
 import com.rentcity.Rentcity.dto.PasswordUpdateRequest;
 import com.rentcity.Rentcity.dto.ProfileUpdateRequest;
+import com.rentcity.Rentcity.dto.AdminUserResponse;
 import com.rentcity.Rentcity.dto.UserDocumentResponse;
 import com.rentcity.Rentcity.dto.UserResponse;
 import com.rentcity.Rentcity.entity.User;
@@ -11,6 +12,8 @@ import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -32,9 +35,32 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserDocumentRepository userDocumentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     public UserResponse getCurrentProfile(String email) {
         return mapToUserResponse(getUserByEmail(email));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> getAdminUsers() {
+        return userRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(this::mapToAdminUserResponse)
+                .toList();
+    }
+
+    @Transactional
+    public AdminUserResponse toggleUserStatus(String actorEmail, Long userId) {
+        User actor = getUserByEmail(actorEmail);
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (actor.getId().equals(target.getId())) {
+            throw new IllegalArgumentException("Bạn không thể khóa tài khoản đang đăng nhập");
+        }
+
+        target.setActive(!target.isActive());
+        return mapToAdminUserResponse(userRepository.save(target));
     }
 
     public UserResponse updateProfile(String email, ProfileUpdateRequest request) {
@@ -94,7 +120,9 @@ public class UserService {
                 .verified(false)
                 .build();
 
-        return mapToDocumentResponse(userDocumentRepository.save(document));
+        UserDocument savedDocument = userDocumentRepository.save(document);
+        notificationService.notifyKycPending(user, savedDocument.getId());
+        return mapToDocumentResponse(savedDocument);
     }
 
     private User getUserByEmail(String email) {
@@ -111,6 +139,18 @@ public class UserService {
                 .idCardUrl(user.getIdCardUrl())
                 .role(user.getRole())
                 .kycStatus(user.getKycStatus())
+                .build();
+    }
+
+    private AdminUserResponse mapToAdminUserResponse(User user) {
+        return AdminUserResponse.builder()
+                .id(user.getId())
+                .fullName(StringUtils.hasText(user.getFullName()) ? user.getFullName() : user.getEmail())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole())
+                .isActive(user.isActive())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 

@@ -5,10 +5,10 @@ import type { Notification, NotificationType } from '@/types';
 // ============================================================
 
 export interface MockNotification extends Notification {
-  icon: string;   // emoji for display
+  icon?: string;   // emoji for display
 }
 
-const NOTIF_ICON: Record<NotificationType, string> = {
+const NOTIF_ICON: Partial<Record<NotificationType, string>> = {
   BOOKING_CONFIRMED: '✅',
   CHECKIN_REMINDER: '🔑',
   CHECKOUT_REMINDER: '🏁',

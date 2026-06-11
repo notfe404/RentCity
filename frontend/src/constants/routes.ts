@@ -30,6 +30,8 @@ export const ROUTES = {
   ADMIN_BOOKINGS: '/admin/bookings',
   ADMIN_USERS: '/admin/users',
   ADMIN_PAYMENTS: '/admin/payments',
+  ADMIN_NOTIFICATIONS: '/admin/notifications',
+  ADMIN_REVIEWS: '/admin/reviews',
   ADMIN_BRANCHES: '/admin/branches',
   ADMIN_CATEGORIES: '/admin/categories',
 } as const;

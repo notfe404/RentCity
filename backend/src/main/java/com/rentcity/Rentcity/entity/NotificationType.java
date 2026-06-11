@@ -1,0 +1,17 @@
+package com.rentcity.Rentcity.entity;
+
+public enum NotificationType {
+    BOOKING_CREATED,
+    BOOKING_CONFIRMED,
+    BOOKING_CANCELLED,
+    BOOKING_ONGOING,
+    BOOKING_COMPLETED,
+    PAYMENT_PENDING,
+    PAYMENT_PAID,
+    PAYMENT_FAILED,
+    PAYMENT_REFUNDED,
+    PAYMENT_EXPIRED,
+    REVIEW_REQUEST,
+    KYC_PENDING,
+    SYSTEM
+}

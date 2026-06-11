@@ -17,10 +17,7 @@ import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
 import { getMyBooking } from '@/services/bookingApi';
-import {
-  createDepositPayment,
-  getMyPayments,
-} from '@/services/paymentApi';
+import { getMyPayments } from '@/services/paymentApi';
 import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiPaymentResponse, PaymentGateway } from '@/types';

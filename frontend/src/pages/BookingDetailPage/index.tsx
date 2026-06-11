@@ -7,10 +7,11 @@ import { toast } from 'sonner';
 
 import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
 import { downloadBookingInvoicePdf } from '@/services/paymentApi';
+import { getMyBookingReview } from '@/services/reviewApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
-import type { ApiBookingResponse } from '@/types';
+import type { ApiBookingResponse, Review } from '@/types';
 
 export default function BookingDetailPage() {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function BookingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+  const [review, setReview] = useState<Review | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +37,16 @@ export default function BookingDetailPage() {
         const { data } = await getMyBooking(id);
         if (!cancelled) {
           setBooking(data);
+        }
+        if (data.status === 'COMPLETED') {
+          try {
+            const { data: reviewData } = await getMyBookingReview(data.id);
+            if (!cancelled) setReview(reviewData);
+          } catch {
+            if (!cancelled) setReview(null);
+          }
+        } else if (!cancelled) {
+          setReview(null);
         }
       } catch {
         if (!cancelled) {
@@ -322,12 +334,18 @@ export default function BookingDetailPage() {
 
                 {booking.status === 'COMPLETED' && (
                   <div className="space-y-3">
-                    <button
-                      onClick={() => navigate(`/review/${booking.id}`)}
-                      className="w-full bg-[#f99200] hover:bg-[#e08800] text-white font-bold py-4 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Star size={18} className="fill-white" /> Đánh giá chuyến xe
-                    </button>
+                    {review ? (
+                      <div className="w-full bg-[#fff8f0] border border-orange-100 text-orange-600 font-bold py-4 rounded-xl flex items-center justify-center gap-2">
+                        <Star size={18} className="fill-orange-500 text-orange-500" /> Đã đánh giá chuyến xe
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/review/${booking.id}`)}
+                        className="w-full bg-[#f99200] hover:bg-[#e08800] text-white font-bold py-4 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Star size={18} className="fill-white" /> Đánh giá chuyến xe
+                      </button>
+                    )}
                     <button
                       onClick={() => navigate(`/vehicles/${booking.vehicleId}`)}
                       className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg"
