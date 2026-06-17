@@ -5,5 +5,6 @@ public enum DamageAssessmentStatus {
     APPROVED,
     REJECTED,
     CHARGED,
-    PARTIALLY_CHARGED
+    PARTIALLY_CHARGED,
+    RESOLVED
 }

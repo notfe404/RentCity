@@ -100,7 +100,8 @@ export type DamageAssessmentStatus =
   | 'APPROVED'
   | 'REJECTED'
   | 'CHARGED'
-  | 'PARTIALLY_CHARGED';
+  | 'PARTIALLY_CHARGED'
+  | 'RESOLVED';
 
 export interface ApiDamageAssessment {
   id: number;
@@ -111,6 +112,8 @@ export interface ApiDamageAssessment {
   approvedFee: number;
   chargedFee: number;
   outstandingFee: number;
+  actualFee?: number;
+  refundedFee?: number;
   status: DamageAssessmentStatus;
   assessedBy: number;
   approvedBy?: number | null;

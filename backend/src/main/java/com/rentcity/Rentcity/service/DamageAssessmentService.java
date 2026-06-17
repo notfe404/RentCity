@@ -20,6 +20,7 @@ public class DamageAssessmentService {
     private final DamageAssessmentRepository assessmentRepository;
     private final BookingRepository bookingRepository;
     private final WalletService walletService;
+    private final NotificationService notificationService;
 
     @Transactional
     public DamageAssessmentResponse assessAndSettle(
@@ -65,6 +66,48 @@ public class DamageAssessmentService {
         return map(assessmentRepository.save(assessment));
     }
 
+    @Transactional
+    public DamageAssessmentResponse finalizeAssessment(Long bookingId, BigDecimal actualFee, Long actorId) {
+        DamageAssessment assessment = assessmentRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Damage Assessment for booking", bookingId));
+
+        if (assessment.getStatus() == DamageAssessmentStatus.RESOLVED) {
+            throw new IllegalStateException("Damage assessment is already resolved");
+        }
+
+        assessment.setActualFee(actualFee);
+
+        BigDecimal refundAmount = assessment.getChargedFee().subtract(actualFee).max(BigDecimal.ZERO);
+        BigDecimal newOutstanding = actualFee.subtract(assessment.getChargedFee()).max(BigDecimal.ZERO);
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+
+        if (refundAmount.signum() > 0) {
+            walletService.refundDamageFee(
+                    booking.getUserId(),
+                    bookingId,
+                    refundAmount,
+                    "damage_refund:" + bookingId + ":" + System.currentTimeMillis(),
+                    actorId
+            );
+            assessment.setRefundedFee(refundAmount);
+            
+            notificationService.notifyDamageRefund(booking, refundAmount);
+        }
+
+        assessment.setOutstandingFee(newOutstanding);
+        assessment.setStatus(DamageAssessmentStatus.RESOLVED);
+
+        BigDecimal difference = actualFee.subtract(assessment.getEstimatedFee());
+        booking.setDamageFee(actualFee);
+        booking.setTotalAmount(booking.getTotalAmount().add(difference));
+        booking.setOutstandingAmount(booking.getOutstandingAmount().add(difference).max(BigDecimal.ZERO));
+        bookingRepository.save(booking);
+
+        return map(assessmentRepository.save(assessment));
+    }
+
 
 
     @Transactional
@@ -101,6 +144,8 @@ public class DamageAssessmentService {
                 .approvedFee(assessment.getApprovedFee())
                 .chargedFee(assessment.getChargedFee())
                 .outstandingFee(assessment.getOutstandingFee())
+                .actualFee(assessment.getActualFee())
+                .refundedFee(assessment.getRefundedFee())
                 .status(assessment.getStatus())
                 .assessedBy(assessment.getAssessedBy())
                 .approvedBy(assessment.getApprovedBy())

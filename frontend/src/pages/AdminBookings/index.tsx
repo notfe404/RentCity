@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, Eye, Check, X, CarFront, Play, ClipboardCheck } from 'lucide-react';
+import { Search, Eye, Check, X, CarFront, Play, ClipboardCheck, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -18,6 +18,7 @@ import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from 
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
 import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';
 import ReturnConditionModal from './ReturnConditionModal';
+import { FinalizeDamageModal } from './FinalizeDamageModal';
 
 type StatusFilter = 'ALL' | ApiBookingStatus;
 
@@ -37,6 +38,7 @@ export default function AdminBookingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [returnBooking, setReturnBooking] = useState<ApiBookingResponse | null>(null);
+  const [finalizeBooking, setFinalizeBooking] = useState<ApiBookingResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -319,6 +321,17 @@ export default function AdminBookingsPage() {
                           </button>
                         )}
 
+                        {booking.damageAssessment && ['CHARGED', 'PARTIALLY_CHARGED'].includes(booking.damageAssessment.status) && (
+                          <button
+                            disabled={busy}
+                            onClick={() => setFinalizeBooking(booking)}
+                            className="p-2 text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                            title="Chốt chi phí sửa chữa"
+                          >
+                            <Wrench size={16} />
+                          </button>
+                        )}
+
                         <div className="inline-flex items-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 rounded-lg shadow-sm text-xs font-bold">
                           <Eye size={16} />
                           <span>{formatDateTime(booking.createdAt)}</span>
@@ -355,6 +368,19 @@ export default function AdminBookingsPage() {
           isSaving={activeBookingId === returnBooking.id}
           onClose={() => setReturnBooking(null)}
           onSubmit={submitReturnCondition}
+        />
+      )}
+      {finalizeBooking && finalizeBooking.damageAssessment && (
+        <FinalizeDamageModal
+          isOpen={true}
+          onClose={() => setFinalizeBooking(null)}
+          bookingId={finalizeBooking.id}
+          chargedFee={finalizeBooking.damageAssessment.chargedFee}
+          estimatedFee={finalizeBooking.damageAssessment.estimatedFee}
+          onSuccess={() => {
+            // refresh page
+            window.location.reload();
+          }}
         />
       )}
     </AdminLayout>

@@ -88,6 +88,13 @@ export const saveReturnCondition = (
   return api.post<ApiBookingResponse>(`/admin/bookings/${id}/return-condition`, formData);
 };
 
+export const finalizeDamageAssessment = (
+  id: number | string,
+  payload: { actualFee: number },
+) => {
+  return api.post<ApiBookingResponse>(`/admin/bookings/${id}/damage-assessment/finalize`, payload);
+};
+
 export const confirmBookingForTest = (id: number | string) => {
   return api.post<ApiBookingResponse>(`/bookings/${id}/confirm-for-test`);
 };

@@ -85,6 +85,16 @@ public class WalletService {
     }
 
     @Transactional
+    public void refundDamageFee(Long userId, Long bookingId, BigDecimal amount, String reference, Long actorId) {
+        if (amount == null || amount.signum() <= 0) return;
+        if (transactionRepository.existsByReference(reference)) return;
+        
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        apply(wallet, bookingId, WalletTransactionType.DAMAGE_FEE_REFUND, amount, amount, BigDecimal.ZERO, 
+              reference, "Refund for excess damage fee over actual repair cost", actorId);
+    }
+
+    @Transactional
     public void forfeitBookingHold(Long userId, Long bookingId, String reference) {
         if (transactionRepository.existsByReference(reference)) {
             return;
