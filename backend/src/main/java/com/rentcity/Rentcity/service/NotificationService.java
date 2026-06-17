@@ -163,6 +163,20 @@ public class NotificationService {
     }
 
     @Transactional
+    public void notifyDamageRefund(Booking booking, java.math.BigDecimal amount) {
+        Map<String, String> data = bookingData(booking, null, "/wallet");
+        java.text.NumberFormat format = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("vi", "VN"));
+        createForUser(
+                booking.getUserId(),
+                NotificationAudience.USER,
+                NotificationType.SYSTEM,
+                "Hoàn tiền phí sửa chữa xe",
+                "Bạn đã được hoàn " + format.format(amount) + " phí sửa chữa cho booking " + booking.getBookingCode() + " vào ví.",
+                data
+        );
+    }
+
+    @Transactional
     public void notifyPaymentStatusChanged(Payment payment, PaymentStatus status) {
         NotificationType type = switch (status) {
             case PAID -> NotificationType.PAYMENT_PAID;

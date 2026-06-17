@@ -47,6 +47,13 @@ public class DamageAssessment {
     @Column(name = "outstanding_fee", nullable = false, precision = 12, scale = 0)
     private BigDecimal outstandingFee = BigDecimal.ZERO;
 
+    @Column(name = "actual_fee", precision = 12, scale = 0)
+    private BigDecimal actualFee;
+
+    @Builder.Default
+    @Column(name = "refunded_fee", precision = 12, scale = 0)
+    private BigDecimal refundedFee = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private DamageAssessmentStatus status;

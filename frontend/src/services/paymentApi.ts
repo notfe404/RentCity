@@ -9,6 +9,10 @@ export const getMyPayments = () => {
   return api.get<ApiPaymentResponse[]>('/payments/me');
 };
 
+export const getMyPayment = (id: number | string) => {
+  return api.get<ApiPaymentResponse>(`/payments/${id}`);
+};
+
 export const capturePaypalPayment = (id: number | string) => {
   return api.post<ApiPaymentResponse>(`/payments/paypal/${id}/capture`, {
     gatewayTransactionId: `PAYPAL-FE-${Date.now()}`,

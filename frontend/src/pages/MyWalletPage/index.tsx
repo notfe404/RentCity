@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CreditCard, Landmark, Loader2, LockKeyhole, PlusCircle, Send, WalletCards } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
@@ -31,7 +30,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function MyWalletPage() {
-  const navigate = useNavigate();
   const [wallet, setWallet] = useState<ApiWalletResponse | null>(null);
   const [paymentRequests, setPaymentRequests] = useState<ApiBookingResponse[]>([]);
   const [withdrawals, setWithdrawals] = useState<ApiWithdrawalRequest[]>([]);
@@ -96,8 +94,11 @@ export default function MyWalletPage() {
         gateway: selectedGateway,
         idempotencyKey: `booking-pay-${booking.id}-${Date.now()}`,
       });
-      if (payment.status === 'PAID') {
+      if (payment.status === 'PAID' && payment.gateway === 'WALLET') {
         toast.success('Payment request paid fully from wallet');
+        await loadPage();
+      } else if (payment.status === 'PAID') {
+        toast.success('Payment request already completed');
         await loadPage();
       } else {
         setCheckoutPayment(payment);

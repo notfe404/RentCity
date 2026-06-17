@@ -19,6 +19,8 @@ public class DamageAssessmentResponse {
     private BigDecimal approvedFee;
     private BigDecimal chargedFee;
     private BigDecimal outstandingFee;
+    private BigDecimal actualFee;
+    private BigDecimal refundedFee;
     private DamageAssessmentStatus status;
     private Long assessedBy;
     private Long approvedBy;

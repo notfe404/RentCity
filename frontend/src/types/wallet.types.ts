@@ -10,7 +10,8 @@ export type WalletTransactionType =
   | 'REFUND_CREDIT'
   | 'WITHDRAWAL_REQUEST'
   | 'WITHDRAWAL_REVERSED'
-  | 'ADJUSTMENT';
+  | 'ADJUSTMENT'
+  | 'DAMAGE_FEE_REFUND';
 
 export interface ApiWalletTransaction {
   id: number;

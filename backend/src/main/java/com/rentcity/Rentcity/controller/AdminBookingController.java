@@ -5,9 +5,12 @@ import com.rentcity.Rentcity.dto.BookingResponse;
 import com.rentcity.Rentcity.dto.CarConditionRequest;
 import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.dto.DamageAssessmentResponse;
+import com.rentcity.Rentcity.dto.FinalizeDamageAssessmentRequest;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.service.BookingService;
 import com.rentcity.Rentcity.service.CarConditionService;
+import com.rentcity.Rentcity.entity.User;
+import com.rentcity.Rentcity.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +32,7 @@ public class AdminBookingController {
     private final BookingService bookingService;
     private final CarConditionService carConditionService;
     private final com.rentcity.Rentcity.service.DamageAssessmentService damageAssessmentService;
+    private final UserRepository userRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -112,4 +116,14 @@ public class AdminBookingController {
         return ResponseEntity.ok(damageAssessmentService.getByBooking(id));
     }
 
+    @PostMapping("/{id}/damage-assessment/finalize")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DamageAssessmentResponse> finalizeDamageAssessment(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody FinalizeDamageAssessmentRequest request
+    ) {
+        User admin = userRepository.findByEmail(authentication.getName()).orElseThrow();
+        return ResponseEntity.ok(damageAssessmentService.finalizeAssessment(id, request.getActualFee(), admin.getId()));
+    }
 }

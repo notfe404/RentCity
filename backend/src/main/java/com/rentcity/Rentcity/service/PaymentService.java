@@ -194,16 +194,6 @@ public class PaymentService {
             }
         }
 
-        var existingPaid = paymentRepository.findFirstByBookingIdAndGatewayAndTypeAndStatusInOrderByCreatedAtDesc(
-                bookingId,
-                request.getGateway(),
-                PaymentType.BALANCE_PAYMENT,
-                Set.of(PaymentStatus.PAID)
-        );
-        if (existingPaid.isPresent()) {
-            return mapToResponse(existingPaid.get(), booking);
-        }
-
         Payment payment = Payment.builder()
                 .bookingId(bookingId)
                 .userId(user.getId())
