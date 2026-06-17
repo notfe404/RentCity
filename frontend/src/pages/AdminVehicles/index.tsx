@@ -8,6 +8,7 @@ import {
   adminUpdateCar,
   adminDeleteCar,
   uploadInitialConditionImages,
+  uploadCarImages,
   type AdminCarPayload,
 } from '@/services/carApi';
 import { getBranches, getCategories, type ApiBranch, type ApiCategory } from '@/services/adminApi';
@@ -84,14 +85,21 @@ export default function AdminVehiclesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = async (payload: AdminCarPayload, conditionFiles: File[]) => {
+  const handleSave = async (payload: AdminCarPayload, conditionFiles: File[], carFiles: File[]) => {
     try {
       if (editingCar) {
         const { data } = await adminUpdateCar(editingCar.id, payload);
-        setCars((cur) => cur.map((c) => (c.id === editingCar.id ? data : c)));
+        if (carFiles.length > 0) {
+          await uploadCarImages(data.id, carFiles);
+        }
+        const refreshed = await searchCars({ size: 100 });
+        setCars(refreshed.data.content);
         toast.success('Đã cập nhật xe');
       } else {
         const { data } = await adminCreateCar(payload);
+        if (carFiles.length > 0) {
+          await uploadCarImages(data.id, carFiles, 0);
+        }
         if (conditionFiles.length > 0) {
           await uploadInitialConditionImages(data.id, conditionFiles);
         }

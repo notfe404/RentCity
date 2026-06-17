@@ -68,3 +68,20 @@ export const uploadInitialConditionImages = (id: number | string, files: File[])
   files.forEach((file) => formData.append('files', file));
   return api.post(`/admin/cars/${id}/condition/images`, formData);
 };
+
+export const uploadCarImages = (id: number | string, files: File[], primaryIndex?: number) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  if (primaryIndex !== undefined) {
+    formData.append('primaryIndex', primaryIndex.toString());
+  }
+  return api.post(`/admin/cars/${id}/images`, formData);
+};
+
+export const deleteCarImage = (carId: number | string, imageId: number | string) => {
+  return api.delete(`/admin/cars/${carId}/images/${imageId}`);
+};
+
+export const setPrimaryCarImage = (carId: number | string, imageId: number | string) => {
+  return api.patch(`/admin/cars/${carId}/images/${imageId}/primary`);
+};

@@ -16,6 +16,7 @@ export interface ApiCategory {
   id: number;
   name: string;
   description?: string;
+  seats: number;
   basePriceDay: number;
   depositRate: number;
   isActive: boolean;
@@ -55,25 +56,25 @@ export interface ApiAdminPayment {
 export const getBranches = () => api.get<ApiBranch[]>('/branches');
 
 export const adminCreateBranch = (data: Omit<ApiBranch, 'id' | 'createdAt'>) =>
-  api.post<ApiBranch>('/admin/branches', data);
+  api.post<ApiBranch>('/branches', data);
 
 export const adminUpdateBranch = (id: number, data: Partial<Omit<ApiBranch, 'id' | 'createdAt'>>) =>
-  api.put<ApiBranch>(`/admin/branches/${id}`, data);
+  api.put<ApiBranch>(`/branches/${id}`, data);
 
 export const adminDeleteBranch = (id: number) =>
-  api.delete(`/admin/branches/${id}`);
+  api.delete(`/branches/${id}`);
 
 // ---- Categories ----
 export const getCategories = () => api.get<ApiCategory[]>('/categories');
 
 export const adminCreateCategory = (data: Omit<ApiCategory, 'id'>) =>
-  api.post<ApiCategory>('/admin/categories', data);
+  api.post<ApiCategory>('/categories', data);
 
 export const adminUpdateCategory = (id: number, data: Partial<Omit<ApiCategory, 'id'>>) =>
-  api.put<ApiCategory>(`/admin/categories/${id}`, data);
+  api.put<ApiCategory>(`/categories/${id}`, data);
 
 export const adminDeleteCategory = (id: number) =>
-  api.delete(`/admin/categories/${id}`);
+  api.delete(`/categories/${id}`);
 
 // ---- Users ----
 export const adminGetUsers = (params?: { role?: string; keyword?: string; page?: number; size?: number }) =>

@@ -54,7 +54,7 @@ export default function SearchPage() {
   } = useBooking();
 
   // Filters
-  const [priceRange, setPriceRange] = useState(3000000);
+  const [priceRange, setPriceRange] = useState(10000000);
   const debouncedPrice = useDebounce(priceRange, 300);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
@@ -207,7 +207,7 @@ export default function SearchPage() {
   ]);
 
   const clearAllFilters = () => {
-    setPriceRange(3000000);
+    setPriceRange(10000000);
     setSelectedCategories([]);
     setSelectedSeats([]);
     setSelectedFuel([]);
@@ -244,13 +244,13 @@ export default function SearchPage() {
           <span className="text-[#78ad44]">{formatVND(priceRange)}/ngày</span>
         </label>
         <input
-          type="range" min={500000} max={3000000} step={50000}
+          type="range" min={500000} max={10000000} step={100000}
           value={priceRange}
           onChange={(e) => setPriceRange(Number(e.target.value))}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#78ad44]"
         />
         <div className="flex justify-between text-[10px] text-gray-400 font-medium mt-1">
-          <span>500K</span><span>3M</span>
+          <span>500K</span><span>10M</span>
         </div>
       </div>
 
