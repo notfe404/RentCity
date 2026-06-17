@@ -94,8 +94,11 @@ export default function MyWalletPage() {
         gateway: selectedGateway,
         idempotencyKey: `booking-pay-${booking.id}-${Date.now()}`,
       });
-      if (payment.status === 'PAID') {
+      if (payment.status === 'PAID' && payment.gateway === 'WALLET') {
         toast.success('Payment request paid fully from wallet');
+        await loadPage();
+      } else if (payment.status === 'PAID') {
+        toast.success('Payment request already completed');
         await loadPage();
       } else {
         setCheckoutPayment(payment);
