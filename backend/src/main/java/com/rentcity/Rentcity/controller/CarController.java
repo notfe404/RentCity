@@ -1,10 +1,12 @@
 package com.rentcity.Rentcity.controller;
 
 import com.rentcity.Rentcity.dto.CarResponse;
+import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.dto.PageResponse;
 import com.rentcity.Rentcity.entity.CarStatus;
 import com.rentcity.Rentcity.entity.Transmission;
 import com.rentcity.Rentcity.service.CarService;
+import com.rentcity.Rentcity.service.CarConditionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,7 @@ import java.util.List;
 public class CarController {
 
     private final CarService carService;
+    private final CarConditionService carConditionService;
 
     @GetMapping("/search")
     public ResponseEntity<PageResponse<CarResponse>> search(
@@ -61,5 +64,14 @@ public class CarController {
     @GetMapping("/{id}")
     public ResponseEntity<CarResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(carService.getById(id));
+    }
+
+    @GetMapping("/{id}/condition")
+    public ResponseEntity<CarConditionResponse> getCurrentCondition(@PathVariable Long id) {
+        carService.getById(id);
+        CarConditionResponse condition = carConditionService.getCurrent(id);
+        return condition == null
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.ok(condition);
     }
 }

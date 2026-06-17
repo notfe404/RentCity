@@ -1,4 +1,5 @@
 import api from './api';
+import type { ApiWithdrawalRequest, WithdrawalRequestStatus } from '@/types';
 
 // ---- Types ----
 export interface ApiBranch {
@@ -87,3 +88,12 @@ export const adminGetPayments = (params?: { status?: string; gateway?: string; f
 
 export const adminRefundPayment = (id: number) =>
   api.post<ApiAdminPayment>(`/admin/payments/${id}/refund`);
+
+export const adminGetWithdrawalRequests = (status?: WithdrawalRequestStatus) =>
+  api.get<ApiWithdrawalRequest[]>('/admin/withdrawals', { params: status ? { status } : {} });
+
+export const adminCompleteWithdrawalRequest = (id: number) =>
+  api.post<ApiWithdrawalRequest>(`/admin/withdrawals/${id}/complete`);
+
+export const adminRejectWithdrawalRequest = (id: number, reason: string) =>
+  api.post<ApiWithdrawalRequest>(`/admin/withdrawals/${id}/reject`, { reason });

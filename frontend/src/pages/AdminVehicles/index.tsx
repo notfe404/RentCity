@@ -2,7 +2,14 @@ import { useEffect, useState, useMemo } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Plus, Search, Edit, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { searchCars, adminCreateCar, adminUpdateCar, adminDeleteCar, type AdminCarPayload } from '@/services/carApi';
+import {
+  searchCars,
+  adminCreateCar,
+  adminUpdateCar,
+  adminDeleteCar,
+  uploadInitialConditionImages,
+  type AdminCarPayload,
+} from '@/services/carApi';
 import { getBranches, getCategories, type ApiBranch, type ApiCategory } from '@/services/adminApi';
 import { formatVND } from '@/utils/formatters';
 import type { ApiCarResponse } from '@/types';
@@ -77,7 +84,7 @@ export default function AdminVehiclesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = async (payload: AdminCarPayload) => {
+  const handleSave = async (payload: AdminCarPayload, conditionFiles: File[]) => {
     try {
       if (editingCar) {
         const { data } = await adminUpdateCar(editingCar.id, payload);
@@ -85,7 +92,11 @@ export default function AdminVehiclesPage() {
         toast.success('Đã cập nhật xe');
       } else {
         const { data } = await adminCreateCar(payload);
-        setCars((cur) => [data, ...cur]);
+        if (conditionFiles.length > 0) {
+          await uploadInitialConditionImages(data.id, conditionFiles);
+        }
+        const refreshed = await searchCars({ size: 100 });
+        setCars(refreshed.data.content);
         toast.success('Đã thêm xe mới');
         setCurrentPage(1);
       }

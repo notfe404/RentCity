@@ -3,6 +3,13 @@ import type { ApiPricingMode } from '@/types';
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
+export interface RentalDurationParts {
+  totalHours: number;
+  fullDays: number;
+  remainingHours: number;
+  roundedDays: number;
+}
+
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
@@ -90,9 +97,18 @@ export function getDurationHours(startValue: string, endValue: string): number {
   return Math.max(1, Math.ceil(diffMs / HOUR_MS));
 }
 
+export function getRentalDurationParts(startValue: string, endValue: string): RentalDurationParts {
+  const totalHours = getDurationHours(startValue, endValue);
+  return {
+    totalHours,
+    fullDays: Math.floor(totalHours / 24),
+    remainingHours: totalHours % 24,
+    roundedDays: Math.max(1, Math.ceil(totalHours / 24)),
+  };
+}
+
 export function getDurationDays(startValue: string, endValue: string): number {
-  const diffMs = parseDateTimeLocalValue(endValue).getTime() - parseDateTimeLocalValue(startValue).getTime();
-  return Math.max(1, Math.ceil(diffMs / DAY_MS));
+  return getRentalDurationParts(startValue, endValue).roundedDays;
 }
 
 export function inferPricingMode(startValue: string, endValue: string): ApiPricingMode {
@@ -104,7 +120,22 @@ export function getDurationLabel(startValue: string, endValue: string, pricingMo
   if (mode === 'HOURLY') {
     return `${getDurationHours(startValue, endValue)} giờ`;
   }
-  return `${getDurationDays(startValue, endValue)} ngày`;
+
+  const { fullDays, remainingHours } = getRentalDurationParts(startValue, endValue);
+  const parts = [];
+  if (fullDays > 0) {
+    parts.push(`${fullDays} ngày`);
+  }
+  if (remainingHours > 0) {
+    parts.push(`${remainingHours} giờ`);
+  }
+  return parts.join(' ');
+}
+
+export function getDailyRentalAmount(startValue: string, endValue: string, pricePerDay: number): number {
+  const { fullDays, remainingHours } = getRentalDurationParts(startValue, endValue);
+  const hourlyRate = Math.round(pricePerDay / 24);
+  return fullDays * pricePerDay + remainingHours * hourlyRate;
 }
 
 export function toBackendDateTime(value: string): string {

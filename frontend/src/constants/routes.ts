@@ -19,6 +19,7 @@ export const ROUTES = {
   // Customer Profile & My Bookings (Protected)
   PROFILE: '/profile',
   PAYMENTS: '/payments',
+  WALLET: '/wallet',
   MY_BOOKINGS: '/my-bookings',
   BOOKING_DETAIL: '/my-bookings/:id',
   NOTIFICATIONS: '/notifications',
@@ -32,6 +33,7 @@ export const ROUTES = {
   ADMIN_PAYMENTS: '/admin/payments',
   ADMIN_NOTIFICATIONS: '/admin/notifications',
   ADMIN_REVIEWS: '/admin/reviews',
+  ADMIN_WITHDRAWALS: '/admin/withdrawals',
   ADMIN_BRANCHES: '/admin/branches',
   ADMIN_CATEGORIES: '/admin/categories',
 } as const;

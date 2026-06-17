@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import BookingStepper from '@/components/booking/BookingStepper';
+import PaymentHoldCountdown from '@/components/booking/PaymentHoldCountdown';
+import { usePaymentHoldCountdown } from '@/hooks/usePaymentHoldCountdown';
 import { getMyBooking } from '@/services/bookingApi';
 import { completeVnpayMockCallback, createDepositPayment } from '@/services/paymentApi';
 import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
@@ -31,6 +33,10 @@ export default function VNPayQR() {
   const [errorMessage, setErrorMessage] = useState('');
   const [gatewayReference, setGatewayReference] = useState('');
   const [autoConfirmCountdown, setAutoConfirmCountdown] = useState(0);
+  const { remainingSeconds, expired: paymentExpired } = usePaymentHoldCountdown(
+    booking?.paymentExpiresAt,
+    booking?.status === 'PENDING',
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -183,6 +189,13 @@ export default function VNPayQR() {
               </div>
             </div>
 
+            <div className="mb-8">
+              <PaymentHoldCountdown
+                remainingSeconds={remainingSeconds}
+                expired={paymentExpired}
+              />
+            </div>
+
             {status === 'loading' && (
               <div className="rounded-[1.75rem] border border-gray-100 bg-[#f4f8f7] p-12 text-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin mx-auto mb-4" />
@@ -235,7 +248,7 @@ export default function VNPayQR() {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     onClick={handleManualConfirm}
-                    disabled={status !== 'qr_display'}
+                    disabled={status !== 'qr_display' || paymentExpired}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-colors disabled:bg-gray-300"
                   >
                     Xác nhận thanh toán

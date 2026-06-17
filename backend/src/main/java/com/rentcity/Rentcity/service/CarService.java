@@ -41,6 +41,7 @@ public class CarService {
     private final FileStorageService fileStorageService;
     private final BookingAvailabilityService bookingAvailabilityService;
     private final ReviewService reviewService;
+    private final CarConditionService carConditionService;
 
     // ---------------------------------------------------------------
     // B2 — Thêm xe
@@ -51,10 +52,15 @@ public class CarService {
         if (carRepository.existsByLicensePlate(request.getLicensePlate())) {
             throw new IllegalArgumentException("Biển số xe đã tồn tại: " + request.getLicensePlate());
         }
+        if (request.getInitialCondition() == null) {
+            throw new IllegalArgumentException("Initial car condition is required");
+        }
         Car car = new Car();
         applyRequest(car, request);
         car.setStatus(request.getStatus() != null ? request.getStatus() : CarStatus.AVAILABLE);
-        return mapToResponse(carRepository.save(car));
+        Car savedCar = carRepository.save(car);
+        carConditionService.createInitial(savedCar.getId(), request.getInitialCondition(), null, Role.ADMIN);
+        return mapToResponse(savedCar);
     }
 
     // ---------------------------------------------------------------
@@ -345,6 +351,7 @@ public class CarService {
                 .reviewCount(reviewService.getVisibleReviewCount(car.getId()))
                 .primaryImageUrl(primaryUrl)
                 .images(images)
+                .currentCondition(carConditionService.getCurrent(car.getId()))
                 .build();
     }
 }

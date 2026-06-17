@@ -105,6 +105,29 @@ export interface ApiCarImageResponse {
   primary: boolean;
 }
 
+export type ApiConditionReportType = 'INITIAL' | 'RETURN';
+export type ApiCarCondition = 'GOOD' | 'DAMAGE' | 'NEED_MAINTENANCE';
+
+export interface ApiCarConditionImageResponse {
+  id: number;
+  imageUrl: string;
+  displayOrder: number;
+}
+
+export interface ApiCarConditionResponse {
+  id: number;
+  carId: number;
+  bookingId?: number | null;
+  reportType: ApiConditionReportType;
+  condition: ApiCarCondition;
+  odometer: number;
+  fuelLevel: number;
+  damageFound: boolean;
+  notes?: string | null;
+  createdAt: string;
+  images: ApiCarConditionImageResponse[];
+}
+
 export interface ApiCarResponse {
   id: number;
   categoryId?: number | null;
@@ -125,6 +148,7 @@ export interface ApiCarResponse {
   reviewCount?: number | null;
   primaryImageUrl?: string | null;
   images: ApiCarImageResponse[];
+  currentCondition?: ApiCarConditionResponse | null;
 }
 
 export interface ApiPageResponse<T> {

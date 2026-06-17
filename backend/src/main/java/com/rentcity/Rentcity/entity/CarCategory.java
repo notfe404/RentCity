@@ -43,6 +43,6 @@ public class CarCategory {
 
     /** Loại xe còn hoạt động hay đã tắt. */
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = false, columnDefinition = "boolean default true")
     private boolean isActive = true;
 }

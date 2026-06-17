@@ -4,18 +4,23 @@ import com.rentcity.Rentcity.dto.BookingQuote;
 import com.rentcity.Rentcity.dto.BookingResponse;
 import com.rentcity.Rentcity.dto.CreateBookingRequest;
 import com.rentcity.Rentcity.dto.AdminBookingTransitionRequest;
+import com.rentcity.Rentcity.dto.CarConditionRequest;
+import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.entity.*;
 import com.rentcity.Rentcity.exception.ResourceNotFoundException;
 import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.CarRepository;
+import com.rentcity.Rentcity.repository.PaymentRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.Predicate;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +41,7 @@ public class BookingService {
     private static final DateTimeFormatter BOOKING_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final BookingRepository bookingRepository;
+    private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
     private final CarRepository carRepository;
     private final BookingAvailabilityService bookingAvailabilityService;
@@ -43,6 +49,11 @@ public class BookingService {
     private final BookingStateMachineService bookingStateMachineService;
     private final BookingCancellationPolicyService bookingCancellationPolicyService;
     private final NotificationService notificationService;
+    private final BookingExpirationService bookingExpirationService;
+    private final CarConditionService carConditionService;
+    private final OverdueFeeService overdueFeeService;
+    private final WalletService walletService;
+    private final DamageAssessmentService damageAssessmentService;
 
     @Transactional
     public BookingResponse createBooking(String email, CreateBookingRequest request) {
@@ -80,6 +91,8 @@ public class BookingService {
                 .depositAmount(quote.getDepositAmount())
                 .totalAmount(quote.getTotalAmount())
                 .freeCancelUntil(quote.getFreeCancelUntil())
+                .paymentExpiresAt(bookingExpirationService.newPaymentDeadline())
+                .initialConditionReportId(resolveCurrentConditionId(car.getId()))
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -178,6 +191,23 @@ public class BookingService {
         booking.setCancelReason("CUSTOMER_CANCELLED");
         booking.setCancelledBy(user.getEmail());
 
+        if (depositStatus == DepositStatus.REFUNDED) {
+            markDepositPaymentRefunded(booking.getId(), cancelledAt);
+            walletService.refundBookingDeposit(
+                    booking.getUserId(),
+                    booking.getId(),
+                    booking.getDepositAmount(),
+                    "booking:" + booking.getId() + ":cancel-release",
+                    "Deposit returned to wallet after free cancellation"
+            );
+        } else if (depositStatus == DepositStatus.FORFEITED) {
+            walletService.forfeitBookingHold(
+                    booking.getUserId(),
+                    booking.getId(),
+                    "booking:" + booking.getId() + ":cancel-forfeit"
+            );
+        }
+
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.notifyBookingStatusChanged(savedBooking, BookingStatus.CANCELLED);
         return mapToResponse(savedBooking);
@@ -199,6 +229,10 @@ public class BookingService {
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
 
+        if (request.getTargetStatus() == BookingStatus.COMPLETED) {
+            throw new IllegalArgumentException("Complete the booking by submitting a return condition");
+        }
+
         bookingStateMachineService.transition(
                 booking,
                 request.getTargetStatus(),
@@ -218,12 +252,180 @@ public class BookingService {
             booking.setCancelledBy(actor.getEmail());
             if (booking.getDepositStatus() == DepositStatus.PAID) {
                 booking.setDepositStatus(DepositStatus.REFUNDED);
+                markDepositPaymentRefunded(booking.getId(), booking.getCancelledAt());
+                walletService.refundBookingDeposit(
+                        booking.getUserId(),
+                        booking.getId(),
+                        booking.getDepositAmount(),
+                        "booking:" + booking.getId() + ":transition-cancel-release",
+                        "Deposit returned to wallet after admin cancellation"
+                );
             }
         }
 
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.notifyBookingStatusChanged(savedBooking, request.getTargetStatus());
         return mapToResponse(savedBooking);
+    }
+
+    @Transactional
+    public BookingResponse cancelBookingAsAdmin(String actorEmail, Long bookingId) {
+        User actor = userRepository.findByEmail(actorEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (actor.getRole() != Role.ADMIN && actor.getRole() != Role.STAFF) {
+            throw new IllegalArgumentException("Chỉ admin hoặc staff mới được hủy booking");
+        }
+
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            return mapToResponse(booking);
+        }
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new IllegalArgumentException("Chỉ có thể hủy booking ở trạng thái PENDING hoặc CONFIRMED");
+        }
+
+        LocalDateTime cancelledAt = LocalDateTime.now();
+        bookingStateMachineService.transition(
+                booking,
+                BookingStatus.CANCELLED,
+                actor.getId(),
+                actor.getRole(),
+                "ADMIN_CANCELLED",
+                "Booking bị hủy bởi admin/staff"
+        );
+        booking.setCancelledAt(cancelledAt);
+        booking.setCancelReason("ADMIN_CANCELLED");
+        booking.setCancelledBy(actor.getEmail());
+
+        if (booking.getDepositStatus() == DepositStatus.PAID) {
+            booking.setDepositStatus(DepositStatus.REFUNDED);
+            markDepositPaymentRefunded(booking.getId(), cancelledAt);
+            walletService.refundBookingDeposit(
+                    booking.getUserId(),
+                    booking.getId(),
+                    booking.getDepositAmount(),
+                    "booking:" + booking.getId() + ":admin-cancel-release",
+                    "Deposit returned to wallet after admin cancellation"
+            );
+        } else if (booking.getDepositStatus() == DepositStatus.UNPAID) {
+            var pendingPayments = paymentRepository.findByBookingIdAndStatus(
+                    booking.getId(),
+                    PaymentStatus.PENDING
+            );
+            pendingPayments.forEach(payment -> {
+                payment.setStatus(PaymentStatus.EXPIRED);
+                payment.setFailureReason("Booking cancelled by admin");
+            });
+            paymentRepository.saveAll(pendingPayments);
+        }
+
+        return mapToResponse(bookingRepository.save(booking));
+    }
+
+    @Transactional
+    public BookingResponse completeReturnInspection(
+            String actorEmail,
+            Long bookingId,
+            CarConditionRequest request,
+            List<MultipartFile> files
+    ) {
+        User actor = userRepository.findByEmail(actorEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (actor.getRole() != Role.ADMIN && actor.getRole() != Role.STAFF) {
+            throw new IllegalArgumentException("Only admin or staff can record a return condition");
+        }
+        if (request.getCondition() == null) {
+            throw new IllegalArgumentException("Car condition is required");
+        }
+        if (request.isDamageFound() && request.getCondition() == CarCondition.GOOD) {
+            throw new IllegalArgumentException("A car with damage cannot have GOOD return condition");
+        }
+        if (request.getCondition() == CarCondition.DAMAGE && !request.isDamageFound()) {
+            throw new IllegalArgumentException("DAMAGE return condition must mark damage as found");
+        }
+        if (files == null || files.stream().noneMatch(file -> file != null && !file.isEmpty())) {
+            throw new IllegalArgumentException("At least one return photo is required");
+        }
+
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+        if (booking.getStatus() != BookingStatus.ONGOING) {
+            throw new IllegalArgumentException("Return condition can only be recorded for an ONGOING booking");
+        }
+        if (request.getActualReturnAt() == null) {
+            throw new IllegalArgumentException("Actual return time is required");
+        }
+        if (request.getActualReturnAt().isBefore(booking.getStartTime())) {
+            throw new IllegalArgumentException("Actual return time cannot be before the booking start time");
+        }
+        if (request.getOdometer() == null || request.getOdometer() < 0) {
+            throw new IllegalArgumentException("Odometer must be zero or greater");
+        }
+        if (request.getFuelLevel() == null || request.getFuelLevel() < 0 || request.getFuelLevel() > 100) {
+            throw new IllegalArgumentException("Fuel level must be between 0 and 100");
+        }
+
+        Car car = carRepository.findByIdForUpdate(booking.getCarId())
+                .orElseThrow(() -> new ResourceNotFoundException("car", booking.getCarId()));
+        CarConditionResponse preRentalCondition = carConditionService.getById(booking.getInitialConditionReportId());
+        if (preRentalCondition != null && request.getOdometer() < preRentalCondition.getOdometer()) {
+            throw new IllegalArgumentException("Return odometer cannot be lower than the pre-rental odometer");
+        }
+
+        carConditionService.createReturn(
+                car.getId(),
+                booking.getId(),
+                request,
+                actor.getId(),
+                actor.getRole(),
+                files
+        );
+
+        LocalDateTime actualReturnAt = request.getActualReturnAt();
+        OverdueFeeService.OverdueCharge overdueCharge = overdueFeeService.calculate(
+                booking.getEndTime(),
+                actualReturnAt,
+                car.getPricePerDay(),
+                booking.getBaseAmount()
+        );
+
+        bookingStateMachineService.transition(
+                booking,
+                BookingStatus.COMPLETED,
+                actor.getId(),
+                actor.getRole(),
+                "RETURN_INSPECTION_COMPLETED",
+                request.getNotes()
+        );
+        booking.setActualReturnAt(actualReturnAt);
+        booking.setOverdueMinutes(overdueCharge.overdueMinutes());
+        booking.setOverdueFee(overdueCharge.fee());
+        booking.setPenaltyOverdueFee(overdueCharge.penaltyFee());
+        booking.setTotalOverdueFee(overdueCharge.totalFee());
+        booking.setTotalAmount(booking.getTotalAmount().add(overdueCharge.totalFee()));
+
+        walletService.settleBooking(
+                booking.getUserId(),
+                booking.getId(),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                actor.getId()
+        );
+
+        if (request.isDamageFound()) {
+            damageAssessmentService.assessAndSettle(booking, request, actor.getId());
+        } else {
+            booking.setOutstandingAmount(overdueCharge.totalFee());
+        }
+
+        car.setStatus(request.getCondition() == CarCondition.NEED_MAINTENANCE
+                ? CarStatus.MAINTENANCE
+                : CarStatus.AVAILABLE);
+        carRepository.save(car);
+        return mapToResponse(bookingRepository.save(booking));
     }
 
     private void validateRequest(CreateBookingRequest request) {
@@ -308,6 +510,7 @@ public class BookingService {
                 .vehicleName(vehicleName)
                 .vehicleLicensePlate(car != null ? car.getLicensePlate() : null)
                 .vehiclePrimaryImageUrl(primaryImageUrl)
+                .vehiclePricePerDay(car != null ? car.getPricePerDay() : null)
                 .customerName(customer != null ? customer.getFullName() : null)
                 .customerEmail(customer != null ? customer.getEmail() : null)
                 .startTime(booking.getStartTime())
@@ -319,9 +522,29 @@ public class BookingService {
                 .depositAmount(booking.getDepositAmount())
                 .totalAmount(booking.getTotalAmount())
                 .freeCancelUntil(booking.getFreeCancelUntil())
+                .paymentExpiresAt(bookingExpirationService.resolvePaymentDeadline(booking))
+                .actualReturnAt(booking.getActualReturnAt())
+                .overdueMinutes(booking.getOverdueMinutes() != null ? booking.getOverdueMinutes() : 0L)
+                .overdueFee(booking.getOverdueFee() != null ? booking.getOverdueFee() : BigDecimal.ZERO)
+                .penaltyOverdueFee(booking.getPenaltyOverdueFee() != null
+                        ? booking.getPenaltyOverdueFee()
+                        : BigDecimal.ZERO)
+                .totalOverdueFee(booking.getTotalOverdueFee() != null
+                        ? booking.getTotalOverdueFee()
+                        : BigDecimal.ZERO)
+                .damageFee(booking.getDamageFee() != null ? booking.getDamageFee() : BigDecimal.ZERO)
+                .outstandingAmount(booking.getOutstandingAmount() != null
+                        ? booking.getOutstandingAmount()
+                        : BigDecimal.ZERO)
+                .damageAssessment(damageAssessmentService.getByBooking(booking.getId()))
                 .cancelledAt(booking.getCancelledAt())
                 .cancelReason(booking.getCancelReason())
                 .cancelledBy(booking.getCancelledBy())
+                .initialCondition(carConditionService.getById(booking.getInitialConditionReportId()))
+                .returnCondition(carConditionService.getBookingReport(
+                        booking.getId(),
+                        CarConditionReportType.RETURN
+                ))
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
@@ -329,6 +552,23 @@ public class BookingService {
 
     private String buildVehicleName(Car car) {
         return (car.getBrand() + " " + car.getModel()).trim();
+    }
+
+    private Long resolveCurrentConditionId(Long carId) {
+        CarConditionResponse condition = carConditionService.getCurrent(carId);
+        return condition != null ? condition.getId() : null;
+    }
+
+    private void markDepositPaymentRefunded(Long bookingId, LocalDateTime refundedAt) {
+        paymentRepository.findFirstByBookingIdAndTypeAndStatusOrderByCreatedAtDesc(
+                bookingId,
+                PaymentType.DEPOSIT,
+                PaymentStatus.PAID
+        ).ifPresent(payment -> {
+            payment.setStatus(PaymentStatus.REFUNDED);
+            payment.setRefundedAt(refundedAt != null ? refundedAt : LocalDateTime.now());
+            paymentRepository.save(payment);
+        });
     }
 
     private Specification<Booking> buildAdminBookingSpecification(
@@ -413,5 +653,145 @@ public class BookingService {
                 .substring(0, 6)
                 .toUpperCase(Locale.ROOT);
         return "RC-" + datePart + "-" + randomPart;
+    }
+
+    @Transactional
+    public BookingResponse requestCheckIn(Long bookingId, String actorEmail) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new IllegalArgumentException("Chỉ có thể yêu cầu check-in cho booking đã được xác nhận (CONFIRMED).");
+        }
+
+        BigDecimal remainingBalance = booking.getTotalAmount().subtract(booking.getDepositAmount());
+        if (remainingBalance.signum() > 0) {
+            booking.setOutstandingAmount(remainingBalance);
+            bookingRepository.save(booking);
+        } else {
+            // If nothing to pay, just check in immediately
+            User actor = userRepository.findByEmail(actorEmail).orElse(null);
+            Role role = actor != null ? actor.getRole() : Role.ADMIN;
+            Long actorId = actor != null ? actor.getId() : null;
+            bookingStateMachineService.transition(
+                    booking,
+                    BookingStatus.ONGOING,
+                    actorId,
+                    role,
+                    "ADMIN_CHECKOUT",
+                    "Xe đã được giao cho khách"
+            );
+        }
+        return mapToResponse(booking);
+    }
+
+    @Transactional
+    public BigDecimal applyCustomerWalletBalance(Long bookingId, Long customerId) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+        if (!booking.getUserId().equals(customerId)) {
+            throw new ResourceNotFoundException("booking", bookingId);
+        }
+
+        BigDecimal outstanding = booking.getOutstandingAmount();
+        if (outstanding == null || outstanding.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal outstandingOverdue = booking.getTotalOverdueFee() != null ? booking.getTotalOverdueFee() : BigDecimal.ZERO;
+        BigDecimal outstandingDamage = booking.getDamageFee() != null ? booking.getDamageFee() : BigDecimal.ZERO;
+        
+        // Wait, the outstanding amount might be less than total if partially paid.
+        // We will just ask walletService to settle the entire remaining outstanding.
+        // Actually, we need to know how much of it is overdue vs damage.
+        // Let's assume overdue is paid first, then damage.
+        BigDecimal alreadyPaidTotal = outstandingOverdue.add(outstandingDamage).subtract(outstanding);
+        BigDecimal remainingOverdue = outstandingOverdue.subtract(alreadyPaidTotal).max(BigDecimal.ZERO);
+        BigDecimal remainingDamage = outstanding.subtract(remainingOverdue).max(BigDecimal.ZERO);
+
+        WalletService.SettlementResult settlement = walletService.settleBooking(
+                customerId,
+                bookingId,
+                remainingOverdue,
+                remainingDamage,
+                customerId
+        );
+
+        BigDecimal paidOverdue = settlement.overduePaid();
+        BigDecimal paidDamage = settlement.damagePaid();
+        BigDecimal totalPaid = paidOverdue.add(paidDamage);
+
+        if (totalPaid.signum() > 0) {
+            booking.setOutstandingAmount(booking.getOutstandingAmount().subtract(totalPaid).max(BigDecimal.ZERO));
+            bookingRepository.save(booking);
+            damageAssessmentService.updatePaidAmount(bookingId, paidDamage);
+            
+            if (booking.getStatus() == BookingStatus.CONFIRMED && booking.getOutstandingAmount().signum() == 0) {
+                User customer = userRepository.findById(customerId).orElse(null);
+                bookingStateMachineService.transition(
+                        booking,
+                        BookingStatus.ONGOING,
+                        customerId,
+                        customer != null ? customer.getRole() : Role.CUSTOMER,
+                        "CUSTOMER_PAYMENT",
+                        "Thanh toán hoàn tất, xe đã sẵn sàng khởi hành"
+                );
+            }
+        }
+        return totalPaid;
+    }
+
+    @Transactional
+    public void applyCustomerPayment(Long bookingId, BigDecimal amount, Long customerId, Long paymentId) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+        if (!booking.getUserId().equals(customerId)) {
+            throw new ResourceNotFoundException("booking", bookingId);
+        }
+
+        BigDecimal outstanding = booking.getOutstandingAmount();
+        if (outstanding == null || outstanding.signum() <= 0) {
+            return;
+        }
+
+        BigDecimal outstandingOverdue = booking.getTotalOverdueFee() != null ? booking.getTotalOverdueFee() : BigDecimal.ZERO;
+        BigDecimal outstandingDamage = booking.getDamageFee() != null ? booking.getDamageFee() : BigDecimal.ZERO;
+        
+        BigDecimal alreadyPaidTotal = outstandingOverdue.add(outstandingDamage).subtract(outstanding);
+        BigDecimal remainingOverdue = outstandingOverdue.subtract(alreadyPaidTotal).max(BigDecimal.ZERO);
+        BigDecimal remainingDamage = outstanding.subtract(remainingOverdue).max(BigDecimal.ZERO);
+
+        BigDecimal requestedOverdue = amount.min(remainingOverdue);
+        BigDecimal requestedDamage = amount.subtract(requestedOverdue).min(remainingDamage);
+
+        WalletService.SettlementResult settlement = walletService.settleBooking(
+                customerId,
+                bookingId,
+                requestedOverdue,
+                requestedDamage,
+                customerId
+        );
+
+        BigDecimal paidOverdue = settlement.overduePaid();
+        BigDecimal paidDamage = settlement.damagePaid();
+        BigDecimal totalPaid = paidOverdue.add(paidDamage);
+
+        if (totalPaid.signum() > 0) {
+            booking.setOutstandingAmount(booking.getOutstandingAmount().subtract(totalPaid).max(BigDecimal.ZERO));
+            bookingRepository.save(booking);
+            damageAssessmentService.updatePaidAmount(bookingId, paidDamage);
+            
+            if (booking.getStatus() == BookingStatus.CONFIRMED && booking.getOutstandingAmount().signum() == 0) {
+                User customer = userRepository.findById(customerId).orElse(null);
+                bookingStateMachineService.transition(
+                        booking,
+                        BookingStatus.ONGOING,
+                        customerId,
+                        customer != null ? customer.getRole() : Role.CUSTOMER,
+                        "CUSTOMER_PAYMENT",
+                        "Thanh toán hoàn tất, xe đã sẵn sàng khởi hành"
+                );
+            }
+        }
     }
 }

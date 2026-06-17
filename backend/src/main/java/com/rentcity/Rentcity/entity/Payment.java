@@ -26,14 +26,14 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "booking_id", nullable = false)
+    @Column(name = "booking_id")
     private Long bookingId;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "character varying(20)")
     private PaymentType type;
 
     @Enumerated(EnumType.STRING)

@@ -2,14 +2,22 @@ package com.rentcity.Rentcity.service;
 
 import com.rentcity.Rentcity.dto.CapturePaymentRequest;
 import com.rentcity.Rentcity.dto.CreatePaymentRequest;
+import com.rentcity.Rentcity.dto.CreateDamagePaymentRequest;
+import com.rentcity.Rentcity.dto.CreateWalletTopUpRequest;
+import com.rentcity.Rentcity.dto.PaymentResponse;
+import com.rentcity.Rentcity.entity.*;
+import com.rentcity.Rentcity.exception.ResourceNotFoundException;
 import com.rentcity.Rentcity.dto.PaymentResponse;
 import com.rentcity.Rentcity.entity.*;
 import com.rentcity.Rentcity.exception.ResourceNotFoundException;
 import com.rentcity.Rentcity.repository.BookingRepository;
+import com.rentcity.Rentcity.repository.DamageAssessmentRepository;
 import com.rentcity.Rentcity.repository.PaymentRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,9 +41,17 @@ public class PaymentService {
     private final BookingStateMachineService bookingStateMachineService;
     private final BookingCancellationPolicyService bookingCancellationPolicyService;
     private final NotificationService notificationService;
+    private final BookingExpirationService bookingExpirationService;
+    private final WalletService walletService;
+    private final DamageAssessmentRepository damageAssessmentRepository;
+    private final DamageAssessmentService damageAssessmentService;
 
     @Value("${payment.public-base-url:http://localhost:8080/api}")
     private String publicBaseUrl;
+
+    @Autowired
+    @Lazy
+    private BookingService bookingService;
 
     @Transactional
     public PaymentResponse createDepositPayment(String email, CreatePaymentRequest request) {
@@ -87,8 +103,119 @@ public class PaymentService {
                 .build();
 
         Payment savedPayment = paymentRepository.save(payment);
-        notificationService.notifyPaymentPending(savedPayment, booking);
+        if (request.getGateway() == PaymentGateway.WALLET) {
+            return completePayment(
+                    savedPayment,
+                    "WALLET-" + UUID.randomUUID(),
+                    "WALLET_DEPOSIT_PAID",
+                    "Booking deposit paid from My Wallet",
+                    user
+            );
+        }
+        if (booking != null) {
+            notificationService.notifyPaymentPending(savedPayment, booking);
+        }
         return mapToResponse(savedPayment, booking);
+    }
+
+    @Transactional
+    public PaymentResponse createWalletTopUp(String email, CreateWalletTopUpRequest request) {
+        User user = findUserByEmail(email);
+        ensureExternalGateway(request.getGateway());
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+            var existing = paymentRepository.findByIdempotencyKey(request.getIdempotencyKey().trim());
+            if (existing.isPresent()) {
+                ensurePaymentOwner(user, existing.get());
+                return mapToResponse(existing.get(), null);
+            }
+        }
+
+        Payment payment = Payment.builder()
+                .userId(user.getId())
+                .type(PaymentType.WALLET_TOP_UP)
+                .gateway(request.getGateway())
+                .status(PaymentStatus.PENDING)
+                .amount(request.getAmount())
+                .currency(DEFAULT_CURRENCY)
+                .gatewayReference(generateGatewayReference(request.getGateway()))
+                .idempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()))
+                .build();
+        return mapToResponse(paymentRepository.save(payment), null);
+    }
+
+    @Transactional
+    public PaymentResponse createBookingPayment(
+            String email,
+            Long bookingId,
+            CreateDamagePaymentRequest request
+    ) {
+        User user = findUserByEmail(email);
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+        ensureBookingOwner(user, booking);
+
+        java.math.BigDecimal paidFromWallet = bookingService.applyCustomerWalletBalance(bookingId, user.getId());
+        
+        if (booking.getOutstandingAmount() == null || booking.getOutstandingAmount().signum() <= 0) {
+            if (paidFromWallet.signum() > 0) {
+                Payment payment = Payment.builder()
+                        .bookingId(bookingId)
+                        .userId(user.getId())
+                        .type(PaymentType.BALANCE_PAYMENT)
+                        .gateway(PaymentGateway.WALLET)
+                        .status(PaymentStatus.PAID)
+                        .amount(paidFromWallet)
+                        .currency(DEFAULT_CURRENCY)
+                        .gatewayReference("wallet-" + java.util.UUID.randomUUID().toString())
+                        .idempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()))
+                        .paidAt(java.time.LocalDateTime.now())
+                        .build();
+                return mapToResponse(paymentRepository.save(payment), booking);
+            }
+            throw new IllegalArgumentException("This booking has already been fully paid");
+        }
+
+        ensureExternalGateway(request.getGateway());
+
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+            var existing = paymentRepository.findByIdempotencyKey(request.getIdempotencyKey().trim());
+            if (existing.isPresent()) {
+                ensurePaymentOwner(user, existing.get());
+                return mapToResponse(existing.get(), booking);
+            }
+        }
+
+        List<Payment> pendingPayments = paymentRepository.findByBookingIdAndStatus(bookingId, PaymentStatus.PENDING);
+        for (Payment p : pendingPayments) {
+            if (p.getType() == PaymentType.BALANCE_PAYMENT || p.getType() == PaymentType.DAMAGE_PAYMENT) {
+                p.setStatus(PaymentStatus.EXPIRED);
+                p.setFailureReason("User initiated new payment request with updated wallet balance");
+                paymentRepository.save(p);
+            }
+        }
+
+        var existingPaid = paymentRepository.findFirstByBookingIdAndGatewayAndTypeAndStatusInOrderByCreatedAtDesc(
+                bookingId,
+                request.getGateway(),
+                PaymentType.BALANCE_PAYMENT,
+                Set.of(PaymentStatus.PAID)
+        );
+        if (existingPaid.isPresent()) {
+            return mapToResponse(existingPaid.get(), booking);
+        }
+
+        Payment payment = Payment.builder()
+                .bookingId(bookingId)
+                .userId(user.getId())
+                .type(PaymentType.BALANCE_PAYMENT)
+                .gateway(request.getGateway())
+                .status(PaymentStatus.PENDING)
+                .amount(booking.getOutstandingAmount())
+                .currency(DEFAULT_CURRENCY)
+                .gatewayReference(generateGatewayReference(request.getGateway()))
+                .idempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()))
+                .build();
+        return mapToResponse(paymentRepository.save(payment), booking);
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +225,15 @@ public class PaymentService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentResponse getMyPayment(String email, Long paymentId) {
+        User user = findUserByEmail(email);
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("payment", paymentId));
+        ensurePaymentOwner(user, payment);
+        return mapToResponse(payment);
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +294,9 @@ public class PaymentService {
         User actor = findUserByEmail(email);
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("payment", paymentId));
+        if (payment.getBookingId() == null) {
+            throw new IllegalArgumentException("Wallet top-ups cannot be refunded through booking cancellation");
+        }
         Booking booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
                 .orElseThrow(() -> new ResourceNotFoundException("booking", payment.getBookingId()));
 
@@ -202,14 +341,18 @@ public class PaymentService {
             throw new IllegalArgumentException("Only pending payments can be completed");
         }
 
-        Booking booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
-                .orElseThrow(() -> new ResourceNotFoundException("booking", payment.getBookingId()));
         User customer = userRepository.findById(payment.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("user", payment.getUserId()));
         User changedBy = actor != null ? actor : customer;
 
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new IllegalArgumentException("Cannot complete payment for cancelled booking");
+        Booking booking = null;
+        if (payment.getType() == PaymentType.DEPOSIT) {
+            booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
+                    .orElseThrow(() -> new ResourceNotFoundException("booking", payment.getBookingId()));
+            if (booking.getStatus() == BookingStatus.CANCELLED) {
+                throw new IllegalArgumentException("Cannot complete payment for cancelled booking");
+            }
+            ensurePaymentWindowOpen(booking);
         }
 
         payment.setStatus(PaymentStatus.PAID);
@@ -218,10 +361,43 @@ public class PaymentService {
         payment.setFailureReason(null);
 
         if (payment.getType() == PaymentType.DEPOSIT) {
+            if (payment.getGateway() == PaymentGateway.WALLET) {
+                walletService.holdDeposit(
+                        customer.getId(),
+                        booking.getId(),
+                        payment.getAmount(),
+                        "payment:" + payment.getId() + ":wallet-hold"
+                );
+            } else {
+                walletService.creditAndHoldDeposit(
+                        customer.getId(),
+                        booking.getId(),
+                        payment.getAmount(),
+                        "payment:" + payment.getId()
+                );
+            }
             booking.setDepositStatus(DepositStatus.PAID);
+        } else if (payment.getType() == PaymentType.WALLET_TOP_UP) {
+            walletService.creditTopUp(
+                    customer.getId(),
+                    payment.getAmount(),
+                    "payment:" + payment.getId() + ":wallet"
+            );
+        } else if (payment.getType() == PaymentType.BALANCE_PAYMENT) {
+            walletService.creditTopUp(
+                    customer.getId(),
+                    payment.getAmount(),
+                    "payment:" + payment.getId() + ":wallet"
+            );
+            bookingService.applyCustomerPayment(
+                    payment.getBookingId(),
+                    payment.getAmount(),
+                    customer.getId(),
+                    payment.getId()
+            );
         }
 
-        boolean bookingWasPending = booking.getStatus() == BookingStatus.PENDING;
+        boolean bookingWasPending = booking != null && booking.getStatus() == BookingStatus.PENDING;
         if (bookingWasPending) {
             bookingStateMachineService.transition(
                     booking,
@@ -233,7 +409,9 @@ public class PaymentService {
             );
         }
 
-        bookingRepository.save(booking);
+        if (booking != null) {
+            bookingRepository.save(booking);
+        }
         Payment savedPayment = paymentRepository.save(payment);
         notificationService.notifyPaymentStatusChanged(savedPayment, PaymentStatus.PAID);
         if (bookingWasPending) {
@@ -243,11 +421,18 @@ public class PaymentService {
     }
 
     private void ensureBookingCanAcceptDeposit(Booking booking) {
+        ensurePaymentWindowOpen(booking);
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new IllegalArgumentException("Booking must be pending before deposit payment");
         }
         if (booking.getDepositStatus() == DepositStatus.PAID) {
             throw new IllegalArgumentException("Deposit has already been paid");
+        }
+    }
+
+    private void ensurePaymentWindowOpen(Booking booking) {
+        if (bookingExpirationService.isPaymentExpired(booking, LocalDateTime.now())) {
+            throw new IllegalArgumentException("Booking payment window has expired");
         }
     }
 
@@ -266,6 +451,12 @@ public class PaymentService {
     private void ensureGateway(Payment payment, PaymentGateway gateway) {
         if (payment.getGateway() != gateway) {
             throw new IllegalArgumentException("Payment gateway must be " + gateway);
+        }
+    }
+
+    private void ensureExternalGateway(PaymentGateway gateway) {
+        if (gateway == PaymentGateway.WALLET) {
+            throw new IllegalArgumentException("My Wallet is only available for booking deposit payments");
         }
     }
 
@@ -296,7 +487,9 @@ public class PaymentService {
     }
 
     private PaymentResponse mapToResponse(Payment payment) {
-        Booking booking = bookingRepository.findById(payment.getBookingId()).orElse(null);
+        Booking booking = payment.getBookingId() != null
+                ? bookingRepository.findById(payment.getBookingId()).orElse(null)
+                : null;
         return mapToResponse(payment, booking);
     }
 

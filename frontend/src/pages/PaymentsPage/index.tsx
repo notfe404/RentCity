@@ -41,6 +41,7 @@ const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: s
 const GATEWAY_META: Record<PaymentGateway, { label: string; icon: string; color: string }> = {
   PAYPAL: { label: 'PayPal', icon: '🔵', color: '#003087' },
   VNPAY: { label: 'VNPay', icon: '💳', color: '#003087' },
+  WALLET: { label: 'My Wallet', icon: 'W', color: '#78ad44' },
 };
 
 interface PaymentDetailsModalProps {
@@ -59,6 +60,7 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onDownloadInvoice }: Pa
   const gatewayMeta = GATEWAY_META[payment.gateway];
 
   const handleDownload = async () => {
+    if (payment.bookingId == null) return;
     setIsDownloading(true);
     try {
       await onDownloadInvoice(payment.bookingId);
@@ -172,7 +174,7 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onDownloadInvoice }: Pa
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            <button
+            {payment.bookingId != null && <button
               onClick={handleDownload}
               disabled={isDownloading}
               className="w-full bg-[#78ad44] hover:bg-[#689938] disabled:bg-gray-300 text-white font-bold rounded-2xl py-3 flex items-center justify-center gap-2 transition-colors"
@@ -188,7 +190,7 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onDownloadInvoice }: Pa
                   Tải hoá đơn PDF
                 </>
               )}
-            </button>
+            </button>}
             <button
               onClick={onClose}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-2xl py-3 transition-colors"
@@ -414,6 +416,7 @@ export default function PaymentsPage() {
                   <option value="ALL">Tất cả</option>
                   <option value="PAYPAL">PayPal</option>
                   <option value="VNPAY">VNPay</option>
+                  <option value="WALLET">My Wallet</option>
                 </select>
               </div>
 

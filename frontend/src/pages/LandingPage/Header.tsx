@@ -30,11 +30,13 @@ function UserDropdown() {
   const isAdmin = user.role === 'ADMIN' || user.role === 'STAFF';
 
   const links = isAdmin
-    ? [
-        { label: 'Admin Dashboard', icon: LayoutDashboard, path: '/admin' },
-        { label: 'Vehicles', icon: Car, path: '/admin/vehicles' },
-        { label: 'Bookings', icon: FileText, path: '/admin/bookings' },
-      ]
+      ? user.role === 'STAFF'
+        ? [{ label: 'Bookings', icon: FileText, path: '/admin/bookings' }]
+        : [
+            { label: 'Admin Dashboard', icon: LayoutDashboard, path: '/admin' },
+            { label: 'Vehicles', icon: Car, path: '/admin/vehicles' },
+            { label: 'Bookings', icon: FileText, path: '/admin/bookings' },
+          ]
     : [
         { label: 'My Profile', icon: User, path: '/profile' },
         { label: 'My Bookings', icon: FileText, path: '/my-bookings' },
@@ -186,11 +188,13 @@ export default function Header() {
                 {/* Nav Links */}
                 <div className="space-y-1">
                   {(user.role === 'ADMIN' || user.role === 'STAFF'
-                    ? [
-                        { label: 'Admin Dashboard', icon: LayoutDashboard, path: '/admin' },
-                        { label: 'Vehicles', icon: Car, path: '/admin/vehicles' },
-                        { label: 'Bookings', icon: FileText, path: '/admin/bookings' },
-                      ]
+                      ? user.role === 'STAFF'
+                        ? [{ label: 'Bookings', icon: FileText, path: '/admin/bookings' }]
+                        : [
+                            { label: 'Admin Dashboard', icon: LayoutDashboard, path: '/admin' },
+                            { label: 'Vehicles', icon: Car, path: '/admin/vehicles' },
+                            { label: 'Bookings', icon: FileText, path: '/admin/bookings' },
+                          ]
                     : [
                         { label: 'My Profile', icon: User, path: '/profile' },
                         { label: 'My Bookings', icon: FileText, path: '/my-bookings' },

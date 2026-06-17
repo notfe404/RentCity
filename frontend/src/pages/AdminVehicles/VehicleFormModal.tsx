@@ -7,7 +7,7 @@ import type { ApiBranch, ApiCategory } from '@/services/adminApi';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (payload: AdminCarPayload) => Promise<void>;
+  onSave: (payload: AdminCarPayload, conditionFiles: File[]) => Promise<void>;
   initialData: ApiCarResponse | null;
   branches: ApiBranch[];
   categories: ApiCategory[];
@@ -26,11 +26,19 @@ const EMPTY: AdminCarPayload = {
   categoryId: undefined,
   branchId: undefined,
   seats: 5,
+  initialCondition: {
+    condition: 'GOOD',
+    odometer: 0,
+    fuelLevel: 100,
+    damageFound: false,
+    notes: '',
+  },
 };
 
 export default function VehicleFormModal({ isOpen, onClose, onSave, initialData, branches, categories }: Props) {
   const [form, setForm] = useState<AdminCarPayload>(EMPTY);
   const [isSaving, setIsSaving] = useState(false);
+  const [conditionFiles, setConditionFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (initialData) {
@@ -47,10 +55,18 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
         categoryId: initialData.categoryId ?? undefined,
         branchId: initialData.branchId ?? undefined,
         seats: initialData.seats ?? 5,
+        initialCondition: initialData.currentCondition ? {
+          condition: 'GOOD',
+          odometer: initialData.currentCondition.odometer,
+          fuelLevel: initialData.currentCondition.fuelLevel,
+          damageFound: initialData.currentCondition.damageFound,
+          notes: initialData.currentCondition.notes ?? '',
+        } : EMPTY.initialCondition,
       });
     } else {
       setForm(EMPTY);
     }
+    setConditionFiles([]);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -62,7 +78,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
     }
     setIsSaving(true);
     try {
-      await onSave(form);
+      await onSave(form, conditionFiles);
     } finally {
       setIsSaving(false);
     }
@@ -160,6 +176,87 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] focus:ring-2 focus:ring-[#78ad44]/20 resize-none"
             />
           </div>
+          {!initialData && (
+            <div className="border border-gray-200 rounded-2xl p-5 space-y-4 bg-[#f8f9fa]">
+              <div>
+                <h3 className="font-black text-gray-900">Initial car condition</h3>
+                <p className="text-xs text-gray-500 mt-1">Condition is recorded as GOOD. Add the measurable details below.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Odometer (km) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={form.initialCondition?.odometer ?? 0}
+                    onChange={(e) => setForm({
+                      ...form,
+                      initialCondition: { ...form.initialCondition!, odometer: Number(e.target.value) },
+                    })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Fuel level (%) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    required
+                    value={form.initialCondition?.fuelLevel ?? 100}
+                    onChange={(e) => setForm({
+                      ...form,
+                      initialCondition: { ...form.initialCondition!, fuelLevel: Number(e.target.value) },
+                    })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 text-sm font-bold text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.initialCondition?.damageFound ?? false}
+                  onChange={(e) => setForm({
+                    ...form,
+                    initialCondition: { ...form.initialCondition!, damageFound: e.target.checked },
+                  })}
+                  className="w-4 h-4 accent-[#78ad44]"
+                />
+                Existing damage found
+              </label>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5">Condition notes</label>
+                <textarea
+                  rows={3}
+                  value={form.initialCondition?.notes ?? ''}
+                  onChange={(e) => setForm({
+                    ...form,
+                    initialCondition: { ...form.initialCondition!, notes: e.target.value },
+                  })}
+                  placeholder="Existing scratches, interior condition, accessories..."
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1.5">Condition photos</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setConditionFiles(Array.from(e.target.files ?? []))}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#e9f2eb] file:px-4 file:py-2 file:font-bold file:text-[#78ad44]"
+                />
+                {conditionFiles.length > 0 && (
+                  <p className="text-xs font-bold text-gray-500 mt-2">{conditionFiles.length} photo(s) selected</p>
+                )}
+              </div>
+            </div>
+          )}
         </form>
 
         <div className="p-5 border-t border-gray-100 flex gap-3 shrink-0 bg-white rounded-b-2xl">

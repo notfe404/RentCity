@@ -4,6 +4,7 @@ import {
   ListOrdered,
   Users,
   CreditCard,
+  Landmark,
   MapPin,
   Tag,
   LogOut,
@@ -29,6 +30,7 @@ const NAV_LINKS = [
   { name: 'Booking', path: '/admin/bookings', icon: ListOrdered },
   { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
   { name: 'Thông báo', path: '/admin/notifications', icon: Bell },
+  { name: 'Withdraw Requests', path: '/admin/withdrawals', icon: Landmark },
   { name: 'Thanh toán', path: '/admin/payments', icon: CreditCard },
   { name: 'Người dùng', path: '/admin/users', icon: Users },
   { name: 'Chi nhánh', path: '/admin/branches', icon: MapPin },
@@ -45,13 +47,16 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navLinks = user?.role === 'STAFF'
+    ? NAV_LINKS.filter((link) => link.path === '/admin/bookings')
+    : NAV_LINKS;
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <>
       {/* Logo */}
       <div className="h-20 flex items-center justify-between border-b border-gray-100 px-6 shrink-0">
@@ -60,7 +65,11 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             <Car size={18} className="text-white" />
           </div>
           Rent<span className="text-[#78ad44]">City</span>
-          <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full relative -top-3 -left-1">ADMIN</span>
+          <span className={`text-[10px] text-white px-1.5 py-0.5 rounded-full relative -top-3 -left-1 ${
+            user?.role === 'STAFF' ? 'bg-blue-500' : 'bg-red-500'
+          }`}>
+            {user?.role ?? 'ADMIN'}
+          </span>
         </Link>
         <button className="lg:hidden p-2 text-gray-400 hover:text-gray-700" onClick={() => setSidebarOpen(false)}>
           <X size={20} />
@@ -69,7 +78,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-        {NAV_LINKS.map((link) => {
+        {navLinks.map((link) => {
           const active = isLinkActive(link.path, location.pathname, link.exact);
           return (
             <button
@@ -114,7 +123,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         className={`w-64 bg-white border-r border-gray-100 flex flex-col fixed h-full z-30 transition-transform duration-200
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Main */}

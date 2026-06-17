@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import type { MockVehicle } from '@/data/mockVehicles';
 import type { ApiPricingMode } from '@/types';
 import {
+  getDailyRentalAmount,
   getDefaultBookingRange,
   getDurationDays,
   getDurationHours,
@@ -85,8 +86,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const unitRateAmount = pricingMode === 'HOURLY'
     ? Math.round((state.vehicle?.price ?? 0) / 24)
     : (state.vehicle?.price ?? 0);
-  const billableUnits = pricingMode === 'HOURLY' ? totalHours : totalDays;
-  const baseAmount = unitRateAmount * billableUnits;
+  const baseAmount = pricingMode === 'HOURLY'
+    ? unitRateAmount * totalHours
+    : getDailyRentalAmount(state.startDate, state.endDate, state.vehicle?.price ?? 0);
   const extrasAmount = Object.entries(state.extras).reduce(
     (sum, [key, on]) => sum + (on ? EXTRAS_PRICE[key as keyof BookingExtras] * totalDays : 0), 0
   );

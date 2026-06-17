@@ -18,6 +18,7 @@ const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: s
 const GATEWAY_COLORS: Record<string, string> = {
   PAYPAL: 'bg-blue-100 text-blue-700',
   VNPAY: 'bg-indigo-100 text-indigo-700',
+  WALLET: 'bg-green-100 text-green-700',
 };
 
 export default function TransactionsTab() {
@@ -169,9 +170,9 @@ export default function TransactionsTab() {
                   </div>
 
                   {/* Download Button */}
-                  {payment.status === 'PAID' && (
+                  {payment.status === 'PAID' && payment.bookingId != null && (
                     <button
-                      onClick={() => handleDownloadInvoice(payment.bookingId, payment.bookingCode ?? String(payment.bookingId))}
+                      onClick={() => handleDownloadInvoice(payment.bookingId!, payment.bookingCode ?? String(payment.bookingId))}
                       disabled={isDownloading === payment.bookingId}
                       className="p-2 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
                       title="Tải hoá đơn"

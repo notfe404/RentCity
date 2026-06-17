@@ -5,12 +5,20 @@ import { capturePaypalPayment, createDepositPayment } from '@/services/paymentAp
 import { toast } from 'sonner';
 import { getMyBooking } from '@/services/bookingApi';
 import { parsePaymentError } from '@/utils/paymentErrorHandler';
+import PaymentHoldCountdown from '@/components/booking/PaymentHoldCountdown';
+import { usePaymentHoldCountdown } from '@/hooks/usePaymentHoldCountdown';
+import type { ApiBookingResponse } from '@/types';
 
 export default function PayPalRedirect() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'redirecting' | 'processing' | 'success' | 'error'>('redirecting');
   const [errorMessage, setErrorMessage] = useState('');
+  const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
+  const { remainingSeconds, expired: paymentExpired } = usePaymentHoldCountdown(
+    booking?.paymentExpiresAt,
+    booking?.status === 'PENDING',
+  );
 
   useEffect(() => {
     // Dynamically load PayPal SDK
@@ -42,6 +50,9 @@ export default function PayPalRedirect() {
     }
 
     try {
+      const { data: bookingData } = await getMyBooking(id);
+      setBooking(bookingData);
+
       // Create deposit payment in backend
       const { data: createdPayment } = await createDepositPayment({
         bookingId: parseInt(id),
@@ -135,6 +146,13 @@ export default function PayPalRedirect() {
 
         {/* Status Card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
+          <div className="mb-6 text-left">
+            <PaymentHoldCountdown
+              remainingSeconds={remainingSeconds}
+              expired={paymentExpired}
+            />
+          </div>
+
           {status === 'redirecting' && (
             <div className="space-y-4">
               <div className="flex justify-center">

@@ -31,7 +31,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // Redirect về đúng trang chủ của từng role
-    if (user.role === 'ADMIN' || user.role === 'STAFF') {
+    if (user.role === 'STAFF') {
+      return <Navigate to={ROUTES.ADMIN_BOOKINGS} replace />;
+    }
+    if (user.role === 'ADMIN') {
       return <Navigate to={ROUTES.ADMIN} replace />;
     }
     return <Navigate to={ROUTES.HOME} replace />;
