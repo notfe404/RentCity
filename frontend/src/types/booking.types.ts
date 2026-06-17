@@ -89,10 +89,34 @@ export interface CheckoutRequest extends CheckinRequest {
 // ============================================================
 // Backend Booking API Types
 // ============================================================
+import type { ApiCarConditionResponse } from './vehicle.types';
 
 export type ApiBookingStatus = 'PENDING' | 'CONFIRMED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
 export type ApiPricingMode = 'HOURLY' | 'DAILY' | 'MONTHLY';
 export type ApiDepositStatus = 'UNPAID' | 'PAID' | 'FORFEITED' | 'REFUNDED' | 'NOT_REQUIRED';
+export type DamageSeverity = 'MINOR' | 'MODERATE' | 'MAJOR';
+export type DamageAssessmentStatus =
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CHARGED'
+  | 'PARTIALLY_CHARGED';
+
+export interface ApiDamageAssessment {
+  id: number;
+  bookingId: number;
+  description: string;
+  severity: DamageSeverity;
+  estimatedFee: number;
+  approvedFee: number;
+  chargedFee: number;
+  outstandingFee: number;
+  status: DamageAssessmentStatus;
+  assessedBy: number;
+  approvedBy?: number | null;
+  approvedAt?: string | null;
+  createdAt: string;
+}
 
 export interface ApiBookingResponse {
   id: number;
@@ -102,6 +126,7 @@ export interface ApiBookingResponse {
   vehicleName?: string;
   vehicleLicensePlate?: string;
   vehiclePrimaryImageUrl?: string;
+  vehiclePricePerDay?: number;
   customerName?: string;
   customerEmail?: string;
   startTime: string;
@@ -113,9 +138,20 @@ export interface ApiBookingResponse {
   depositAmount: number;
   totalAmount: number;
   freeCancelUntil: string;
+  paymentExpiresAt: string;
+  actualReturnAt?: string | null;
+  overdueMinutes: number;
+  overdueFee: number;
+  penaltyOverdueFee: number;
+  totalOverdueFee: number;
+  damageFee: number;
+  outstandingAmount: number;
+  damageAssessment?: ApiDamageAssessment | null;
   cancelledAt?: string;
   cancelReason?: string;
   cancelledBy?: string;
+  initialCondition?: ApiCarConditionResponse | null;
+  returnCondition?: ApiCarConditionResponse | null;
   createdAt: string;
   updatedAt: string;
 }

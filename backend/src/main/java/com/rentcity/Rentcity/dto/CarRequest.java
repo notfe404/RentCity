@@ -2,6 +2,7 @@ package com.rentcity.Rentcity.dto;
 
 import com.rentcity.Rentcity.entity.CarStatus;
 import com.rentcity.Rentcity.entity.Transmission;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -54,4 +55,7 @@ public class CarRequest {
     private Integer seats;
 
     private String description;
+
+    @Valid
+    private CarConditionRequest initialCondition;
 }

@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
         name = "bookings",
         indexes = {
                 @Index(name = "idx_bookings_user_created_at", columnList = "user_id, created_at"),
-                @Index(name = "idx_bookings_car_schedule", columnList = "car_id, status, start_time, end_time")
+                @Index(name = "idx_bookings_car_schedule", columnList = "car_id, status, start_time, end_time"),
+                @Index(name = "idx_bookings_payment_expiry", columnList = "status, deposit_status, payment_expires_at")
         }
 )
 @Getter
@@ -63,6 +64,38 @@ public class Booking {
 
     @Column(name = "free_cancel_until", nullable = false)
     private LocalDateTime freeCancelUntil;
+
+    @Column(name = "payment_expires_at")
+    private LocalDateTime paymentExpiresAt;
+
+    @Column(name = "initial_condition_report_id")
+    private Long initialConditionReportId;
+
+    @Column(name = "actual_return_at")
+    private LocalDateTime actualReturnAt;
+
+    @Column(name = "overdue_minutes")
+    private Long overdueMinutes;
+
+    @Builder.Default
+    @Column(name = "overdue_fee", precision = 12, scale = 0)
+    private BigDecimal overdueFee = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "penalty_overdue_fee", precision = 12, scale = 0)
+    private BigDecimal penaltyOverdueFee = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "total_overdue_fee", precision = 12, scale = 0)
+    private BigDecimal totalOverdueFee = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "damage_fee", precision = 12, scale = 0)
+    private BigDecimal damageFee = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "outstanding_amount", precision = 12, scale = 0)
+    private BigDecimal outstandingAmount = BigDecimal.ZERO;
 
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;

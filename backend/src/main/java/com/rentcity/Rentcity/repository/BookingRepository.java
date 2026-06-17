@@ -2,6 +2,7 @@ package com.rentcity.Rentcity.repository;
 
 import com.rentcity.Rentcity.entity.Booking;
 import com.rentcity.Rentcity.entity.BookingStatus;
+import com.rentcity.Rentcity.entity.DepositStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -48,6 +49,25 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")
     java.util.Optional<Booking> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select b
+            from Booking b
+            where b.status = :status
+              and b.depositStatus = :depositStatus
+              and (
+                    b.paymentExpiresAt <= :now
+                    or (b.paymentExpiresAt is null and b.createdAt <= :legacyCutoff)
+              )
+            order by b.createdAt asc
+            """)
+    List<Booking> findExpiredUnpaidBookingsForUpdate(
+            @Param("status") BookingStatus status,
+            @Param("depositStatus") DepositStatus depositStatus,
+            @Param("now") LocalDateTime now,
+            @Param("legacyCutoff") LocalDateTime legacyCutoff
+    );
 
     List<Booking> findAllByOrderByCreatedAtDesc();
 

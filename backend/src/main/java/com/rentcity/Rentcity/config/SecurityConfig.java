@@ -41,10 +41,14 @@ public class SecurityConfig {
                         // Payment callbacks
                         .requestMatchers("/payments/vnpay/callback").permitAll()
                         // Public car reads
-                        .requestMatchers(HttpMethod.GET, "/cars/search", "/cars/available", "/cars/*", "/cars/*/reviews").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/cars/search", "/cars/available", "/cars/*", "/cars/*/reviews", "/cars/*/condition").permitAll()
                         // Public branch and category reads
                         .requestMatchers(HttpMethod.GET, "/branches", "/branches/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/categories", "/categories/*", "/categories/active").permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/admin/bookings/*/return-condition"
+                        ).hasAnyRole("ADMIN", "STAFF")
                         // All other requests require authentication (method-level @PreAuthorize handles roles)
                         .anyRequest().authenticated()
                 )
@@ -58,7 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);

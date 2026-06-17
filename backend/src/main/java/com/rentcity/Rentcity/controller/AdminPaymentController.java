@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/payments")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminPaymentController {
 
     private final PaymentService paymentService;

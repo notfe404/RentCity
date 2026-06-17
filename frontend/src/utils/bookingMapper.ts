@@ -1,5 +1,6 @@
 import { MOCK_VEHICLES } from '@/data/mockVehicles';
 import type { ApiBookingResponse, ApiBookingStatus, ApiDepositStatus } from '@/types';
+import { getRentalDurationParts } from '@/utils/bookingDateTime';
 
 export const BOOKING_STATUS_META: Record<ApiBookingStatus, { label: string; bg: string; color: string }> = {
   PENDING: { label: 'Chờ xác nhận', bg: 'bg-orange-500', color: 'text-orange-600' },
@@ -33,7 +34,16 @@ export function getBookingDurationLabel(booking: ApiBookingResponse): string {
   if (booking.pricingMode === 'HOURLY') {
     return `${getBookingTotalHours(booking)} giờ`;
   }
-  return `${getBookingTotalDays(booking)} ngày`;
+
+  const { fullDays, remainingHours } = getRentalDurationParts(booking.startTime, booking.endTime);
+  const parts = [];
+  if (fullDays > 0) {
+    parts.push(`${fullDays} ngày`);
+  }
+  if (remainingHours > 0) {
+    parts.push(`${remainingHours} giờ`);
+  }
+  return parts.join(' ');
 }
 
 export function getBookingVehicleFallback(booking: ApiBookingResponse) {

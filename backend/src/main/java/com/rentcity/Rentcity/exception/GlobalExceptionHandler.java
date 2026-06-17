@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDeniedException(AccessDeniedException ex) {
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Access denied");
+        error.put("error", "You do not have permission to perform this action");
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 

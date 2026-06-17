@@ -24,6 +24,7 @@ const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
 
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const PaymentsPage = lazy(() => import('@/pages/PaymentsPage'));
+const MyWalletPage = lazy(() => import('@/pages/MyWalletPage'));
 const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage'));
 const BookingDetailPage = lazy(() => import('@/pages/BookingDetailPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
@@ -36,6 +37,7 @@ const AdminUsers = lazy(() => import('@/pages/AdminUsers'));
 const AdminPayments = lazy(() => import('@/pages/AdminPayments'));
 const AdminNotifications = lazy(() => import('@/pages/AdminNotifications'));
 const AdminReviews = lazy(() => import('@/pages/AdminReviews'));
+const AdminWithdrawals = lazy(() => import('@/pages/AdminWithdrawals'));
 const AdminBranches = lazy(() => import('@/pages/AdminBranches'));
 const AdminCategories = lazy(() => import('@/pages/AdminCategories'));
 
@@ -77,19 +79,21 @@ export default function App() {
               {/* ─── User Profile & Dashboard ─── */}
               <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path={ROUTES.PAYMENTS} element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.WALLET} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyWalletPage /></ProtectedRoute>} />
               <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path={ROUTES.REVIEW} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><ReviewPage /></ProtectedRoute>} />
 
               {/* ─── Admin ─── */}
-              <Route path={ROUTES.ADMIN} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path={ROUTES.ADMIN_VEHICLES} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminVehicles /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_VEHICLES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminVehicles /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_BOOKINGS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminBookings /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
-              <Route path={ROUTES.ADMIN_PAYMENTS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminPayments /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_PAYMENTS} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminPayments /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_NOTIFICATIONS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminNotifications /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_REVIEWS} element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}><AdminReviews /></ProtectedRoute>} />
+              <Route path={ROUTES.ADMIN_WITHDRAWALS} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminWithdrawals /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_BRANCHES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminBranches /></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_CATEGORIES} element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminCategories /></ProtectedRoute>} />
 

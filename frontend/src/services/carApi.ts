@@ -42,6 +42,13 @@ export interface AdminCarPayload {
   categoryId?: number;
   branchId?: number;
   seats?: number;
+  initialCondition?: {
+    condition: 'GOOD';
+    odometer: number;
+    fuelLevel: number;
+    damageFound: boolean;
+    notes?: string;
+  };
 }
 
 export const adminCreateCar = (data: AdminCarPayload) => {
@@ -54,4 +61,10 @@ export const adminUpdateCar = (id: number | string, data: Partial<AdminCarPayloa
 
 export const adminDeleteCar = (id: number | string) => {
   return api.delete(`/admin/cars/${id}`);
+};
+
+export const uploadInitialConditionImages = (id: number | string, files: File[]) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  return api.post(`/admin/cars/${id}/condition/images`, formData);
 };

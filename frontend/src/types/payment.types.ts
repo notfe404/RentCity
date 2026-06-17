@@ -1,8 +1,8 @@
 // Payment, promotion, review, and notification types.
 
 // ---- Payments ----
-export type PaymentType = 'DEPOSIT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
-export type PaymentGateway = 'PAYPAL' | 'VNPAY';
+export type PaymentType = 'DEPOSIT' | 'WALLET_TOP_UP' | 'DAMAGE_PAYMENT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
+export type PaymentGateway = 'PAYPAL' | 'VNPAY' | 'WALLET';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'EXPIRED';
 
 export interface Payment {
@@ -22,7 +22,7 @@ export interface Payment {
 
 export interface ApiPaymentResponse {
   id: number;
-  bookingId: number;
+  bookingId?: number | null;
   bookingCode?: string;
   userId: number;
   type: PaymentType;

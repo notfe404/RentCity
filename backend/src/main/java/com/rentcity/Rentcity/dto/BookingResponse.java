@@ -24,6 +24,7 @@ public class BookingResponse {
     private String vehicleName;
     private String vehicleLicensePlate;
     private String vehiclePrimaryImageUrl;
+    private BigDecimal vehiclePricePerDay;
     private String customerName;
     private String customerEmail;
     private LocalDateTime startTime;
@@ -35,9 +36,20 @@ public class BookingResponse {
     private BigDecimal depositAmount;
     private BigDecimal totalAmount;
     private LocalDateTime freeCancelUntil;
+    private LocalDateTime paymentExpiresAt;
+    private LocalDateTime actualReturnAt;
+    private Long overdueMinutes;
+    private BigDecimal overdueFee;
+    private BigDecimal penaltyOverdueFee;
+    private BigDecimal totalOverdueFee;
+    private BigDecimal damageFee;
+    private BigDecimal outstandingAmount;
+    private DamageAssessmentResponse damageAssessment;
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private String cancelledBy;
+    private CarConditionResponse initialCondition;
+    private CarConditionResponse returnCondition;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

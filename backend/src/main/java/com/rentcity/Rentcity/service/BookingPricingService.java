@@ -52,8 +52,13 @@ public class BookingPricingService {
     }
 
     private BigDecimal calculateDailyAmount(BigDecimal pricePerDay, long totalMinutes) {
-        long billableDays = ceilDiv(totalMinutes, MINUTES_PER_DAY);
-        return pricePerDay.multiply(BigDecimal.valueOf(billableDays));
+        long fullDays = totalMinutes / MINUTES_PER_DAY;
+        long remainingMinutes = totalMinutes % MINUTES_PER_DAY;
+        long billableHours = remainingMinutes > 0 ? ceilDiv(remainingMinutes, MINUTES_PER_HOUR) : 0;
+
+        BigDecimal hourlyRate = pricePerDay.divide(HOURS_PER_DAY, 0, RoundingMode.HALF_UP);
+        return pricePerDay.multiply(BigDecimal.valueOf(fullDays))
+                .add(hourlyRate.multiply(BigDecimal.valueOf(billableHours)));
     }
 
     private BigDecimal calculateMonthlyAmount(BigDecimal pricePerDay, long totalMinutes) {

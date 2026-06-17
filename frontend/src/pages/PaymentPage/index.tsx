@@ -16,8 +16,11 @@ import {
 import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
+import PaymentHoldCountdown from '@/components/booking/PaymentHoldCountdown';
+import { usePaymentHoldCountdown } from '@/hooks/usePaymentHoldCountdown';
 import { getMyBooking } from '@/services/bookingApi';
-import { getMyPayments } from '@/services/paymentApi';
+import { createDepositPayment, getMyPayments } from '@/services/paymentApi';
+import { getMyWallet } from '@/services/walletApi';
 import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiPaymentResponse, PaymentGateway } from '@/types';
@@ -42,6 +45,12 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     description: 'Quét mã QR để thanh toán. Hỗ trợ tất cả ngân hàng và ví điện tử.',
     icon: <CreditCard size={22} />,
   },
+  {
+    gateway: 'WALLET',
+    title: 'My Wallet',
+    description: 'Pay instantly using your available My Wallet balance.',
+    icon: <WalletCards size={22} />,
+  },
 ];
 
 const PAYMENT_STATUS_META: Record<string, { label: string; color: string }> = {
@@ -58,6 +67,7 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
   const [payments, setPayments] = useState<ApiPaymentResponse[]>([]);
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('VNPAY');
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
 
@@ -78,13 +88,18 @@ export default function PaymentPage() {
         setBooking(data);
 
         try {
-          const paymentsResponse = await getMyPayments();
+          const [paymentsResponse, walletResponse] = await Promise.all([
+            getMyPayments(),
+            getMyWallet(),
+          ]);
           if (!cancelled) {
             setPayments(paymentsResponse.data.filter((payment) => payment.bookingId === data.id));
+            setWalletBalance(walletResponse.data.availableBalance);
           }
         } catch {
           if (!cancelled) {
             setPayments([]);
+            setWalletBalance(null);
           }
         }
       } catch {
@@ -106,9 +121,37 @@ export default function PaymentPage() {
   }, [id, navigate]);
 
   const latestPayment = useMemo(() => payments[0] ?? null, [payments]);
+  const { remainingSeconds, expired: paymentExpired } = usePaymentHoldCountdown(
+    booking?.paymentExpiresAt,
+    booking?.status === 'PENDING',
+  );
+
+  useEffect(() => {
+    if (!id || booking?.status !== 'PENDING' || remainingSeconds !== 0) {
+      return;
+    }
+
+    const refreshExpiredBooking = async () => {
+      try {
+        const { data } = await getMyBooking(id);
+        setBooking(data);
+      } catch {
+        // Keep payment disabled while waiting for the backend cancellation.
+      }
+    };
+
+    refreshExpiredBooking();
+    const timer = window.setInterval(refreshExpiredBooking, 2000);
+    return () => window.clearInterval(timer);
+  }, [id, booking?.status, remainingSeconds]);
 
   const handleCreatePayment = async () => {
     if (!booking || isPaying) {
+      return;
+    }
+
+    if (paymentExpired) {
+      toast.error('Đã hết 15 phút giữ booking');
       return;
     }
 
@@ -128,6 +171,25 @@ export default function PaymentPage() {
       if (selectedGateway === 'VNPAY') {
         navigate(`/booking/${booking.id}/payment/vnpay`);
         return;
+      }
+
+      if (selectedGateway === 'WALLET') {
+        if (walletBalance === null) {
+          throw new Error('Could not load My Wallet balance');
+        }
+        if (walletBalance < booking.depositAmount) {
+          throw new Error('Insufficient My Wallet balance');
+        }
+        const { data: payment } = await createDepositPayment({
+          bookingId: booking.id,
+          gateway: 'WALLET',
+          idempotencyKey: `booking-${booking.id}-wallet`,
+        });
+        if (payment.status !== 'PAID') {
+          throw new Error('Wallet payment was not completed');
+        }
+        toast.success('Deposit paid from My Wallet');
+        navigate(`/booking/${booking.id}/result`);
       }
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -153,8 +215,12 @@ export default function PaymentPage() {
   const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
   const vehicleImage = getBookingVehicleImage(booking);
   const vehicleName = getBookingVehicleName(booking);
-  const canPay = booking.status === 'PENDING' && booking.depositStatus === 'UNPAID';
-
+  const canPay = booking.status === 'PENDING'
+    && booking.depositStatus === 'UNPAID'
+    && !paymentExpired;
+  const walletHasEnoughBalance = walletBalance !== null && walletBalance >= booking.depositAmount;
+  const canSubmitPayment = canPay
+    && (selectedGateway !== 'WALLET' || walletHasEnoughBalance);
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
@@ -176,6 +242,12 @@ export default function PaymentPage() {
                     cọc để chuyển sang trạng thái xác nhận.
                   </p>
                 </div>
+              </div>
+              <div className="mt-6">
+                <PaymentHoldCountdown
+                  remainingSeconds={remainingSeconds}
+                  expired={paymentExpired}
+                />
               </div>
             </section>
 
@@ -201,13 +273,28 @@ export default function PaymentPage() {
                       <span className="font-black text-gray-900">{method.title}</span>
                     </div>
                     <p className="text-xs font-bold text-gray-500 leading-relaxed">{method.description}</p>
+                    {method.gateway === 'WALLET' && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 text-xs font-black">
+                        <p className="text-gray-500">
+                          Available:{' '}
+                          <span className={walletHasEnoughBalance ? 'text-[#78ad44]' : 'text-red-600'}>
+                            {walletBalance === null ? 'Unavailable' : formatVND(walletBalance)}
+                          </span>
+                        </p>
+                        {walletBalance !== null && !walletHasEnoughBalance && (
+                          <p className="text-red-600 mt-1">
+                            Need {formatVND(booking.depositAmount - walletBalance)} more
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
 
               <button
                 onClick={handleCreatePayment}
-                disabled={!canPay || isPaying}
+                disabled={!canSubmitPayment || isPaying}
                 className="mt-6 w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <ShieldCheck size={18} />
@@ -216,7 +303,9 @@ export default function PaymentPage() {
 
               {!canPay && (
                 <p className="mt-4 text-sm font-bold text-gray-500">
-                  Booking này đã có trạng thái cọc: <span className={depositMeta.color}>{depositMeta.label}</span>.
+                  {paymentExpired
+                    ? 'Booking đã hết 15 phút chờ thanh toán và đang được tự động hủy.'
+                    : <>Booking này đã có trạng thái cọc: <span className={depositMeta.color}>{depositMeta.label}</span>.</>}
                 </p>
               )}
             </section>

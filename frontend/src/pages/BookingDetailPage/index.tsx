@@ -257,6 +257,64 @@ export default function BookingDetailPage() {
                     <p className="text-sm text-gray-600 font-medium bg-[#f4f8f7] p-4 rounded-xl">{booking.cancelReason}</p>
                   </section>
                 )}
+
+                {booking.initialCondition && (
+                  <section>
+                    <h3 className="text-lg font-black text-gray-900 mb-6 border-b border-gray-100 pb-2">
+                      Car condition before rental
+                    </h3>
+                    <div className="bg-[#f4f8f7] p-6 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500">Overall condition</span>
+                        <span className={`px-3 py-1 rounded-lg text-xs font-black ${
+                          booking.initialCondition.condition === 'GOOD'
+                            ? 'bg-green-100 text-green-700'
+                            : booking.initialCondition.condition === 'DAMAGE'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-red-100 text-red-700'
+                        }`}>
+                          {booking.initialCondition.condition.replaceAll('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div><p className="text-gray-400 font-bold">Odometer</p><p className="font-black">{booking.initialCondition.odometer.toLocaleString()} km</p></div>
+                        <div><p className="text-gray-400 font-bold">Fuel</p><p className="font-black">{booking.initialCondition.fuelLevel}%</p></div>
+                      </div>
+                      {booking.initialCondition.notes && (
+                        <p className="text-sm text-gray-600 font-medium">{booking.initialCondition.notes}</p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {booking.returnCondition && (
+                  <section>
+                    <h3 className="text-lg font-black text-gray-900 mb-6 border-b border-gray-100 pb-2">
+                      Return condition
+                    </h3>
+                    <div className="bg-[#f4f8f7] p-6 rounded-2xl space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div><p className="text-gray-400 font-bold">Odometer</p><p className="font-black">{booking.returnCondition.odometer.toLocaleString()} km</p></div>
+                        <div><p className="text-gray-400 font-bold">Fuel</p><p className="font-black">{booking.returnCondition.fuelLevel}%</p></div>
+                      </div>
+                      <p className={`inline-flex px-3 py-1 rounded-lg text-xs font-black ${
+                        booking.returnCondition.condition === 'GOOD'
+                          ? 'bg-green-100 text-green-700'
+                          : booking.returnCondition.condition === 'DAMAGE'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-red-100 text-red-700'
+                      }`}>
+                        {booking.returnCondition.condition.replaceAll('_', ' ')}
+                      </p>
+                      <p className={`text-sm font-black ${booking.returnCondition.damageFound ? 'text-red-600' : 'text-[#56832d]'}`}>
+                        {booking.returnCondition.damageFound ? 'Damage was reported' : 'No damage reported'}
+                      </p>
+                      {booking.returnCondition.notes && (
+                        <p className="text-sm text-gray-600 font-medium">{booking.returnCondition.notes}</p>
+                      )}
+                    </div>
+                  </section>
+                )}
               </div>
 
               {/* Right — Receipt */}
@@ -280,6 +338,43 @@ export default function BookingDetailPage() {
                         <span>Tiền cọc</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.depositAmount)}</span>
                       </div>
+                      {booking.overdueFee > 0 && (
+                        <>
+                          <div className="flex justify-between text-orange-600">
+                            <span>Overdue return fee ({Math.ceil(booking.overdueMinutes / 60)}h)</span>
+                            <span className="font-black">+{formatVND(booking.overdueFee)}</span>
+                          </div>
+                          <div className="flex justify-between text-orange-600">
+                            <span>Penalty overdue fee (15%)</span>
+                            <span className="font-black">+{formatVND(booking.penaltyOverdueFee)}</span>
+                          </div>
+                          <div className="flex justify-between text-orange-700 font-black border-t border-orange-200 pt-2">
+                            <span>Total overdue fee</span>
+                            <span>+{formatVND(booking.totalOverdueFee)}</span>
+                          </div>
+                        </>
+                      )}
+                      {booking.damageAssessment && (
+                        <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 space-y-2">
+                          <div className="flex justify-between text-orange-700">
+                            <span>Damage charge ({booking.damageAssessment.status})</span>
+                            <span className="font-black">{formatVND(booking.damageAssessment.approvedFee || booking.damageAssessment.estimatedFee)}</span>
+                          </div>
+                          <p className="text-xs text-orange-700">{booking.damageAssessment.description}</p>
+                          {booking.damageFee > 0 && (
+                            <div className="flex justify-between text-red-600 font-black">
+                              <span>Damage fee</span>
+                              <span>+{formatVND(booking.damageFee)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {booking.outstandingAmount > 0 && (
+                        <div className="flex justify-between text-red-700 font-black">
+                          <span>Outstanding balance</span>
+                          <span>{formatVND(booking.outstandingAmount)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
                       <span className="font-bold text-gray-500 text-sm">

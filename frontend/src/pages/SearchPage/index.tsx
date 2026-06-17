@@ -1,21 +1,26 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Search, MapPin, Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { Search, MapPin, Filter, ChevronDown, SlidersHorizontal, X, Calendar } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import DateTime24hField from '@/components/ui/DateTime24hField';
 import { VehicleCard } from '@/components/vehicle/VehicleCard';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getAvailableCars } from '@/services/carApi';
 import { useBooking } from '@/store/bookingStore';
 import { mapApiCarToDisplayVehicle, type DisplayVehicle } from '@/utils/carMapper';
 import {
+  addDays,
+  combineDateAndTimeParts,
   ensureFutureEndDateTime,
+  formatDateTimeLocalValue,
   getDefaultBookingRange,
   getMinimumEndDateTime,
+  parseDateTimeLocalValue,
+  splitDateTimeLocalValue,
+  TIME_OPTIONS_24H,
   toBackendDateTime,
 } from '@/utils/bookingDateTime';
 import { formatVND } from '@/utils/formatters';
@@ -70,6 +75,25 @@ export default function SearchPage() {
   const minReturnDate = useMemo(() => {
     return getMinimumEndDateTime(searchStart);
   }, [searchStart]);
+
+  const updateSearchDateTime = (current: string, nextDate: string, nextTime: string, min?: string) => {
+    const fallbackDate = splitDateTimeLocalValue(current).datePart;
+    const nextValue = combineDateAndTimeParts(nextDate || fallbackDate, nextTime);
+    if (!min || parseDateTimeLocalValue(nextValue).getTime() >= parseDateTimeLocalValue(min).getTime()) {
+      return nextValue;
+    }
+
+    const minDateWithSelectedTime = combineDateAndTimeParts(splitDateTimeLocalValue(min).datePart, nextTime);
+    return parseDateTimeLocalValue(minDateWithSelectedTime).getTime() >= parseDateTimeLocalValue(min).getTime()
+      ? minDateWithSelectedTime
+      : formatDateTimeLocalValue(addDays(parseDateTimeLocalValue(minDateWithSelectedTime), 1));
+  };
+
+  const formatSearchDateLabel = (value: string) => {
+    const { datePart } = splitDateTimeLocalValue(value);
+    const [year, month, day] = datePart.split('-');
+    return `${day}/${month}/${year}`;
+  };
 
   useEffect(() => {
     const safeEnd = ensureFutureEndDateTime(searchStart, searchEnd);
@@ -351,16 +375,42 @@ export default function SearchPage() {
 
             {/* Pickup date */}
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
-              <DateTime24hField
-                value={searchStart}
-                min={minStartDate}
-                onChange={setSearchStart}
-                containerClassName="flex-1 relative flex items-center"
-                controlsClassName="w-full pl-12 pr-2 flex items-center gap-2"
-                dateInputClassName="min-w-0 flex-1 bg-transparent py-4 focus:outline-none text-gray-700 text-sm font-bold [color-scheme:light]"
-                timeSelectClassName="w-24 bg-transparent py-4 pr-1 focus:outline-none text-gray-700 text-sm font-bold appearance-none cursor-pointer text-right"
-                iconClassName="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none"
-              />
+              <div className="flex-1 relative flex items-center">
+                <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none" size={18} />
+                <div className="w-full pl-12 pr-2 flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1 py-4">
+                    <div className="truncate text-sm text-gray-700 font-bold leading-5">
+                      {formatSearchDateLabel(searchStart)}
+                    </div>
+                    <input
+                      type="date"
+                      value={splitDateTimeLocalValue(searchStart).datePart}
+                      min={splitDateTimeLocalValue(minStartDate).datePart}
+                      onChange={(e) => setSearchStart(updateSearchDateTime(
+                        searchStart,
+                        e.target.value,
+                        splitDateTimeLocalValue(searchStart).timePart,
+                        minStartDate,
+                      ))}
+                      className="absolute inset-0 opacity-0 cursor-pointer [color-scheme:light]"
+                    />
+                  </div>
+                  <select
+                    value={splitDateTimeLocalValue(searchStart).timePart}
+                    onChange={(e) => setSearchStart(updateSearchDateTime(
+                      searchStart,
+                      splitDateTimeLocalValue(searchStart).datePart,
+                      e.target.value,
+                      minStartDate,
+                    ))}
+                    className="w-24 rounded-xl bg-white px-3 py-2 text-sm focus:outline-none text-gray-700 font-semibold appearance-none cursor-pointer text-center shadow-sm"
+                  >
+                    {TIME_OPTIONS_24H.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
                 Nhận xe
@@ -369,16 +419,42 @@ export default function SearchPage() {
 
             {/* Return date */}
             <div className="lg:col-span-4 w-full flex bg-[#f4f8f7] rounded-full border border-transparent hover:border-gray-200 transition-all overflow-hidden relative">
-              <DateTime24hField
-                value={searchEnd}
-                min={minReturnDate}
-                onChange={setSearchEnd}
-                containerClassName="flex-1 relative flex items-center"
-                controlsClassName="w-full pl-12 pr-2 flex items-center gap-2"
-                dateInputClassName="min-w-0 flex-1 bg-transparent py-4 focus:outline-none text-gray-700 text-sm font-bold [color-scheme:light]"
-                timeSelectClassName="w-24 bg-transparent py-4 pr-1 focus:outline-none text-gray-700 text-sm font-bold appearance-none cursor-pointer text-right"
-                iconClassName="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none"
-              />
+              <div className="flex-1 relative flex items-center">
+                <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78ad44] pointer-events-none" size={18} />
+                <div className="w-full pl-12 pr-2 flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1 py-4">
+                    <div className="truncate text-sm text-gray-700 font-bold leading-5">
+                      {formatSearchDateLabel(searchEnd)}
+                    </div>
+                    <input
+                      type="date"
+                      value={splitDateTimeLocalValue(searchEnd).datePart}
+                      min={splitDateTimeLocalValue(minReturnDate).datePart}
+                      onChange={(e) => setSearchEnd(updateSearchDateTime(
+                        searchEnd,
+                        e.target.value,
+                        splitDateTimeLocalValue(searchEnd).timePart,
+                        minReturnDate,
+                      ))}
+                      className="absolute inset-0 opacity-0 cursor-pointer [color-scheme:light]"
+                    />
+                  </div>
+                  <select
+                    value={splitDateTimeLocalValue(searchEnd).timePart}
+                    onChange={(e) => setSearchEnd(updateSearchDateTime(
+                      searchEnd,
+                      splitDateTimeLocalValue(searchEnd).datePart,
+                      e.target.value,
+                      minReturnDate,
+                    ))}
+                    className="w-24 rounded-xl bg-white px-3 py-2 text-sm focus:outline-none text-gray-700 font-semibold appearance-none cursor-pointer text-center shadow-sm"
+                  >
+                    {TIME_OPTIONS_24H.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
                 Trả xe

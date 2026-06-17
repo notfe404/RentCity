@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, Eye, Check, X, CarFront, Play, Flag } from 'lucide-react';
+import { Search, Eye, Check, X, CarFront, Play, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { confirmBookingForTest, getAdminBookings, transitionAdminBooking } from '@/services/bookingApi';
+import {
+  cancelAdminBooking,
+  confirmBookingForTest,
+  getAdminBooking,
+  getAdminBookings,
+  saveReturnCondition,
+  transitionAdminBooking,
+  requestCheckInAdmin,
+} from '@/services/bookingApi';
+import type { ReturnConditionPayload } from '@/services/bookingApi';
+import { getCarById } from '@/services/carApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
 import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';
+import ReturnConditionModal from './ReturnConditionModal';
 
 type StatusFilter = 'ALL' | ApiBookingStatus;
 
@@ -25,6 +36,7 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
+  const [returnBooking, setReturnBooking] = useState<ApiBookingResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +95,82 @@ export default function AdminBookingsPage() {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
         ?? 'Không thể cập nhật booking';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const runCancellation = async (bookingId: number) => {
+    setActiveBookingId(bookingId);
+    try {
+      const { data } = await cancelAdminBooking(bookingId);
+      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
+      toast.success(`Đã hủy booking ${data.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể hủy booking';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const runCheckIn = async (bookingId: number) => {
+    setActiveBookingId(bookingId);
+    try {
+      const { data } = await requestCheckInAdmin(bookingId);
+      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
+      if (data.status === 'ONGOING') {
+        toast.success(`Khách hàng không cần thanh toán thêm, booking ${data.bookingCode} đã chuyển sang ONGOING`);
+      } else {
+        toast.success(`Đã gửi yêu cầu thanh toán check-in cho booking ${data.bookingCode}`);
+      }
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Không thể yêu cầu check-in cho booking';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const openReturnModal = async (booking: ApiBookingResponse) => {
+    setActiveBookingId(booking.id);
+    try {
+      const [{ data: latestBooking }, { data: car }] = await Promise.all([
+        getAdminBooking(booking.id),
+        getCarById(booking.vehicleId),
+      ]);
+      const bookingWithRate = {
+        ...latestBooking,
+        vehiclePricePerDay: car.pricePerDay,
+      };
+      setReturnBooking(bookingWithRate);
+      setBookings((current) => current.map((item) => (
+        item.id === bookingWithRate.id ? bookingWithRate : item
+      )));
+    } catch {
+      toast.error('Could not load the latest booking details');
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const submitReturnCondition = async (payload: ReturnConditionPayload) => {
+    if (!returnBooking) return;
+    setActiveBookingId(returnBooking.id);
+    try {
+      const { data } = await saveReturnCondition(returnBooking.id, payload);
+      setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)));
+      setReturnBooking(null);
+      toast.success(`Đã hoàn tất kiểm tra xe trả cho ${data.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Could not complete the return inspection';
       toast.error(message);
     } finally {
       setActiveBookingId(null);
@@ -168,6 +256,13 @@ export default function AdminBookingsPage() {
                     </td>
                     <td className="p-5">
                       <p className="font-black text-[#78ad44] text-sm">{formatVND(booking.totalAmount)}</p>
+                      {booking.overdueFee > 0 && (
+                        <div className="mt-1 text-xs font-bold text-orange-600">
+                          <p>Overdue fee: {formatVND(booking.overdueFee)}</p>
+                          <p>Penalty (15%): {formatVND(booking.penaltyOverdueFee)}</p>
+                          <p className="font-black">Total overdue: {formatVND(booking.totalOverdueFee)}</p>
+                        </div>
+                      )}
                       <p className={`text-xs font-bold mt-1 ${depositMeta.color}`}>{depositMeta.label}</p>
                     </td>
                     <td className="p-5">
@@ -193,7 +288,7 @@ export default function AdminBookingsPage() {
                             </button>
                             <button
                               disabled={busy}
-                              onClick={() => runTransition(booking.id, { targetStatus: 'CANCELLED', reason: 'ADMIN_CANCELLED', note: 'Cancelled from admin booking list' })}
+                              onClick={() => runCancellation(booking.id)}
                               className="p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
                               title="Cancel booking"
                             >
@@ -205,9 +300,9 @@ export default function AdminBookingsPage() {
                         {booking.status === 'CONFIRMED' && (
                           <button
                             disabled={busy}
-                            onClick={() => runTransition(booking.id, { targetStatus: 'ONGOING', reason: 'ADMIN_CHECKOUT', note: 'Vehicle handed over to customer' })}
+                            onClick={() => runCheckIn(booking.id)}
                             className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
-                            title="Mark ongoing"
+                            title="Check In"
                           >
                             <Play size={16} />
                           </button>
@@ -216,11 +311,11 @@ export default function AdminBookingsPage() {
                         {booking.status === 'ONGOING' && (
                           <button
                             disabled={busy}
-                            onClick={() => runTransition(booking.id, { targetStatus: 'COMPLETED', reason: 'ADMIN_COMPLETED', note: 'Rental completed' })}
+                            onClick={() => openReturnModal(booking)}
                             className="p-2 text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
-                            title="Complete booking"
+                            title="Record return condition"
                           >
-                            <Flag size={16} />
+                            <ClipboardCheck size={16} />
                           </button>
                         )}
 
@@ -253,6 +348,15 @@ export default function AdminBookingsPage() {
           <p className="text-xs font-bold text-gray-400">Customer flow uses real backend booking data</p>
         </div>
       </div>
+      {returnBooking && (
+        <ReturnConditionModal
+          key={returnBooking.id}
+          booking={returnBooking}
+          isSaving={activeBookingId === returnBooking.id}
+          onClose={() => setReturnBooking(null)}
+          onSubmit={submitReturnCondition}
+        />
+      )}
     </AdminLayout>
   );
 }

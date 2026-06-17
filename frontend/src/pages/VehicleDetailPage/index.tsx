@@ -19,8 +19,8 @@ import {
   clampDateTimeLocalValue,
   combineDateAndTimeParts,
   ensureFutureEndDateTime,
+  getDailyRentalAmount,
   getDefaultBookingRange,
-  getDurationDays,
   getDurationHours,
   getDurationLabel,
   inferPricingMode,
@@ -130,13 +130,14 @@ export default function VehicleDetailPage() {
 
   const pricingMode = useMemo(() => inferPricingMode(startDate, endDate), [startDate, endDate]);
   const totalHours = useMemo(() => getDurationHours(startDate, endDate), [startDate, endDate]);
-  const totalDays = useMemo(() => getDurationDays(startDate, endDate), [startDate, endDate]);
   const durationLabel = useMemo(() => getDurationLabel(startDate, endDate, pricingMode), [startDate, endDate, pricingMode]);
   const unitRateAmount = useMemo(
     () => pricingMode === 'HOURLY' ? Math.round((vehicle?.price ?? 0) / 24) : (vehicle?.price ?? 0),
     [pricingMode, vehicle?.price],
   );
-  const estimatedTotal = unitRateAmount * (pricingMode === 'HOURLY' ? totalHours : totalDays);
+  const estimatedTotal = pricingMode === 'HOURLY'
+    ? unitRateAmount * totalHours
+    : getDailyRentalAmount(startDate, endDate, vehicle?.price ?? 0);
 
   const minEndDate = useMemo(() => ensureFutureEndDateTime(startDate, startDate), [startDate]);
 
@@ -341,6 +342,56 @@ export default function VehicleDetailPage() {
               )}
             </div>
           </div>
+
+          {vehicle.currentCondition && (
+            <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <h3 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                  <ShieldCheck size={20} className="text-[#78ad44]" /> Current car condition
+                </h3>
+                <span className={`px-3 py-1.5 rounded-lg text-xs font-black ${
+                  vehicle.currentCondition.condition === 'GOOD'
+                    ? 'bg-green-100 text-green-700'
+                    : vehicle.currentCondition.condition === 'DAMAGE'
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-red-100 text-red-700'
+                }`}>
+                  {vehicle.currentCondition.condition.replaceAll('_', ' ')}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <InfoCard icon={<Gauge size={18} />} label="Odometer" value={`${vehicle.currentCondition.odometer.toLocaleString()} km`} />
+                <InfoCard icon={<Fuel size={18} />} label="Fuel level" value={`${vehicle.currentCondition.fuelLevel}%`} />
+                <InfoCard
+                  icon={<ShieldCheck size={18} />}
+                  label="Damage"
+                  value={vehicle.currentCondition.damageFound ? 'Reported' : 'None reported'}
+                />
+                <InfoCard
+                  icon={<CalendarDays size={18} />}
+                  label="Inspected"
+                  value={formatDate(vehicle.currentCondition.createdAt)}
+                />
+              </div>
+              {vehicle.currentCondition.notes && (
+                <p className="mt-5 p-4 rounded-xl bg-[#f4f8f7] text-sm font-medium text-gray-600">
+                  {vehicle.currentCondition.notes}
+                </p>
+              )}
+              {vehicle.currentCondition.images.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                  {vehicle.currentCondition.images.map((image) => (
+                    <img
+                      key={image.id}
+                      src={image.imageUrl}
+                      alt="Car condition"
+                      className="w-full h-28 rounded-xl object-cover border border-gray-100"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Pricing Detail */}
           <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">

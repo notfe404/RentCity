@@ -7,6 +7,7 @@ export type DisplayVehicle = MockVehicle & {
   licensePlate?: string;
   deposit?: number | null;
   backendStatus?: ApiCarResponse['status'];
+  currentCondition?: ApiCarResponse['currentCondition'];
 };
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1200&auto=format&fit=crop';
@@ -45,5 +46,6 @@ export function mapApiCarToDisplayVehicle(car: ApiCarResponse): DisplayVehicle {
     licensePlate: car.licensePlate,
     deposit: car.deposit ?? null,
     backendStatus: car.status,
+    currentCondition: car.currentCondition,
   };
 }

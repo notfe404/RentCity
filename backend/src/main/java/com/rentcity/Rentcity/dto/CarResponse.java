@@ -40,4 +40,6 @@ public class CarResponse {
 
     /** Toàn bộ ảnh của xe. */
     private List<CarImageResponse> images;
+
+    private CarConditionResponse currentCondition;
 }

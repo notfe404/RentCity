@@ -34,6 +34,14 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getMyPayments(authentication.getName()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<PaymentResponse> getMyPayment(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(paymentService.getMyPayment(authentication.getName(), id));
+    }
+
     @PostMapping("/paypal/{id}/capture")
     public ResponseEntity<PaymentResponse> capturePaypalPayment(
             Authentication authentication,

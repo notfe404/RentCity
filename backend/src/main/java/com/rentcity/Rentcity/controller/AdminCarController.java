@@ -2,10 +2,12 @@ package com.rentcity.Rentcity.controller;
 
 import com.rentcity.Rentcity.dto.CarRequest;
 import com.rentcity.Rentcity.dto.CarResponse;
+import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.dto.PageResponse;
 import com.rentcity.Rentcity.entity.CarStatus;
 import com.rentcity.Rentcity.entity.Transmission;
 import com.rentcity.Rentcity.service.CarService;
+import com.rentcity.Rentcity.service.CarConditionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,10 +36,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/cars")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminCarController {
 
     private final CarService carService;
+    private final CarConditionService carConditionService;
 
     // ---- B1: Danh sách xe (admin view, bao gồm cả RETIRED) ----
     @GetMapping
@@ -134,5 +137,12 @@ public class AdminCarController {
             @PathVariable Long id,
             @PathVariable Long imageId) {
         return ResponseEntity.ok(carService.setPrimaryImage(id, imageId));
+    }
+
+    @PostMapping(value = "/{id}/condition/images", consumes = "multipart/form-data")
+    public ResponseEntity<CarConditionResponse> uploadInitialConditionImages(
+            @PathVariable Long id,
+            @RequestParam("files") List<MultipartFile> files) {
+        return ResponseEntity.ok(carConditionService.uploadInitialImages(id, files));
     }
 }
