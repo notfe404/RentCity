@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/payments/vnpay/callback").permitAll()
                         // Public car reads
                         .requestMatchers(HttpMethod.GET, "/cars/search", "/cars/available", "/cars/*", "/cars/*/reviews", "/cars/*/condition").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/cars/search", "/cars/available", "/cars/*", "/cars/*/condition").permitAll()
                         // Public branch and category reads
                         .requestMatchers(HttpMethod.GET, "/branches", "/branches/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/categories", "/categories/*", "/categories/active").permitAll()
