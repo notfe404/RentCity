@@ -27,7 +27,8 @@ public class WalletSchemaReconciler implements CommandLineRunner {
                 CHECK (type IN (
                     'TOP_UP', 'BOOKING_HOLD', 'HOLD_RELEASE', 'FORFEITURE',
                     'OVERDUE_CHARGE', 'DAMAGE_CHARGE', 'REFUND_CREDIT',
-                    'WITHDRAWAL_REQUEST', 'WITHDRAWAL_REVERSED', 'ADJUSTMENT'
+                    'WITHDRAWAL_REQUEST', 'WITHDRAWAL_REVERSED', 'ADJUSTMENT',
+                    'DAMAGE_FEE_REFUND'
                 ))
                 """);
         log.info("[WalletSchemaReconciler] Wallet transaction values reconciled");
