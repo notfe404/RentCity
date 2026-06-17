@@ -85,7 +85,7 @@ export default function VNPayQR() {
       return;
     }
 
-    let countdown = 3;
+    let countdown = 15;
     setAutoConfirmCountdown(countdown);
 
     const timer = setInterval(() => {
@@ -106,7 +106,7 @@ export default function VNPayQR() {
 
     const timer = setTimeout(() => {
       void simulateQRScan(gatewayReference);
-    }, 3000);
+    }, 15000);
 
     return () => clearTimeout(timer);
   }, [status, gatewayReference]);

@@ -86,7 +86,14 @@ export default function CustomerSidebar() {
           return (
             <button
               key={link.name}
-              onClick={() => navigate(link.path)}
+              onClick={() =>
+                navigate(
+                  link.path,
+                  link.path === '/payments' && location.pathname !== '/payments'
+                    ? { state: { from: location.pathname } }
+                    : undefined
+                )
+              }
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl font-bold transition-all relative ${isActive ? 'bg-[#78ad44] text-white shadow-md shadow-[#78ad44]/20' : 'text-gray-600 hover:bg-[#f4f8f7] hover:text-[#78ad44]'}`}
             >
               <link.icon size={18} /> {link.name}

@@ -11,7 +11,7 @@ import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatu
 type StatusFilter = 'ALL' | ApiBookingStatus;
 
 const FILTERS: Array<{ key: StatusFilter; label: string }> = [
-  { key: 'ALL', label: 'Tất cả' },
+  { key: 'ALL', label: 'All' },
   { key: 'PENDING', label: 'Pending' },
   { key: 'CONFIRMED', label: 'Confirmed' },
   { key: 'ONGOING', label: 'Ongoing' },
@@ -37,7 +37,7 @@ export default function AdminBookingsPage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được danh sách booking admin');
+          toast.error('Can not load the admin booking list');
         }
       } finally {
         if (!cancelled) {
@@ -139,7 +139,7 @@ export default function AdminBookingsPage() {
             <tbody className="divide-y divide-gray-100">
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-500 font-bold">Đang tải booking...</td>
+                  <td colSpan={7} className="p-8 text-center text-gray-500 font-bold">Loading booking...</td>
                 </tr>
               )}
 
@@ -239,7 +239,7 @@ export default function AdminBookingsPage() {
                   <td colSpan={7} className="p-10 text-center">
                     <div className="inline-flex flex-col items-center gap-3 text-gray-400">
                       <CarFront size={36} />
-                      <p className="font-bold text-gray-500">Không có booking phù hợp với bộ lọc hiện tại</p>
+                      <p className="font-bold text-gray-500">No bookings match the current filter</p>
                     </div>
                   </td>
                 </tr>

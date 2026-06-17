@@ -47,6 +47,9 @@ export default function PayPalRedirect() {
         bookingId: parseInt(id),
         gateway: 'PAYPAL',
       });
+      const EXCHANGE_RATE = 25400;
+      const amountInVND = createdPayment.amount || 0;
+      const amountInUSD = (amountInVND / EXCHANGE_RATE).toFixed(2);
 
       setStatus('processing');
 
@@ -61,15 +64,16 @@ export default function PayPalRedirect() {
           (window as any).paypal.Buttons({
             createOrder: async (_data: any, actions: any) => {
               return actions.order.create({
+                intent: 'CAPTURE',
                 purchase_units: [
                   {
                     description: `Thanh toán cọc cho Booking: ${id}`,
                     amount: {
                       currency_code: "USD",
-                      value: "100.00" 
-                    }
-                  }
-                ]
+                      value: amountInUSD,
+                    },
+                  },
+                ],
               });
             },
             onApprove: async (_data: any, _actions: any) => {

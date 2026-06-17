@@ -10,7 +10,9 @@ import {
   Eye,
   ChevronDown,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { getMyPayments, downloadBookingInvoicePdf } from '@/services/paymentApi';
@@ -201,10 +203,17 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onDownloadInvoice }: Pa
 }
 
 export default function PaymentsPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [payments, setPayments] = useState<ApiPaymentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<ApiPaymentResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const fromPath = (location.state as { from?: unknown } | null)?.from;
+  const returnTarget =
+    typeof fromPath === 'string' && fromPath.startsWith('/my-bookings')
+      ? { path: '/my-bookings', label: 'Quay lại My Bookings' }
+      : { path: '/profile', label: 'Quay lại hồ sơ' };
 
   const [filters, setFilters] = useState<PaymentFilter>({
     status: 'ALL',
@@ -310,9 +319,18 @@ export default function PaymentsPage() {
 
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full flex-1">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-gray-900 mb-2">Lịch sử thanh toán</h1>
-          <p className="text-gray-500 font-medium">Xem tất cả giao dịch thanh toán của bạn</p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-black text-gray-900 mb-2">Lịch sử thanh toán</h1>
+            <p className="text-gray-500 font-medium">Xem tất cả giao dịch thanh toán của bạn</p>
+          </div>
+          <button
+            onClick={() => navigate(returnTarget.path)}
+            className="self-start inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm border border-gray-100 hover:bg-[#f4f8f7] hover:text-[#78ad44] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            {returnTarget.label}
+          </button>
         </div>
 
         {/* Summary Card */}

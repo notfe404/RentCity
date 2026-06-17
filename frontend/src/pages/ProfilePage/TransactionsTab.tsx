@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, Loader2, CreditCard, Download, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { getMyPayments, downloadBookingInvoicePdf } from '@/services/paymentApi';
@@ -192,13 +193,14 @@ export default function TransactionsTab() {
       {/* View All Link */}
       {payments.length > 5 && (
         <div className="text-center">
-          <a
-            href="/payments"
+          <Link
+            to="/payments"
+            state={{ from: '/profile' }}
             className="text-[#78ad44] font-bold hover:text-[#689938] transition-colors inline-flex items-center gap-2"
           >
             Xem tất cả giao dịch
             <Eye size={16} />
-          </a>
+          </Link>
         </div>
       )}
     </div>
