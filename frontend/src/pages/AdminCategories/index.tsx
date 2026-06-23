@@ -8,12 +8,13 @@ import { formatVND } from '@/utils/formatters';
 interface CategoryFormData {
   name: string;
   description: string;
+  seats: number;
   basePriceDay: number;
   depositRate: number;
   isActive: boolean;
 }
 
-const EMPTY_FORM: CategoryFormData = { name: '', description: '', basePriceDay: 0, depositRate: 0.3, isActive: true };
+const EMPTY_FORM: CategoryFormData = { name: '', description: '', seats: 4, basePriceDay: 0, depositRate: 0.3, isActive: true };
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<ApiCategory[]>([]);
@@ -57,6 +58,7 @@ export default function AdminCategoriesPage() {
     setForm({
       name: c.name,
       description: c.description || '',
+      seats: c.seats || 4,
       basePriceDay: c.basePriceDay,
       depositRate: c.depositRate,
       isActive: c.isActive,
@@ -136,6 +138,7 @@ export default function AdminCategoriesPage() {
               <thead>
                 <tr className="bg-[#f4f8f7] border-b border-gray-100">
                   <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Danh mục</th>
+                  <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Số ghế</th>
                   <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Giá cơ bản / ngày</th>
                   <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Tỷ lệ cọc</th>
                   <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Trạng thái</th>
@@ -164,6 +167,7 @@ export default function AdminCategoriesPage() {
                         </div>
                       </div>
                     </td>
+                    <td className="p-5 font-bold text-gray-700 text-sm">{c.seats} chỗ</td>
                     <td className="p-5 font-black text-gray-900 text-sm">{formatVND(c.basePriceDay)}</td>
                     <td className="p-5 font-bold text-gray-700 text-sm">{(c.depositRate * 100).toFixed(0)}%</td>
                     <td className="p-5">
@@ -232,9 +236,19 @@ export default function AdminCategoriesPage() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#78ad44] focus:ring-2 focus:ring-[#78ad44]/20 resize-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Giá cơ bản / ngày (VND)</label>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Số chỗ ngồi *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.seats}
+                    onChange={(e) => setForm({ ...form, seats: Number(e.target.value) })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#78ad44] focus:ring-2 focus:ring-[#78ad44]/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Giá / ngày</label>
                   <input
                     type="number"
                     min={0}

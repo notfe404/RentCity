@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Trash2, Star } from 'lucide-react';
+import { deleteCarImage, setPrimaryCarImage } from '@/services/carApi';
+import { toast } from 'sonner';
 import type { ApiCarResponse } from '@/types';
 import type { AdminCarPayload } from '@/services/carApi';
 import type { ApiBranch, ApiCategory } from '@/services/adminApi';
@@ -7,7 +9,7 @@ import type { ApiBranch, ApiCategory } from '@/services/adminApi';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (payload: AdminCarPayload, conditionFiles: File[]) => Promise<void>;
+  onSave: (payload: AdminCarPayload, conditionFiles: File[], carFiles: File[]) => Promise<void>;
   initialData: ApiCarResponse | null;
   branches: ApiBranch[];
   categories: ApiCategory[];
@@ -39,6 +41,8 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
   const [form, setForm] = useState<AdminCarPayload>(EMPTY);
   const [isSaving, setIsSaving] = useState(false);
   const [conditionFiles, setConditionFiles] = useState<File[]>([]);
+  const [carFiles, setCarFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState(initialData?.images || []);
 
   useEffect(() => {
     if (initialData) {
@@ -65,21 +69,26 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
       });
     } else {
       setForm(EMPTY);
+      setExistingImages([]);
+    }
+    if (initialData) {
+      setExistingImages(initialData.images || []);
     }
     setConditionFiles([]);
+    setCarFiles([]);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim()
-      || form.pricePerDay <= 0 || (form.deposit ?? 0) <= 0) {
+    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim() || !form.categoryId || !form.branchId) {
+      toast.error('Vui lòng điền đầy đủ các trường bắt buộc (Danh mục, Chi nhánh, Hãng, Dòng, Biển số)');
       return;
     }
     setIsSaving(true);
     try {
-      await onSave(form, conditionFiles);
+      await onSave(form, conditionFiles, carFiles);
     } finally {
       setIsSaving(false);
     }
@@ -162,7 +171,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
               >
                 <option value="">— Không chọn —</option>
-                {branches.filter((b) => b.isActive).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {branches.filter((b) => b.isActive !== false).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
           </div>
@@ -177,6 +186,78 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] focus:ring-2 focus:ring-[#78ad44]/20 resize-none"
             />
           </div>
+
+          <div className="border border-gray-200 rounded-2xl p-5 space-y-4 bg-white">
+            <div>
+              <h3 className="font-black text-gray-900">Ảnh xe</h3>
+              <p className="text-xs text-gray-500 mt-1">Tải lên các hình ảnh của xe để hiển thị cho khách hàng</p>
+            </div>
+            
+            {existingImages.length > 0 && (
+              <div className="grid grid-cols-3 gap-3">
+                {existingImages.map((img) => (
+                  <div key={img.id} className="relative group rounded-xl overflow-hidden aspect-video border border-gray-200">
+                    <img src={img.imageUrl} alt="Car" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          if (!initialData) return;
+                          try {
+                            await deleteCarImage(initialData.id, img.id);
+                            setExistingImages(cur => cur.filter(i => i.id !== img.id));
+                            toast.success('Đã xóa ảnh');
+                          } catch {
+                            toast.error('Lỗi khi xóa ảnh');
+                          }
+                        }}
+                        className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Xóa ảnh"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      {!img.primary && (
+                        <button 
+                          type="button"
+                          onClick={async () => {
+                            if (!initialData) return;
+                            try {
+                              await setPrimaryCarImage(initialData.id, img.id);
+                              setExistingImages(cur => cur.map(i => ({ ...i, primary: i.id === img.id })));
+                              toast.success('Đã đặt làm ảnh chính');
+                            } catch {
+                              toast.error('Lỗi khi đặt ảnh chính');
+                            }
+                          }}
+                          className="p-1.5 bg-[#78ad44] text-white rounded-lg hover:bg-[#689938] transition-colors" title="Đặt làm ảnh chính"
+                        >
+                          <Star size={16} />
+                        </button>
+                      )}
+                    </div>
+                    {img.primary && (
+                      <div className="absolute top-2 left-2 bg-[#78ad44] text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                        <Star size={10} fill="currentColor" /> CHÍNH
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setCarFiles(Array.from(e.target.files ?? []))}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-bold file:text-blue-600 hover:file:bg-blue-100"
+              />
+              {carFiles.length > 0 && (
+                <p className="text-xs font-bold text-gray-500 mt-2">{carFiles.length} ảnh mới được chọn</p>
+              )}
+            </div>
+          </div>
+          
           {!initialData && (
             <div className="border border-gray-200 rounded-2xl p-5 space-y-4 bg-[#f8f9fa]">
               <div>
