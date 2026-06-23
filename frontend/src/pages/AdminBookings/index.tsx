@@ -8,17 +8,22 @@ import {
   confirmBookingForTest,
   getAdminBooking,
   getAdminBookings,
+  getRentalContract,
+  saveHandoverContract,
   saveReturnCondition,
   transitionAdminBooking,
-  requestCheckInAdmin,
+  prepareSecurityDeposit,
 } from '@/services/bookingApi';
-import type { ReturnConditionPayload } from '@/services/bookingApi';
+import type { HandoverContractPayload, ReturnConditionPayload } from '@/services/bookingApi';
 import { getCarById } from '@/services/carApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
-import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus } from '@/types';
+import type { AdminBookingTransitionPayload, ApiBookingResponse, ApiBookingStatus, RentalContractResponse, SettlementMethod } from '@/types';
 import ReturnConditionModal from './ReturnConditionModal';
+import HandoverContractModal from './HandoverContractModal';
+import BookingContractDetailsModal from './BookingContractDetailsModal';
 import { FinalizeDamageModal } from './FinalizeDamageModal';
+import SecurityDepositModal from './SecurityDepositModal';
 
 type StatusFilter = 'ALL' | ApiBookingStatus;
 
@@ -26,6 +31,7 @@ const FILTERS: Array<{ key: StatusFilter; label: string }> = [
   { key: 'ALL', label: 'All' },
   { key: 'PENDING', label: 'Pending' },
   { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'PAID', label: 'Paid' },
   { key: 'ONGOING', label: 'Ongoing' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'CANCELLED', label: 'Cancelled' },
@@ -37,8 +43,14 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
+  const [handoverBooking, setHandoverBooking] = useState<ApiBookingResponse | null>(null);
+  const [depositBooking, setDepositBooking] = useState<ApiBookingResponse | null>(null);
   const [returnBooking, setReturnBooking] = useState<ApiBookingResponse | null>(null);
   const [finalizeBooking, setFinalizeBooking] = useState<ApiBookingResponse | null>(null);
+  const [detailBooking, setDetailBooking] = useState<ApiBookingResponse | null>(null);
+  const [detailContract, setDetailContract] = useState<RentalContractResponse | null>(null);
+  const [detailContractError, setDetailContractError] = useState<string | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,8 +74,12 @@ export default function AdminBookingsPage() {
 
     setIsLoading(true);
     run();
+    const timer = window.setInterval(run, 5000);
+    window.addEventListener('focus', run);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', run);
     };
   }, [statusFilter]);
 
@@ -119,20 +135,41 @@ export default function AdminBookingsPage() {
     }
   };
 
-  const runCheckIn = async (bookingId: number) => {
-    setActiveBookingId(bookingId);
+  const submitSecurityDeposit = async (method: SettlementMethod) => {
+    if (!depositBooking) return;
+    setActiveBookingId(depositBooking.id);
     try {
-      const { data } = await requestCheckInAdmin(bookingId);
-      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
-      if (data.status === 'ONGOING') {
-        toast.success(`Khách hàng không cần thanh toán thêm, booking ${data.bookingCode} đã chuyển sang ONGOING`);
-      } else {
-        toast.success(`Đã gửi yêu cầu thanh toán check-in cho booking ${data.bookingCode}`);
-      }
+      const { data } = await prepareSecurityDeposit(depositBooking.id, method);
+      setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)));
+      setDepositBooking(null);
+      toast.success(method === 'CASH'
+        ? `Cash security deposit recorded for ${data.bookingCode}`
+        : `Security deposit payment request sent for ${data.bookingCode}`);
     } catch (error) {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
-        ?? 'Không thể yêu cầu check-in cho booking';
+        ?? 'Could not prepare the security deposit';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
+  const submitHandover = async (payload: HandoverContractPayload) => {
+    if (!handoverBooking) return;
+    setActiveBookingId(handoverBooking.id);
+    try {
+      await saveHandoverContract(handoverBooking.id, payload);
+      const { data: updatedBooking } = await getAdminBooking(handoverBooking.id);
+      setBookings((current) => current.map((booking) => (
+        booking.id === updatedBooking.id ? updatedBooking : booking
+      )));
+      setHandoverBooking(null);
+      toast.success(`Vehicle handed over for ${updatedBooking.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Could not complete the vehicle handover';
       toast.error(message);
     } finally {
       setActiveBookingId(null);
@@ -142,13 +179,15 @@ export default function AdminBookingsPage() {
   const openReturnModal = async (booking: ApiBookingResponse) => {
     setActiveBookingId(booking.id);
     try {
-      const [{ data: latestBooking }, { data: car }] = await Promise.all([
+      const [{ data: latestBooking }, { data: car }, { data: contract }] = await Promise.all([
         getAdminBooking(booking.id),
         getCarById(booking.vehicleId),
+        getRentalContract(booking.id),
       ]);
       const bookingWithRate = {
         ...latestBooking,
         vehiclePricePerDay: car.pricePerDay,
+        actualHandoverAt: contract.handoverAt,
       };
       setReturnBooking(bookingWithRate);
       setBookings((current) => current.map((item) => (
@@ -165,7 +204,8 @@ export default function AdminBookingsPage() {
     if (!returnBooking) return;
     setActiveBookingId(returnBooking.id);
     try {
-      const { data } = await saveReturnCondition(returnBooking.id, payload);
+      await saveReturnCondition(returnBooking.id, payload);
+      const { data } = await getAdminBooking(returnBooking.id);
       setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)));
       setReturnBooking(null);
       toast.success(`Đã hoàn tất kiểm tra xe trả cho ${data.bookingCode}`);
@@ -176,6 +216,38 @@ export default function AdminBookingsPage() {
       toast.error(message);
     } finally {
       setActiveBookingId(null);
+    }
+  };
+
+  const openBookingDetails = async (booking: ApiBookingResponse) => {
+    setDetailBooking(booking);
+    setDetailContract(null);
+    setDetailContractError(null);
+    setIsDetailLoading(true);
+
+    try {
+      const { data: latestBooking } = await getAdminBooking(booking.id);
+      setDetailBooking(latestBooking);
+
+      if (latestBooking.status === 'ONGOING' || latestBooking.status === 'COMPLETED') {
+        try {
+          const { data: contract } = await getRentalContract(latestBooking.id);
+          setDetailContract(contract);
+        } catch (error) {
+          const message =
+            (error as { response?: { data?: { error?: string } } }).response?.data?.error
+            ?? 'Could not load the rental contract';
+          setDetailContractError(message);
+        }
+      }
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Could not load the latest booking details';
+      setDetailBooking(null);
+      toast.error(message);
+    } finally {
+      setIsDetailLoading(false);
     }
   };
 
@@ -266,6 +338,9 @@ export default function AdminBookingsPage() {
                         </div>
                       )}
                       <p className={`text-xs font-bold mt-1 ${depositMeta.color}`}>{depositMeta.label}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">
+                        Security deposit: {formatVND(booking.securityDepositAmount)} · {booking.securityDepositStatus.replace('_', ' ')}
+                      </p>
                     </td>
                     <td className="p-5">
                       <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider border text-white ${bookingMeta.bg}`}>
@@ -300,11 +375,24 @@ export default function AdminBookingsPage() {
                         )}
 
                         {booking.status === 'CONFIRMED' && (
+                          <>
+                            <button
+                              disabled={busy}
+                              onClick={() => setDepositBooking(booking)}
+                              className="p-2 text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                              title="Collect vehicle security deposit"
+                            >
+                              <Check size={16} />
+                            </button>
+                          </>
+                        )}
+
+                        {booking.status === 'PAID' && (
                           <button
                             disabled={busy}
-                            onClick={() => runCheckIn(booking.id)}
+                            onClick={() => setHandoverBooking(booking)}
                             className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
-                            title="Check In"
+                            title="Hand over vehicle and sign contract"
                           >
                             <Play size={16} />
                           </button>
@@ -332,10 +420,15 @@ export default function AdminBookingsPage() {
                           </button>
                         )}
 
-                        <div className="inline-flex items-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 rounded-lg shadow-sm text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => openBookingDetails(booking)}
+                          className="inline-flex items-center gap-1 px-3 py-2 text-gray-600 bg-gray-100 hover:bg-[#e9f2eb] hover:text-[#56832d] rounded-lg shadow-sm text-xs font-bold transition-colors"
+                          title="View full booking and contract details"
+                        >
                           <Eye size={16} />
                           <span>{formatDateTime(booking.createdAt)}</span>
-                        </div>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -361,6 +454,23 @@ export default function AdminBookingsPage() {
           <p className="text-xs font-bold text-gray-400">Customer flow uses real backend booking data</p>
         </div>
       </div>
+      {handoverBooking && (
+        <HandoverContractModal
+          key={handoverBooking.id}
+          booking={handoverBooking}
+          isSaving={activeBookingId === handoverBooking.id}
+          onClose={() => setHandoverBooking(null)}
+          onSubmit={submitHandover}
+        />
+      )}
+      {depositBooking && (
+        <SecurityDepositModal
+          booking={depositBooking}
+          isSaving={activeBookingId === depositBooking.id}
+          onClose={() => setDepositBooking(null)}
+          onSubmit={submitSecurityDeposit}
+        />
+      )}
       {returnBooking && (
         <ReturnConditionModal
           key={returnBooking.id}
@@ -380,6 +490,19 @@ export default function AdminBookingsPage() {
           onSuccess={() => {
             // refresh page
             window.location.reload();
+          }}
+        />
+      )}
+      {detailBooking && (
+        <BookingContractDetailsModal
+          booking={detailBooking}
+          contract={detailContract}
+          contractError={detailContractError}
+          isLoading={isDetailLoading}
+          onClose={() => {
+            setDetailBooking(null);
+            setDetailContract(null);
+            setDetailContractError(null);
           }}
         />
       )}

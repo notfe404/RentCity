@@ -15,7 +15,7 @@ import java.util.Set;
 public class BookingAvailabilityService {
 
     private static final Set<BookingStatus> BLOCKING_STATUSES =
-            EnumSet.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ONGOING);
+            EnumSet.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.PAID, BookingStatus.ONGOING);
 
     private final BookingRepository bookingRepository;
 

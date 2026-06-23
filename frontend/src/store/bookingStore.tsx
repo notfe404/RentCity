@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { MockVehicle } from '@/data/mockVehicles';
-import type { ApiPricingMode } from '@/types';
+import type { ApiPricingMode, ApiVehiclePickupMethod } from '@/types';
 import {
   getDailyRentalAmount,
   getDefaultBookingRange,
@@ -30,6 +30,8 @@ interface BookingState {
   vehicle: MockVehicle | null;
   pickupLocationId: string;
   returnLocationId: string;
+  pickupMethod: ApiVehiclePickupMethod;
+  deliveryAddress: string;
   startDate: string;       // yyyy-mm-ddThh:mm
   endDate: string;
   extras: BookingExtras;
@@ -53,6 +55,8 @@ interface BookingContextValue extends BookingState {
   setVehicle: (v: MockVehicle) => void;
   setPickupLocation: (id: string) => void;
   setReturnLocation: (id: string) => void;
+  setPickupMethod: (method: ApiVehiclePickupMethod) => void;
+  setDeliveryAddress: (address: string) => void;
   setStartDate: (d: string) => void;
   setEndDate: (d: string) => void;
   toggleExtra: (key: keyof BookingExtras) => void;
@@ -68,6 +72,8 @@ const INITIAL: BookingState = {
   vehicle: null,
   pickupLocationId: 'loc-cau-giay',
   returnLocationId: 'loc-cau-giay',
+  pickupMethod: 'BRANCH_PICKUP',
+  deliveryAddress: '',
   ...getDefaultBookingRange(),
   extras: { insurance: true, childSeat: false, gps: false },
   customerNote: '',
@@ -98,6 +104,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const setVehicle = useCallback((v: MockVehicle) => setState(s => ({ ...s, vehicle: v })), []);
   const setPickupLocation = useCallback((id: string) => setState(s => ({ ...s, pickupLocationId: id })), []);
   const setReturnLocation = useCallback((id: string) => setState(s => ({ ...s, returnLocationId: id })), []);
+  const setPickupMethod = useCallback((method: ApiVehiclePickupMethod) => setState(s => ({
+    ...s,
+    pickupMethod: method,
+    deliveryAddress: method === 'BRANCH_PICKUP' ? '' : s.deliveryAddress,
+  })), []);
+  const setDeliveryAddress = useCallback((address: string) => setState(s => ({ ...s, deliveryAddress: address })), []);
   const setStartDate = useCallback((d: string) => setState(s => ({ ...s, startDate: d })), []);
   const setEndDate = useCallback((d: string) => setState(s => ({ ...s, endDate: d })), []);
   const toggleExtra = useCallback((key: keyof BookingExtras) =>
@@ -124,6 +136,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       ...state, pricingMode, totalHours, totalDays, durationLabel, billingUnitLabel, unitRateAmount,
       baseAmount, extrasAmount, totalAmount, depositAmount,
       setVehicle, setPickupLocation, setReturnLocation, setStartDate, setEndDate,
+      setPickupMethod, setDeliveryAddress,
       toggleExtra, setCustomerNote, setPromotionCode, applyPromotion, reset,
     }}>
       {children}

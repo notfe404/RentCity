@@ -29,7 +29,10 @@ public class PaymentSchemaReconciler implements CommandLineRunner {
         jdbcTemplate.execute("""
                 ALTER TABLE payments
                 ADD CONSTRAINT payments_type_check
-                CHECK (type IN ('DEPOSIT', 'WALLET_TOP_UP', 'DAMAGE_PAYMENT', 'BALANCE_PAYMENT', 'EXTRA_CHARGE', 'FULL', 'REFUND'))
+                CHECK (type IN (
+                    'DEPOSIT', 'SECURITY_DEPOSIT', 'SECURITY_DEPOSIT_REFUND', 'FINAL_RENTAL_PAYMENT',
+                    'WALLET_TOP_UP', 'DAMAGE_PAYMENT', 'BALANCE_PAYMENT', 'EXTRA_CHARGE', 'FULL', 'REFUND'
+                ))
                 """);
         jdbcTemplate.execute("""
                 ALTER TABLE payments

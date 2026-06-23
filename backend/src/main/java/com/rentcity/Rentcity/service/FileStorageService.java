@@ -24,9 +24,11 @@ public class FileStorageService {
     private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "webp", "gif");
 
     private final Path rootDir;
+    private final Path privateRootDir;
 
     public FileStorageService(@Value("${app.upload-dir:./uploads}") String uploadDir) {
         this.rootDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        this.privateRootDir = rootDir.resolveSibling("private-uploads").normalize();
     }
 
     /**
@@ -86,6 +88,55 @@ public class FileStorageService {
             Files.deleteIfExists(target);
         } catch (IOException e) {
             // Log but don't fail — file may already be gone
+        }
+    }
+
+    public String storePrivate(MultipartFile file, String subDir) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Image file cannot be empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Uploaded file must be an image");
+        }
+        String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
+        ext = ext == null ? "" : ext.toLowerCase();
+        if (!ALLOWED_EXT.contains(ext)) {
+            throw new IllegalArgumentException("Invalid image format. Accepted formats: " + ALLOWED_EXT);
+        }
+        try {
+            Path targetDir = privateRootDir.resolve(subDir).normalize();
+            if (!targetDir.startsWith(privateRootDir)) {
+                throw new IllegalArgumentException("Invalid private storage path");
+            }
+            Files.createDirectories(targetDir);
+            String fileName = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+            try (var in = file.getInputStream()) {
+                Files.copy(in, targetDir.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return "private:" + subDir + "/" + fileName;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot save private image", e);
+        }
+    }
+
+    public byte[] read(String publicUrl) {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            throw new IllegalArgumentException("File path is required");
+        }
+        boolean privateFile = publicUrl.startsWith("private:");
+        String relative = privateFile
+                ? publicUrl.substring("private:".length())
+                : publicUrl.startsWith("/uploads/") ? publicUrl.substring("/uploads/".length()) : publicUrl;
+        Path selectedRoot = privateFile ? privateRootDir : rootDir;
+        Path target = selectedRoot.resolve(relative).normalize();
+        if (!target.startsWith(selectedRoot)) {
+            throw new IllegalArgumentException("Invalid file path");
+        }
+        try {
+            return Files.readAllBytes(target);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot read stored file", e);
         }
     }
 }

@@ -19,13 +19,26 @@ public class OverdueFeeService {
             BigDecimal pricePerDay,
             BigDecimal originalRentalFee
     ) {
-        if (scheduledReturn == null || actualReturn == null || !actualReturn.isAfter(scheduledReturn)) {
+        return calculate(null, null, scheduledReturn, actualReturn, pricePerDay, originalRentalFee);
+    }
+
+    public OverdueCharge calculate(
+            LocalDateTime scheduledStart,
+            LocalDateTime actualHandover,
+            LocalDateTime scheduledReturn,
+            LocalDateTime actualReturn,
+            BigDecimal pricePerDay,
+            BigDecimal originalRentalFee
+    ) {
+        long earlyHandoverSeconds = secondsBefore(actualHandover, scheduledStart);
+        long lateReturnSeconds = secondsBefore(scheduledReturn, actualReturn);
+        long additionalUsageSeconds = earlyHandoverSeconds + lateReturnSeconds;
+        if (additionalUsageSeconds <= 0) {
             return new OverdueCharge(0L, 0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
-        long overdueSeconds = Duration.between(scheduledReturn, actualReturn).getSeconds();
-        long overdueMinutes = divideAndRoundUp(overdueSeconds, 60);
-        long billableHours = divideAndRoundUp(overdueSeconds, 3600);
+        long overdueMinutes = divideAndRoundUp(additionalUsageSeconds, 60);
+        long billableHours = divideAndRoundUp(additionalUsageSeconds, 3600);
         BigDecimal hourlyRate = pricePerDay
                 .divide(HOURS_PER_DAY, 0, RoundingMode.CEILING);
         BigDecimal fee = hourlyRate.multiply(BigDecimal.valueOf(billableHours));
@@ -36,6 +49,13 @@ public class OverdueFeeService {
         BigDecimal totalFee = fee.add(penaltyFee);
 
         return new OverdueCharge(overdueMinutes, billableHours, fee, penaltyFee, totalFee);
+    }
+
+    private long secondsBefore(LocalDateTime earlier, LocalDateTime later) {
+        if (earlier == null || later == null || !earlier.isBefore(later)) {
+            return 0L;
+        }
+        return Duration.between(earlier, later).getSeconds();
     }
 
     private long divideAndRoundUp(long value, long divisor) {

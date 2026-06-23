@@ -19,6 +19,7 @@ const TABS: { key: TabFilter; label: string }[] = [
   { key: 'all',       label: 'Tất cả' },
   { key: 'PENDING',   label: 'Chờ xác nhận' },
   { key: 'CONFIRMED', label: 'Đã xác nhận' },
+  { key: 'PAID',      label: 'Đã thanh toán đủ' },
   { key: 'ONGOING',   label: 'Đang thuê' },
   { key: 'COMPLETED', label: 'Hoàn thành' },
   { key: 'CANCELLED', label: 'Đã hủy' },

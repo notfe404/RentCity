@@ -6,9 +6,14 @@ import com.rentcity.Rentcity.dto.CarConditionRequest;
 import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.dto.DamageAssessmentResponse;
 import com.rentcity.Rentcity.dto.FinalizeDamageAssessmentRequest;
+import com.rentcity.Rentcity.dto.HandoverContractRequest;
+import com.rentcity.Rentcity.dto.ReturnContractRequest;
+import com.rentcity.Rentcity.dto.RentalContractResponse;
+import com.rentcity.Rentcity.dto.SecurityDepositCollectionRequest;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.service.BookingService;
 import com.rentcity.Rentcity.service.CarConditionService;
+import com.rentcity.Rentcity.service.RentalContractService;
 import com.rentcity.Rentcity.entity.User;
 import com.rentcity.Rentcity.repository.UserRepository;
 import jakarta.validation.Valid;
@@ -33,6 +38,7 @@ public class AdminBookingController {
     private final CarConditionService carConditionService;
     private final com.rentcity.Rentcity.service.DamageAssessmentService damageAssessmentService;
     private final UserRepository userRepository;
+    private final RentalContractService rentalContractService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
@@ -71,13 +77,14 @@ public class AdminBookingController {
         return ResponseEntity.ok(bookingService.cancelBookingAsAdmin(authentication.getName(), id));
     }
 
-    @PostMapping("/{id}/check-in")
+    @PostMapping("/{id}/security-deposit")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<BookingResponse> requestCheckIn(
+    public ResponseEntity<BookingResponse> prepareSecurityDeposit(
             Authentication authentication,
-            @PathVariable Long id
+            @PathVariable Long id,
+            @Valid @RequestBody SecurityDepositCollectionRequest request
     ) {
-        return ResponseEntity.ok(bookingService.requestCheckIn(id, authentication.getName()));
+        return ResponseEntity.ok(bookingService.prepareSecurityDeposit(id, authentication.getName(), request));
     }
 
     @GetMapping("/{id}/conditions")
@@ -87,16 +94,37 @@ public class AdminBookingController {
         return ResponseEntity.ok(carConditionService.getBookingReports(id));
     }
 
-    @PostMapping(value = "/{id}/return-condition", consumes = "multipart/form-data")
+    @PostMapping(value = "/{id}/handover", consumes = "multipart/form-data")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_STAFF')")
-    public ResponseEntity<BookingResponse> completeReturnInspection(
+    public ResponseEntity<RentalContractResponse> completeHandover(
             Authentication authentication,
             @PathVariable Long id,
-            @Valid @RequestPart("condition") CarConditionRequest request,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files
+            @Valid @RequestPart("handover") HandoverContractRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestPart("customerSignature") MultipartFile customerSignature,
+            @RequestPart("staffSignature") MultipartFile staffSignature
     ) {
         return ResponseEntity.ok(
-                bookingService.completeReturnInspection(authentication.getName(), id, request, files)
+                rentalContractService.completeHandover(
+                        authentication.getName(), id, request, files, customerSignature, staffSignature
+                )
+        );
+    }
+
+    @PostMapping(value = "/{id}/return", consumes = "multipart/form-data")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_STAFF')")
+    public ResponseEntity<RentalContractResponse> completeReturn(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestPart("return") ReturnContractRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestPart("customerSignature") MultipartFile customerSignature,
+            @RequestPart("staffSignature") MultipartFile staffSignature
+    ) {
+        return ResponseEntity.ok(
+                rentalContractService.completeReturn(
+                        authentication.getName(), id, request, files, customerSignature, staffSignature
+                )
         );
     }
 

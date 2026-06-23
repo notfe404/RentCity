@@ -154,6 +154,17 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
         ensureBookingOwner(user, booking);
 
+        PaymentType requestedType;
+        if (booking.getStatus() == BookingStatus.CONFIRMED
+                && booking.getSecurityDepositStatus() == SecurityDepositStatus.PAYMENT_REQUESTED) {
+            requestedType = PaymentType.SECURITY_DEPOSIT;
+        } else if (booking.getStatus() == BookingStatus.COMPLETED
+                && booking.getFinalPaymentStatus() == FinalPaymentStatus.PAYMENT_REQUESTED) {
+            requestedType = PaymentType.FINAL_RENTAL_PAYMENT;
+        } else {
+            throw new IllegalArgumentException("This booking does not have an active payment request");
+        }
+
         java.math.BigDecimal paidFromWallet = bookingService.applyCustomerWalletBalance(bookingId, user.getId());
         
         if (booking.getOutstandingAmount() == null || booking.getOutstandingAmount().signum() <= 0) {
@@ -161,7 +172,7 @@ public class PaymentService {
                 Payment payment = Payment.builder()
                         .bookingId(bookingId)
                         .userId(user.getId())
-                        .type(PaymentType.BALANCE_PAYMENT)
+                        .type(requestedType)
                         .gateway(PaymentGateway.WALLET)
                         .status(PaymentStatus.PAID)
                         .amount(paidFromWallet)
@@ -187,7 +198,7 @@ public class PaymentService {
 
         List<Payment> pendingPayments = paymentRepository.findByBookingIdAndStatus(bookingId, PaymentStatus.PENDING);
         for (Payment p : pendingPayments) {
-            if (p.getType() == PaymentType.BALANCE_PAYMENT || p.getType() == PaymentType.DAMAGE_PAYMENT) {
+            if (p.getType() == requestedType) {
                 p.setStatus(PaymentStatus.EXPIRED);
                 p.setFailureReason("User initiated new payment request with updated wallet balance");
                 paymentRepository.save(p);
@@ -197,7 +208,7 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .bookingId(bookingId)
                 .userId(user.getId())
-                .type(PaymentType.BALANCE_PAYMENT)
+                .type(requestedType)
                 .gateway(request.getGateway())
                 .status(PaymentStatus.PENDING)
                 .amount(booking.getOutstandingAmount())
@@ -336,9 +347,13 @@ public class PaymentService {
         User changedBy = actor != null ? actor : customer;
 
         Booking booking = null;
-        if (payment.getType() == PaymentType.DEPOSIT) {
+        if (payment.getType() == PaymentType.DEPOSIT
+                || payment.getType() == PaymentType.SECURITY_DEPOSIT
+                || payment.getType() == PaymentType.FINAL_RENTAL_PAYMENT) {
             booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("booking", payment.getBookingId()));
+        }
+        if (payment.getType() == PaymentType.DEPOSIT) {
             if (booking.getStatus() == BookingStatus.CANCELLED) {
                 throw new IllegalArgumentException("Cannot complete payment for cancelled booking");
             }
@@ -352,18 +367,11 @@ public class PaymentService {
 
         if (payment.getType() == PaymentType.DEPOSIT) {
             if (payment.getGateway() == PaymentGateway.WALLET) {
-                walletService.holdDeposit(
+                walletService.payReservationFee(
                         customer.getId(),
                         booking.getId(),
                         payment.getAmount(),
-                        "payment:" + payment.getId() + ":wallet-hold"
-                );
-            } else {
-                walletService.creditAndHoldDeposit(
-                        customer.getId(),
-                        booking.getId(),
-                        payment.getAmount(),
-                        "payment:" + payment.getId()
+                        "payment:" + payment.getId() + ":reservation-fee"
                 );
             }
             booking.setDepositStatus(DepositStatus.PAID);
@@ -373,17 +381,14 @@ public class PaymentService {
                     payment.getAmount(),
                     "payment:" + payment.getId() + ":wallet"
             );
-        } else if (payment.getType() == PaymentType.BALANCE_PAYMENT) {
-            walletService.creditTopUp(
-                    customer.getId(),
-                    payment.getAmount(),
-                    "payment:" + payment.getId() + ":wallet"
-            );
+        } else if (payment.getType() == PaymentType.SECURITY_DEPOSIT
+                || payment.getType() == PaymentType.FINAL_RENTAL_PAYMENT) {
             bookingService.applyCustomerPayment(
                     payment.getBookingId(),
                     payment.getAmount(),
                     customer.getId(),
-                    payment.getId()
+                    payment.getId(),
+                    payment.getType()
             );
         }
 

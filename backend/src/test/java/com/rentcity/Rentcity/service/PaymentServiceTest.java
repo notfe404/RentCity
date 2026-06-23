@@ -11,6 +11,8 @@ import com.rentcity.Rentcity.entity.PaymentType;
 import com.rentcity.Rentcity.entity.PricingMode;
 import com.rentcity.Rentcity.entity.Role;
 import com.rentcity.Rentcity.entity.User;
+import com.rentcity.Rentcity.entity.BookingStatus;
+import com.rentcity.Rentcity.entity.FinalPaymentStatus;
 import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.DamageAssessmentRepository;
 import com.rentcity.Rentcity.repository.PaymentRepository;
@@ -85,7 +87,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createsFreshPendingBookingPaymentWhenOlderPaidBalancePaymentExists() {
+    void createsFreshPendingFinalRentalPaymentRequest() {
         User customer = User.builder()
                 .id(7L)
                 .email("customer@example.com")
@@ -98,6 +100,8 @@ class PaymentServiceTest {
                 .carId(3L)
                 .pricingMode(PricingMode.DAILY)
                 .depositStatus(DepositStatus.PAID)
+                .status(BookingStatus.COMPLETED)
+                .finalPaymentStatus(FinalPaymentStatus.PAYMENT_REQUESTED)
                 .totalAmount(new BigDecimal("1500000"))
                 .depositAmount(new BigDecimal("500000"))
                 .outstandingAmount(new BigDecimal("300000"))
@@ -106,7 +110,7 @@ class PaymentServiceTest {
                 .id(100L)
                 .bookingId(booking.getId())
                 .userId(customer.getId())
-                .type(PaymentType.BALANCE_PAYMENT)
+                .type(PaymentType.FINAL_RENTAL_PAYMENT)
                 .gateway(PaymentGateway.VNPAY)
                 .status(PaymentStatus.PAID)
                 .amount(new BigDecimal("1000000"))
@@ -129,7 +133,7 @@ class PaymentServiceTest {
         when(paymentRepository.findFirstByBookingIdAndGatewayAndTypeAndStatusInOrderByCreatedAtDesc(
                 booking.getId(),
                 PaymentGateway.VNPAY,
-                PaymentType.BALANCE_PAYMENT,
+                PaymentType.FINAL_RENTAL_PAYMENT,
                 Set.of(PaymentStatus.PAID)
         )).thenReturn(Optional.of(oldPaidPayment));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
@@ -149,6 +153,7 @@ class PaymentServiceTest {
         Payment savedPayment = paymentCaptor.getValue();
         assertThat(savedPayment.getId()).isEqualTo(101L);
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(savedPayment.getType()).isEqualTo(PaymentType.FINAL_RENTAL_PAYMENT);
         assertThat(savedPayment.getAmount()).isEqualByComparingTo("300000");
         assertThat(savedPayment.getIdempotencyKey()).isEqualTo("new-damage-key");
         verify(bookingService).applyCustomerWalletBalance(eq(booking.getId()), eq(customer.getId()));

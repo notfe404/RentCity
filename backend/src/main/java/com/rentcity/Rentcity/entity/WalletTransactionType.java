@@ -3,6 +3,7 @@ package com.rentcity.Rentcity.entity;
 public enum WalletTransactionType {
     TOP_UP,
     BOOKING_HOLD,
+    BALANCE_PAYMENT,
     HOLD_RELEASE,
     FORFEITURE,
     OVERDUE_CHARGE,
@@ -11,5 +12,9 @@ public enum WalletTransactionType {
     WITHDRAWAL_REQUEST,
     WITHDRAWAL_REVERSED,
     ADJUSTMENT,
-    DAMAGE_FEE_REFUND
+    DAMAGE_FEE_REFUND,
+    RESERVATION_FEE,
+    SECURITY_DEPOSIT_CASH_REFUND,
+    SECURITY_DEPOSIT_RETAINED,
+    FINAL_RENTAL_PAYMENT
 }

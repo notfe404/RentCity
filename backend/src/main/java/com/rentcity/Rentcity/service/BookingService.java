@@ -6,11 +6,13 @@ import com.rentcity.Rentcity.dto.CreateBookingRequest;
 import com.rentcity.Rentcity.dto.AdminBookingTransitionRequest;
 import com.rentcity.Rentcity.dto.CarConditionRequest;
 import com.rentcity.Rentcity.dto.CarConditionResponse;
+import com.rentcity.Rentcity.dto.SecurityDepositCollectionRequest;
 import com.rentcity.Rentcity.entity.*;
 import com.rentcity.Rentcity.exception.ResourceNotFoundException;
 import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.CarRepository;
 import com.rentcity.Rentcity.repository.PaymentRepository;
+import com.rentcity.Rentcity.repository.RentalContractRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -54,6 +56,7 @@ public class BookingService {
     private final OverdueFeeService overdueFeeService;
     private final WalletService walletService;
     private final DamageAssessmentService damageAssessmentService;
+    private final RentalContractRepository rentalContractRepository;
 
     @Transactional
     public BookingResponse createBooking(String email, CreateBookingRequest request) {
@@ -84,11 +87,16 @@ public class BookingService {
                 .carId(car.getId())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
+                .pickupMethod(request.getPickupMethod())
+                .deliveryAddress(normalizeDeliveryAddress(request))
                 .pricingMode(request.getPricingMode())
                 .status(BookingStatus.PENDING)
                 .depositStatus(DepositStatus.UNPAID)
                 .baseAmount(quote.getBaseAmount())
                 .depositAmount(quote.getDepositAmount())
+                .securityDepositAmount(car.getDeposit())
+                .securityDepositStatus(SecurityDepositStatus.UNPAID)
+                .securityDepositPaidAmount(BigDecimal.ZERO)
                 .totalAmount(quote.getTotalAmount())
                 .freeCancelUntil(quote.getFreeCancelUntil())
                 .paymentExpiresAt(bookingExpirationService.newPaymentDeadline())
@@ -169,8 +177,10 @@ public class BookingService {
             throw new ResourceNotFoundException("booking", bookingId);
         }
 
-        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new IllegalArgumentException("Chỉ có thể hủy booking ở trạng thái PENDING hoặc CONFIRMED");
+        if (booking.getStatus() != BookingStatus.PENDING
+                && booking.getStatus() != BookingStatus.CONFIRMED
+                && booking.getStatus() != BookingStatus.PAID) {
+            throw new IllegalArgumentException("Chỉ có thể hủy booking ở trạng thái PENDING, CONFIRMED hoặc PAID");
         }
 
         var cancelledAt = LocalDateTime.now();
@@ -232,6 +242,9 @@ public class BookingService {
         if (request.getTargetStatus() == BookingStatus.COMPLETED) {
             throw new IllegalArgumentException("Complete the booking by submitting a return condition");
         }
+        if (request.getTargetStatus() == BookingStatus.ONGOING) {
+            throw new IllegalArgumentException("Start the rental by completing the signed vehicle handover");
+        }
 
         bookingStateMachineService.transition(
                 booking,
@@ -283,8 +296,10 @@ public class BookingService {
         if (booking.getStatus() == BookingStatus.CANCELLED) {
             return mapToResponse(booking);
         }
-        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new IllegalArgumentException("Chỉ có thể hủy booking ở trạng thái PENDING hoặc CONFIRMED");
+        if (booking.getStatus() != BookingStatus.PENDING
+                && booking.getStatus() != BookingStatus.CONFIRMED
+                && booking.getStatus() != BookingStatus.PAID) {
+            throw new IllegalArgumentException("Chỉ có thể hủy booking ở trạng thái PENDING, CONFIRMED hoặc PAID");
         }
 
         LocalDateTime cancelledAt = LocalDateTime.now();
@@ -429,6 +444,10 @@ public class BookingService {
     }
 
     private void validateRequest(CreateBookingRequest request) {
+        if (request.getPickupMethod() == VehiclePickupMethod.ADDRESS_DELIVERY
+                && (request.getDeliveryAddress() == null || request.getDeliveryAddress().isBlank())) {
+            throw new IllegalArgumentException("Delivery address is required for address delivery");
+        }
         if (request.getPricingMode() == null) {
             return;
         }
@@ -515,11 +534,28 @@ public class BookingService {
                 .customerEmail(customer != null ? customer.getEmail() : null)
                 .startTime(booking.getStartTime())
                 .endTime(booking.getEndTime())
+                .pickupMethod(booking.getPickupMethod() != null
+                        ? booking.getPickupMethod()
+                        : VehiclePickupMethod.BRANCH_PICKUP)
+                .deliveryAddress(booking.getDeliveryAddress())
                 .pricingMode(booking.getPricingMode())
                 .status(booking.getStatus())
                 .depositStatus(booking.getDepositStatus())
                 .baseAmount(booking.getBaseAmount())
                 .depositAmount(booking.getDepositAmount())
+                .reservationFeeStatus(booking.getDepositStatus())
+                .reservationFeeAmount(booking.getDepositAmount())
+                .securityDepositAmount(nonNull(booking.getSecurityDepositAmount()))
+                .securityDepositStatus(booking.getSecurityDepositStatus())
+                .securityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()))
+                .securityDepositCollectionMethod(booking.getSecurityDepositCollectionMethod())
+                .securityDepositPaidAt(booking.getSecurityDepositPaidAt())
+                .securityDepositRefundMethod(booking.getSecurityDepositRefundMethod())
+                .securityDepositResolvedAt(booking.getSecurityDepositResolvedAt())
+                .finalRentalAmount(nonNull(booking.getFinalRentalAmount()))
+                .finalPaymentStatus(booking.getFinalPaymentStatus())
+                .finalPaymentMethod(booking.getFinalPaymentMethod())
+                .finalPaidAt(booking.getFinalPaidAt())
                 .totalAmount(booking.getTotalAmount())
                 .freeCancelUntil(booking.getFreeCancelUntil())
                 .paymentExpiresAt(bookingExpirationService.resolvePaymentDeadline(booking))
@@ -548,6 +584,13 @@ public class BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+
+    private String normalizeDeliveryAddress(CreateBookingRequest request) {
+        if (request.getPickupMethod() != VehiclePickupMethod.ADDRESS_DELIVERY) {
+            return null;
+        }
+        return request.getDeliveryAddress().trim().replaceAll("\\s+", " ");
     }
 
     private String buildVehicleName(Car car) {
@@ -624,6 +667,7 @@ public class BookingService {
         }
         return switch (targetStatus) {
             case CONFIRMED -> "ADMIN_CONFIRMED";
+            case PAID -> "BALANCE_PAID";
             case ONGOING -> "ADMIN_CHECKOUT";
             case COMPLETED -> "ADMIN_COMPLETED";
             case CANCELLED -> "ADMIN_CANCELLED";
@@ -656,31 +700,67 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse requestCheckIn(Long bookingId, String actorEmail) {
+    public BookingResponse prepareSecurityDeposit(
+            Long bookingId,
+            String actorEmail,
+            SecurityDepositCollectionRequest request
+    ) {
+        User actor = userRepository.findByEmail(actorEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+
+        if (request != null) {
+            if (actor.getRole() != Role.ADMIN && actor.getRole() != Role.STAFF) {
+                throw new IllegalArgumentException("Only staff can collect a vehicle security deposit");
+            }
+            if (booking.getStatus() == BookingStatus.PAID
+                    && booking.getSecurityDepositStatus() == SecurityDepositStatus.PAID) {
+                return mapToResponse(booking);
+            }
+            if (booking.getStatus() != BookingStatus.CONFIRMED) {
+                throw new IllegalArgumentException(
+                        "Security deposit can only be collected for a CONFIRMED booking"
+                );
+            }
+
+            BigDecimal requiredDeposit = nonNull(booking.getSecurityDepositAmount());
+            if (requiredDeposit.signum() <= 0) {
+                throw new IllegalArgumentException("This vehicle does not have a valid security deposit amount");
+            }
+
+            booking.setSecurityDepositCollectionMethod(request.getMethod());
+            if (request.getMethod() == SettlementMethod.CASH) {
+                booking.setSecurityDepositPaidAmount(requiredDeposit);
+                booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
+                booking.setSecurityDepositPaidAt(LocalDateTime.now());
+                booking.setOutstandingAmount(BigDecimal.ZERO);
+                recordCashPayment(booking, PaymentType.SECURITY_DEPOSIT, requiredDeposit, actor.getId());
+                transitionToPaidIfSettled(booking, actor.getId(), actor.getRole());
+            } else {
+                BigDecimal remaining = requiredDeposit.subtract(nonNull(booking.getSecurityDepositPaidAmount()))
+                        .max(BigDecimal.ZERO);
+                booking.setSecurityDepositStatus(SecurityDepositStatus.PAYMENT_REQUESTED);
+                booking.setOutstandingAmount(remaining);
+            }
+            return mapToResponse(bookingRepository.save(booking));
+        }
 
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new IllegalArgumentException("Chỉ có thể yêu cầu check-in cho booking đã được xác nhận (CONFIRMED).");
         }
 
-        BigDecimal remainingBalance = booking.getTotalAmount().subtract(booking.getDepositAmount());
+        if (booking.getOutstandingAmount() != null && booking.getOutstandingAmount().signum() > 0) {
+            return mapToResponse(booking);
+        }
+
+        BigDecimal remainingBalance = booking.getTotalAmount().subtract(booking.getDepositAmount()).max(BigDecimal.ZERO);
+        // Payment readiness never starts the rental; the signed handover does that.
         if (remainingBalance.signum() > 0) {
             booking.setOutstandingAmount(remainingBalance);
             bookingRepository.save(booking);
         } else {
-            // If nothing to pay, just check in immediately
-            User actor = userRepository.findByEmail(actorEmail).orElse(null);
-            Role role = actor != null ? actor.getRole() : Role.ADMIN;
-            Long actorId = actor != null ? actor.getId() : null;
-            bookingStateMachineService.transition(
-                    booking,
-                    BookingStatus.ONGOING,
-                    actorId,
-                    role,
-                    "ADMIN_CHECKOUT",
-                    "Xe đã được giao cho khách"
-            );
+            transitionToPaidIfSettled(booking, actor.getId(), actor.getRole());
         }
         return mapToResponse(booking);
     }
@@ -696,6 +776,43 @@ public class BookingService {
         BigDecimal outstanding = booking.getOutstandingAmount();
         if (outstanding == null || outstanding.signum() <= 0) {
             return BigDecimal.ZERO;
+        }
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED
+                && booking.getSecurityDepositStatus() == SecurityDepositStatus.PAYMENT_REQUESTED) {
+            BigDecimal paid = walletService.holdAvailableSecurityDeposit(
+                    customerId,
+                    bookingId,
+                    outstanding,
+                    "booking:" + bookingId + ":security-deposit:" + System.currentTimeMillis(),
+                    customerId
+            );
+            if (paid.signum() > 0) {
+                booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
+                booking.setSecurityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()).add(paid));
+                if (booking.getOutstandingAmount().signum() == 0) {
+                    booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
+                    booking.setSecurityDepositPaidAt(LocalDateTime.now());
+                }
+                transitionToPaidIfSettled(booking, customerId, Role.CUSTOMER);
+                bookingRepository.save(booking);
+            }
+            return paid;
+        }
+
+        if (booking.getStatus() == BookingStatus.COMPLETED
+                && booking.getFinalPaymentStatus() == FinalPaymentStatus.PAYMENT_REQUESTED) {
+            BigDecimal paid = walletService.payFinalRentalAmount(customerId, bookingId, outstanding, customerId);
+            if (paid.signum() > 0) {
+                booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
+                if (booking.getOutstandingAmount().signum() == 0) {
+                    booking.setFinalPaymentStatus(FinalPaymentStatus.PAID);
+                    booking.setFinalPaidAt(LocalDateTime.now());
+                    markContractFinalPaymentPaid(bookingId);
+                }
+                bookingRepository.save(booking);
+            }
+            return paid;
         }
 
         BigDecimal outstandingOverdue = booking.getTotalOverdueFee() != null ? booking.getTotalOverdueFee() : BigDecimal.ZERO;
@@ -726,23 +843,18 @@ public class BookingService {
             bookingRepository.save(booking);
             damageAssessmentService.updatePaidAmount(bookingId, paidDamage);
             
-            if (booking.getStatus() == BookingStatus.CONFIRMED && booking.getOutstandingAmount().signum() == 0) {
-                User customer = userRepository.findById(customerId).orElse(null);
-                bookingStateMachineService.transition(
-                        booking,
-                        BookingStatus.ONGOING,
-                        customerId,
-                        customer != null ? customer.getRole() : Role.CUSTOMER,
-                        "CUSTOMER_PAYMENT",
-                        "Thanh toán hoàn tất, xe đã sẵn sàng khởi hành"
-                );
-            }
         }
         return totalPaid;
     }
 
     @Transactional
-    public void applyCustomerPayment(Long bookingId, BigDecimal amount, Long customerId, Long paymentId) {
+    public void applyCustomerPayment(
+            Long bookingId,
+            BigDecimal amount,
+            Long customerId,
+            Long paymentId,
+            PaymentType paymentType
+    ) {
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
         if (!booking.getUserId().equals(customerId)) {
@@ -751,6 +863,36 @@ public class BookingService {
 
         BigDecimal outstanding = booking.getOutstandingAmount();
         if (outstanding == null || outstanding.signum() <= 0) {
+            return;
+        }
+
+        BigDecimal paid = amount.min(outstanding);
+        if (paymentType == PaymentType.SECURITY_DEPOSIT) {
+            walletService.creditAndHoldDeposit(
+                    customerId,
+                    bookingId,
+                    paid,
+                    "payment:" + paymentId + ":security-deposit"
+            );
+            booking.setSecurityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()).add(paid));
+            booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
+            if (booking.getOutstandingAmount().signum() == 0) {
+                booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
+                booking.setSecurityDepositPaidAt(LocalDateTime.now());
+            }
+            transitionToPaidIfSettled(booking, customerId, Role.CUSTOMER);
+            bookingRepository.save(booking);
+            return;
+        }
+
+        if (paymentType == PaymentType.FINAL_RENTAL_PAYMENT) {
+            booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
+            if (booking.getOutstandingAmount().signum() == 0) {
+                booking.setFinalPaymentStatus(FinalPaymentStatus.PAID);
+                booking.setFinalPaidAt(LocalDateTime.now());
+                markContractFinalPaymentPaid(bookingId);
+            }
+            bookingRepository.save(booking);
             return;
         }
 
@@ -781,17 +923,51 @@ public class BookingService {
             bookingRepository.save(booking);
             damageAssessmentService.updatePaidAmount(bookingId, paidDamage);
             
-            if (booking.getStatus() == BookingStatus.CONFIRMED && booking.getOutstandingAmount().signum() == 0) {
-                User customer = userRepository.findById(customerId).orElse(null);
-                bookingStateMachineService.transition(
-                        booking,
-                        BookingStatus.ONGOING,
-                        customerId,
-                        customer != null ? customer.getRole() : Role.CUSTOMER,
-                        "CUSTOMER_PAYMENT",
-                        "Thanh toán hoàn tất, xe đã sẵn sàng khởi hành"
-                );
-            }
         }
+    }
+
+    private void transitionToPaidIfSettled(Booking booking, Long actorId, Role actorRole) {
+        if (booking.getStatus() != BookingStatus.CONFIRMED
+                || booking.getSecurityDepositStatus() != SecurityDepositStatus.PAID
+                || booking.getOutstandingAmount() == null
+                || booking.getOutstandingAmount().signum() > 0) {
+            return;
+        }
+        bookingStateMachineService.transition(
+                booking,
+                BookingStatus.PAID,
+                actorId,
+                actorRole,
+                "SECURITY_DEPOSIT_PAID",
+                "Vehicle security deposit paid in full"
+        );
+        notificationService.notifyBookingStatusChanged(booking, BookingStatus.PAID);
+    }
+
+    private void recordCashPayment(Booking booking, PaymentType type, BigDecimal amount, Long actorId) {
+        paymentRepository.save(Payment.builder()
+                .bookingId(booking.getId())
+                .userId(booking.getUserId())
+                .type(type)
+                .gateway(PaymentGateway.CASH)
+                .status(PaymentStatus.PAID)
+                .amount(amount)
+                .currency("VND")
+                .gatewayReference("CASH-" + UUID.randomUUID())
+                .gatewayTransactionId("STAFF-" + actorId)
+                .idempotencyKey("cash-" + type + "-" + booking.getId() + "-" + UUID.randomUUID())
+                .paidAt(LocalDateTime.now())
+                .build());
+    }
+
+    private BigDecimal nonNull(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private void markContractFinalPaymentPaid(Long bookingId) {
+        rentalContractRepository.findByBookingId(bookingId).ifPresent(contract -> {
+            contract.setFinalPaymentStatus(FinalPaymentStatus.PAID);
+            rentalContractRepository.save(contract);
+        });
     }
 }

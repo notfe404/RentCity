@@ -73,6 +73,26 @@ export default function PaymentResultPage() {
           iconColor: 'text-[#78ad44]',
           icon: <CheckCircle2 size={48} />,
         };
+      case 'PAID':
+        return {
+          title: 'Đã thanh toán cọc thuê xe',
+          description: 'Tiền cọc bảo đảm của phương tiện đã được ghi nhận. Booking đã sẵn sàng để nhân viên lập biên bản bàn giao.',
+          accentClass: 'text-emerald-600',
+          iconBg: 'bg-emerald-50',
+          iconColor: 'text-emerald-600',
+          icon: <CheckCircle2 size={48} />,
+        };
+      case 'COMPLETED':
+        return {
+          title: booking.finalPaymentStatus === 'PAID' ? 'Đã thanh toán tiền thuê cuối cùng' : 'Đã hoàn tất trả xe',
+          description: booking.finalPaymentStatus === 'PAID'
+            ? 'Khoản tiền thuê còn lại và phí quá hạn (nếu có) đã được thanh toán.'
+            : 'Biên bản trả xe đã được ghi nhận. Vui lòng hoàn tất yêu cầu thanh toán còn lại.',
+          accentClass: 'text-[#78ad44]',
+          iconBg: 'bg-[#e9f2eb]',
+          iconColor: 'text-[#78ad44]',
+          icon: <CheckCircle2 size={48} />,
+        };
       case 'CANCELLED':
         return {
           title: 'Booking đã bị hủy',
@@ -155,13 +175,25 @@ export default function PaymentResultPage() {
                   <p className={`text-lg font-black ${statusMeta.color}`}>{statusMeta.label}</p>
                 </div>
                 <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tiền cọc</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Phí giữ chỗ</p>
                   <p className="text-2xl font-black text-[#78ad44]">{formatVND(booking.depositAmount)}</p>
                 </div>
                 <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Trạng thái cọc</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Trạng thái phí giữ chỗ</p>
                   <p className={`text-lg font-black ${depositMeta.color}`}>{depositMeta.label}</p>
                 </div>
+                <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Cọc thuê xe</p>
+                  <p className="text-2xl font-black text-emerald-600">{formatVND(booking.securityDepositAmount)}</p>
+                  <p className="mt-1 text-xs font-bold text-gray-500">{booking.securityDepositStatus.replaceAll('_', ' ')}</p>
+                </div>
+                {booking.finalPaymentStatus !== 'NOT_DUE' && (
+                  <div className="bg-[#f4f8f7] p-5 rounded-2xl border border-gray-100">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Thanh toán khi trả xe</p>
+                    <p className="text-2xl font-black text-[#78ad44]">{formatVND(booking.finalRentalAmount)}</p>
+                    <p className="mt-1 text-xs font-bold text-gray-500">{booking.finalPaymentStatus.replaceAll('_', ' ')}</p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm">
@@ -239,7 +271,7 @@ export default function PaymentResultPage() {
                   <span className="text-gray-900">{formatVND(booking.baseAmount)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Tiền cọc</span>
+                  <span>Phí giữ chỗ (30%)</span>
                   <span className={content.accentClass}>{formatVND(booking.depositAmount)}</span>
                 </div>
               </div>

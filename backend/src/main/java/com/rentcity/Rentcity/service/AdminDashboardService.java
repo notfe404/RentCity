@@ -112,13 +112,13 @@ public class AdminDashboardService {
         return AdminDashboardBookingOperationsResponse.builder()
                 .pendingBookings(bookingRepository.countByStatus(BookingStatus.PENDING))
                 .confirmedPickupsToday(bookingRepository.countByStatusAndStartTimeGreaterThanEqualAndStartTimeLessThan(
-                        BookingStatus.CONFIRMED,
+                        BookingStatus.PAID,
                         todayStart,
                         tomorrowStart
                 ))
                 .ongoingBookings(bookingRepository.countByStatus(BookingStatus.ONGOING))
                 .returnsToday(bookingRepository.countByStatusInAndEndTimeGreaterThanEqualAndEndTimeLessThan(
-                        List.of(BookingStatus.CONFIRMED, BookingStatus.ONGOING),
+                        List.of(BookingStatus.CONFIRMED, BookingStatus.PAID, BookingStatus.ONGOING),
                         todayStart,
                         tomorrowStart
                 ))

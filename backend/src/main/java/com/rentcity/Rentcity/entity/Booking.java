@@ -41,6 +41,14 @@ public class Booking {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pickup_method", nullable = false, length = 30)
+    private VehiclePickupMethod pickupMethod = VehiclePickupMethod.BRANCH_PICKUP;
+
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "pricing_mode", nullable = false, length = 20)
     private PricingMode pricingMode;
@@ -58,6 +66,49 @@ public class Booking {
 
     @Column(name = "deposit_amount", nullable = false, precision = 12, scale = 0)
     private BigDecimal depositAmount;
+
+    @Builder.Default
+    @Column(name = "security_deposit_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal securityDepositAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "security_deposit_status", nullable = false, length = 30)
+    private SecurityDepositStatus securityDepositStatus = SecurityDepositStatus.UNPAID;
+
+    @Builder.Default
+    @Column(name = "security_deposit_paid_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal securityDepositPaidAmount = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "security_deposit_collection_method", length = 30)
+    private SettlementMethod securityDepositCollectionMethod;
+
+    @Column(name = "security_deposit_paid_at")
+    private LocalDateTime securityDepositPaidAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "security_deposit_refund_method", length = 30)
+    private SettlementMethod securityDepositRefundMethod;
+
+    @Column(name = "security_deposit_resolved_at")
+    private LocalDateTime securityDepositResolvedAt;
+
+    @Builder.Default
+    @Column(name = "final_rental_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal finalRentalAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "final_payment_status", nullable = false, length = 30)
+    private FinalPaymentStatus finalPaymentStatus = FinalPaymentStatus.NOT_DUE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "final_payment_method", length = 30)
+    private SettlementMethod finalPaymentMethod;
+
+    @Column(name = "final_paid_at")
+    private LocalDateTime finalPaidAt;
 
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 0)
     private BigDecimal totalAmount;

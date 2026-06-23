@@ -27,7 +27,7 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
   const rows = [
     ['Mã booking', booking.bookingCode],
     ['Trạng thái booking', bookingStatus.label],
-    ['Trạng thái cọc', depositStatus.label],
+    ['Trạng thái phí giữ chỗ', depositStatus.label],
     ['Khách hàng', customer.fullName ?? 'Khách'],
     ['Email', customer.email ?? '-'],
     ['Số điện thoại', customer.phone ?? '-'],
@@ -39,7 +39,10 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
     ['Hình thức tính giá', booking.pricingMode],
     ['Hủy miễn phí đến', formatDateTime(booking.freeCancelUntil)],
     ['Giá thuê', formatVND(booking.baseAmount)],
-    ['Tiền cọc', formatVND(booking.depositAmount)],
+    ['Phí giữ chỗ (30%)', formatVND(booking.reservationFeeAmount)],
+    ['Tiền cọc thuê xe', formatVND(booking.securityDepositAmount)],
+    ['Trạng thái cọc thuê xe', booking.securityDepositStatus.replaceAll('_', ' ')],
+    ['Tiền thuê thanh toán khi trả xe', formatVND(booking.finalRentalAmount)],
     ['Tổng booking', formatVND(booking.totalAmount)],
   ];
 
@@ -293,8 +296,8 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
           <div class="card-value">${escapeHtml(bookingStatus.label)}</div>
         </div>
         <div class="card">
-          <div class="card-label">Tiền cọc</div>
-          <div class="card-value brand">${escapeHtml(formatVND(booking.depositAmount))}</div>
+          <div class="card-label">Phí giữ chỗ (30%)</div>
+          <div class="card-value brand">${escapeHtml(formatVND(booking.reservationFeeAmount))}</div>
         </div>
         <div class="card">
           <div class="card-label">Tổng booking</div>

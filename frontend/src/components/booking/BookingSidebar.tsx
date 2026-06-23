@@ -91,7 +91,7 @@ export default function BookingSidebar({
           </div>
 
           <div className="flex justify-between items-center text-sm font-black text-gray-900 mt-3 bg-[#f4f8f7] p-4 rounded-xl border border-gray-100">
-            <span>Tiền cọc cần thanh toán</span>
+            <span>Phí giữ chỗ cần thanh toán (30%)</span>
             <span className="text-[#78ad44]">{formatVND(depositAmount)}</span>
           </div>
         </div>

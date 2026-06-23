@@ -101,6 +101,7 @@ public class NotificationService {
     public void notifyBookingStatusChanged(Booking booking, BookingStatus targetStatus) {
         NotificationType type = switch (targetStatus) {
             case CONFIRMED -> NotificationType.BOOKING_CONFIRMED;
+            case PAID -> NotificationType.PAYMENT_PAID;
             case ONGOING -> NotificationType.BOOKING_ONGOING;
             case COMPLETED -> NotificationType.REVIEW_REQUEST;
             case CANCELLED -> NotificationType.BOOKING_CANCELLED;
@@ -368,6 +369,7 @@ public class NotificationService {
     private String bookingStatusTitle(BookingStatus status) {
         return switch (status) {
             case CONFIRMED -> "Booking đã được xác nhận";
+            case PAID -> "Booking đã thanh toán đủ";
             case ONGOING -> "Đã bắt đầu thuê xe";
             case COMPLETED -> "Đánh giá chuyến xe";
             case CANCELLED -> "Booking đã hủy";
@@ -378,6 +380,7 @@ public class NotificationService {
     private String bookingStatusMessage(Booking booking, BookingStatus status) {
         return switch (status) {
             case CONFIRMED -> "Booking " + booking.getBookingCode() + " đã được xác nhận.";
+            case PAID -> "Booking " + booking.getBookingCode() + " đã thanh toán đủ và sẵn sàng bàn giao xe.";
             case ONGOING -> "Booking " + booking.getBookingCode() + " đang trong thời gian thuê.";
             case COMPLETED -> "Booking " + booking.getBookingCode() + " đã hoàn tất. Hãy chia sẻ trải nghiệm của bạn.";
             case CANCELLED -> "Booking " + booking.getBookingCode() + " đã được hủy.";

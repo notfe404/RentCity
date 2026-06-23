@@ -36,6 +36,8 @@ export default function BookingConfirmPage() {
     endDate,
     pickupLocationId,
     returnLocationId,
+    pickupMethod,
+    deliveryAddress,
     extras,
     discountAmount,
     pricingMode,
@@ -82,6 +84,7 @@ export default function BookingConfirmPage() {
   const vehicleBranchName = vehicle?.branchName;
   const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
   const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
+  const selectedPickupName = pickupMethod === 'ADDRESS_DELIVERY' ? deliveryAddress : pickupName;
 
   const lineItems = [
     { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
@@ -133,6 +136,11 @@ export default function BookingConfirmPage() {
       return;
     }
 
+    if (pickupMethod === 'ADDRESS_DELIVERY' && !deliveryAddress.trim()) {
+      toast.error('Vui lòng nhập địa chỉ giao xe');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { data } = await createBooking({
@@ -140,6 +148,8 @@ export default function BookingConfirmPage() {
         startTime: toBackendDateTime(startDate),
         endTime: toBackendDateTime(endDate),
         pricingMode,
+        pickupMethod,
+        deliveryAddress: pickupMethod === 'ADDRESS_DELIVERY' ? deliveryAddress.trim() : undefined,
       });
 
       toast.success('Đã tạo booking thành công');
@@ -183,6 +193,19 @@ export default function BookingConfirmPage() {
                 </div>
 
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Hình thức nhận xe</h3>
+                  <div className="flex items-start gap-3">
+                    <Check size={18} className="mt-0.5 shrink-0 text-[#78ad44]" />
+                    <div>
+                      <p className="text-sm font-black text-gray-900">
+                        {pickupMethod === 'ADDRESS_DELIVERY' ? 'Giao xe tận địa chỉ' : 'Nhận xe tại chi nhánh'}
+                      </p>
+                      <p className="mt-1 text-sm font-medium leading-6 text-gray-600">{selectedPickupName}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Dịch vụ đã chọn</h3>
                   <ul className="space-y-2 text-sm font-medium text-gray-700">
                     {EXTRAS_CONFIG.map((e) =>
@@ -205,7 +228,7 @@ export default function BookingConfirmPage() {
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">Chính sách hủy</h4>
                     <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">
-                      Chỉ được hoàn cọc nếu booking được hủy ít nhất 24 giờ trước thời điểm nhận xe. Nếu thời gian đặt xe tính tới thời gian nhận xe còn dưới 24 giờ, booking đó sẽ không đủ điều kiện để được hoàn cọc.
+                      Phí giữ chỗ chỉ được hoàn nếu booking được hủy ít nhất 24 giờ trước thời điểm nhận xe. Tiền cọc thuê xe riêng của phương tiện sẽ được thu khi khách đến nhận xe.
                     </p>
                   </div>
                 </div>
@@ -230,7 +253,7 @@ export default function BookingConfirmPage() {
 
           <BookingSidebar
             vehicle={vehicle}
-            pickupLocation={pickupName}
+            pickupLocation={selectedPickupName}
             returnLocation={returnName}
             startDate={startDate}
             endDate={endDate}

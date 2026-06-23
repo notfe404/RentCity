@@ -183,7 +183,7 @@ export default function VNPayQR() {
               <div>
                 <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán VNPay</h1>
                 <p className="text-sm font-medium text-gray-500 leading-relaxed">
-                  Quét mã QR ngay trong giao diện RentCity để hoàn tất thanh toán cọc cho booking
+                  Quét mã QR ngay trong giao diện RentCity để hoàn tất phí giữ chỗ cho booking
                   {booking && <span className="font-black text-gray-900"> {booking.bookingCode}</span>}.
                 </p>
               </div>
@@ -332,12 +332,12 @@ export default function VNPayQR() {
                       <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tiền cọc</span>
+                      <span>Phí giữ chỗ (30%)</span>
                       <span className="text-blue-600">{formatVND(booking.depositAmount)}</span>
                     </div>
                     {depositMeta && (
                       <div className="flex justify-between">
-                        <span>Trạng thái cọc</span>
+                        <span>Trạng thái phí giữ chỗ</span>
                         <span className={depositMeta.color}>{depositMeta.label}</span>
                       </div>
                     )}

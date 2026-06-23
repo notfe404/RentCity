@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Loader2, Wrench, X } from 'lucide-
 import type { ApiBookingResponse } from '@/types';
 import type { ReturnConditionPayload } from '@/services/bookingApi';
 import { formatDateTime, formatVND } from '@/utils/formatters';
+import SignaturePad from '@/components/contract/SignaturePad';
 
 interface Props {
   booking: ApiBookingResponse;
@@ -21,36 +22,49 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
   const [fuelLevel, setFuelLevel] = useState(booking.initialCondition?.fuelLevel ?? 100);
   const [damageFound, setDamageFound] = useState(false);
   const [damageSeverity, setDamageSeverity] = useState<'MINOR' | 'MODERATE' | 'MAJOR'>('MINOR');
-  const [estimatedDamageFee, setEstimatedDamageFee] = useState(0);
   const [damageDescription, setDamageDescription] = useState('');
   const hasDamageAssessment = condition === 'DAMAGE' || damageFound;
   const [notes, setNotes] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [keyCount, setKeyCount] = useState(1);
+  const [accessories, setAccessories] = useState('Registration documents, spare tire, tools');
+  const [customerSignature, setCustomerSignature] = useState<File | null>(null);
+  const [staffSignature, setStaffSignature] = useState<File | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState<'PAYMENT_REQUEST' | 'CASH'>('PAYMENT_REQUEST');
+  const [securityDepositRefundMethod, setSecurityDepositRefundMethod] = useState<'PAYMENT_REQUEST' | 'CASH'>('PAYMENT_REQUEST');
   const selectedReturnTime = useMemo(
     () => combineDateAndTime(actualReturnDate, actualReturnHour, actualReturnMinute),
     [actualReturnDate, actualReturnHour, actualReturnMinute],
   );
+  const actualHandoverTime = useMemo(
+    () => new Date(booking.actualHandoverAt ?? booking.startTime),
+    [booking.actualHandoverAt, booking.startTime],
+  );
   const selectableDates = useMemo(
-    () => buildSelectableDates(new Date(booking.startTime)),
-    [booking.startTime],
+    () => buildSelectableDates(actualHandoverTime),
+    [actualHandoverTime],
   );
   const returnTimeError = useMemo(() => {
     if (!selectedReturnTime) {
       return 'Choose the actual return date and time';
     }
-    if (selectedReturnTime.getTime() < new Date(booking.startTime).getTime()) {
-      return 'Actual return time cannot be before the rental start time';
+    if (selectedReturnTime.getTime() < actualHandoverTime.getTime()) {
+      return 'Actual return time cannot be before the actual handover time';
     }
     return null;
-  }, [booking.startTime, selectedReturnTime]);
+  }, [actualHandoverTime, selectedReturnTime]);
 
   const overdue = useMemo(() => {
     const scheduledReturn = new Date(booking.endTime);
-    const overdueMs = !selectedReturnTime
+    const scheduledStart = new Date(booking.startTime);
+    const earlyHandoverMs = Math.max(0, scheduledStart.getTime() - actualHandoverTime.getTime());
+    const lateReturnMs = !selectedReturnTime
       ? 0
       : Math.max(0, selectedReturnTime.getTime() - scheduledReturn.getTime());
-    const minutes = Math.ceil(overdueMs / 60_000);
-    const billableHours = Math.ceil(overdueMs / 3_600_000);
+    const additionalUsageMs = earlyHandoverMs + lateReturnMs;
+    const minutes = Math.ceil(additionalUsageMs / 60_000);
+    const billableHours = Math.ceil(additionalUsageMs / 3_600_000);
     const hasPrice = booking.vehiclePricePerDay != null && booking.vehiclePricePerDay > 0;
     const hourlyRate = hasPrice ? Math.ceil(booking.vehiclePricePerDay! / 24) : null;
     const estimatedFee = hourlyRate == null ? null : billableHours * hourlyRate;
@@ -59,6 +73,8 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
       : Math.ceil((booking.baseAmount + estimatedFee) * 0.15);
     return {
       minutes,
+      earlyHandoverMinutes: Math.ceil(earlyHandoverMs / 60_000),
+      lateReturnMinutes: Math.ceil(lateReturnMs / 60_000),
       billableHours,
       estimatedFee,
       estimatedPenaltyFee,
@@ -66,11 +82,11 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
         ? null
         : estimatedFee + estimatedPenaltyFee,
     };
-  }, [booking.baseAmount, booking.endTime, booking.vehiclePricePerDay, selectedReturnTime]);
+  }, [actualHandoverTime, booking.baseAmount, booking.endTime, booking.startTime, booking.vehiclePricePerDay, selectedReturnTime]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (returnTimeError || !selectedReturnTime) {
+    if (returnTimeError || !selectedReturnTime || !customerSignature || !staffSignature || !accepted) {
       return;
     }
     await onSubmit({
@@ -80,10 +96,15 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
       fuelLevel,
       damageFound: hasDamageAssessment,
       damageSeverity: hasDamageAssessment ? damageSeverity : undefined,
-      estimatedDamageFee: hasDamageAssessment ? estimatedDamageFee : undefined,
       damageDescription: hasDamageAssessment ? damageDescription : undefined,
       notes,
+      keyCount,
+      accessories,
       files,
+      customerSignature,
+      staffSignature,
+      finalPaymentMethod,
+      securityDepositRefundMethod: condition === 'GOOD' ? securityDepositRefundMethod : undefined,
     });
   };
 
@@ -140,7 +161,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             <div className="flex items-center gap-2 mb-3">
               <Clock3 size={18} className={overdue.minutes > 0 ? 'text-orange-600' : 'text-green-600'} />
               <p className={`text-sm font-black ${overdue.minutes > 0 ? 'text-orange-700' : 'text-green-700'}`}>
-                {overdue.minutes > 0 ? 'Overdue return' : 'Return is on time'}
+                 {overdue.minutes > 0 ? 'Additional rental time' : 'No additional rental time'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -192,6 +213,16 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             </div>
             {overdue.minutes > 0 && (
               <div className="mt-3 pt-3 border-t border-orange-200">
+                <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-orange-800">
+                  <div className="rounded-lg bg-white/70 p-2.5">
+                    <p className="font-bold">Early handover</p>
+                    <p className="mt-1 font-black">{formatMinutes(overdue.earlyHandoverMinutes)}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/70 p-2.5">
+                    <p className="font-bold">Late return</p>
+                    <p className="mt-1 font-black">{formatMinutes(overdue.lateReturnMinutes)}</p>
+                  </div>
+                </div>
                 {overdue.estimatedFee == null ? (
                   <p className="text-xs font-bold text-red-600">
                     Daily vehicle rate unavailable
@@ -200,7 +231,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
                   <div className="space-y-2 text-xs text-orange-700">
                     <div className="flex items-center justify-between">
                       <span className="font-bold">
-                        Overdue fee ({overdue.billableHours} billable hour(s))
+                         Additional usage fee ({overdue.billableHours} billable hour(s))
                       </span>
                       <span className="font-black">+{formatVND(overdue.estimatedFee)}</span>
                     </div>
@@ -264,12 +295,12 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             Damage found during return inspection
           </label>
           <p className="-mt-3 text-xs text-gray-400">
-            Damage does not automatically send the car to maintenance. Choose “Need maintenance” above when required.
+            Damage or maintenance returns make the vehicle unavailable until repair or maintenance is resolved.
           </p>
 
           {hasDamageAssessment && (
             <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div>
                 <div>
                   <label className="block text-xs font-bold text-orange-700 mb-1.5">Damage severity *</label>
                   <select
@@ -282,17 +313,6 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
                     <option value="MODERATE">Moderate</option>
                     <option value="MAJOR">Major</option>
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-orange-700 mb-1.5">Estimated damage fee *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={estimatedDamageFee}
-                    onChange={(event) => setEstimatedDamageFee(Number(event.target.value))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-orange-200 bg-white text-sm font-bold"
-                  />
                 </div>
               </div>
               <div>
@@ -307,7 +327,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
                 />
               </div>
               <p className="text-xs text-orange-700">
-                This estimate requires admin approval before the wallet is charged.
+                The full vehicle security deposit will be retained for repair or maintenance. No separate damage fee is created at return.
               </p>
             </div>
           )}
@@ -340,13 +360,78 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             )}
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Returned keys *</label>
+              <input type="number" min={0} max={10} required value={keyCount} onChange={(event) => setKeyCount(Number(event.target.value))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Returned accessories *</label>
+              <input required value={accessories} onChange={(event) => setAccessories(event.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Return settlement</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-white p-3">
+                  <p className="text-xs font-bold text-slate-500">Rental after reservation fee</p>
+                  <p className="mt-1 font-black text-slate-900">{formatVND(Math.max(0, booking.baseAmount - booking.reservationFeeAmount))}</p>
+                </div>
+                <div className="rounded-xl bg-white p-3">
+                  <p className="text-xs font-bold text-slate-500">Estimated total due now</p>
+                  <p className="mt-1 font-black text-[#56832d]">{formatVND(Math.max(0, booking.baseAmount - booking.reservationFeeAmount) + (overdue.estimatedTotalFee ?? 0))}</p>
+                </div>
+              </div>
+            </div>
+
+            <SettlementChoice
+              label="Final rental payment method"
+              value={finalPaymentMethod}
+              onChange={setFinalPaymentMethod}
+              requestLabel="Send payment request"
+              cashLabel="Customer pays cash"
+            />
+
+            {condition === 'GOOD' ? (
+              <SettlementChoice
+                label={`Refund ${formatVND(booking.securityDepositAmount)} security deposit by`}
+                value={securityDepositRefundMethod}
+                onChange={setSecurityDepositRefundMethod}
+                requestLabel="Electronic refund"
+                cashLabel="Cash refund"
+              />
+            ) : (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs font-bold leading-5 text-orange-800">
+                {formatVND(booking.securityDepositAmount)} security deposit will be retained for fixing or maintenance and recorded in the return contract.
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-[#f8f9fa] p-4 text-xs font-medium text-gray-600 space-y-2">
+            <p className="font-black text-gray-900">Return acknowledgement</p>
+            <p>The parties confirm the return condition, final rental payment method, and security-deposit resolution shown above.</p>
+            <p>The final rental amount equals the booking price minus the reservation fee, plus any overdue charge.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 rounded-xl bg-[#f8f9fa] p-4">
+            <SignaturePad label="Customer return signature" disabled={isSaving} onChange={setCustomerSignature} />
+            <SignaturePad label="Staff return signature" disabled={isSaving} onChange={setStaffSignature} />
+          </div>
+
+          <label className="flex items-start gap-3 text-sm font-bold text-gray-700">
+            <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-0.5 w-4 h-4 accent-[#78ad44]" />
+            Customer and staff confirm the return record shown above.
+          </label>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSaving || Boolean(returnTimeError) || files.length === 0}
+              disabled={isSaving || Boolean(returnTimeError) || files.length === 0 || !customerSignature || !staffSignature || !accepted}
               className="flex-1 py-3 bg-[#78ad44] text-white font-bold rounded-xl disabled:bg-gray-300 flex items-center justify-center gap-2"
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
@@ -354,6 +439,28 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function SettlementChoice({ label, value, onChange, requestLabel, cashLabel }: {
+  label: string;
+  value: 'PAYMENT_REQUEST' | 'CASH';
+  onChange: (value: 'PAYMENT_REQUEST' | 'CASH') => void;
+  requestLabel: string;
+  cashLabel: string;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-black text-slate-600">{label} *</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onChange('PAYMENT_REQUEST')} className={`rounded-xl border-2 px-3 py-2.5 text-xs font-black ${value === 'PAYMENT_REQUEST' ? 'border-[#78ad44] bg-[#f2f8ec] text-[#56832d]' : 'border-slate-200 bg-white text-slate-500'}`}>
+          {requestLabel}
+        </button>
+        <button type="button" onClick={() => onChange('CASH')} className={`rounded-xl border-2 px-3 py-2.5 text-xs font-black ${value === 'CASH' ? 'border-[#78ad44] bg-[#f2f8ec] text-[#56832d]' : 'border-slate-200 bg-white text-slate-500'}`}>
+          {cashLabel}
+        </button>
       </div>
     </div>
   );
@@ -379,6 +486,15 @@ function combineDateAndTime(dateValue: string, hour: string, minute: string) {
 
 function twoDigits(value: number) {
   return String(value).padStart(2, '0');
+}
+
+function formatMinutes(totalMinutes: number) {
+  if (totalMinutes <= 0) return 'None';
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} minute(s)`;
+  if (minutes === 0) return `${hours} hour(s)`;
+  return `${hours} hour(s) ${minutes} minute(s)`;
 }
 
 function buildSelectableDates(rentalStart: Date) {

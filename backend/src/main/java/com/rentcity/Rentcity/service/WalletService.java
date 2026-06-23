@@ -63,6 +63,63 @@ public class WalletService {
     }
 
     @Transactional
+    public BigDecimal holdAvailableSecurityDeposit(
+            Long userId,
+            Long bookingId,
+            BigDecimal requested,
+            String reference,
+            Long actorId
+    ) {
+        if (requested == null || requested.signum() <= 0 || transactionRepository.existsByReference(reference)) {
+            return BigDecimal.ZERO;
+        }
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        BigDecimal held = requested.min(wallet.getAvailableBalance());
+        if (held.signum() > 0) {
+            apply(wallet, bookingId, WalletTransactionType.BOOKING_HOLD, held, held.negate(), held,
+                    reference, "Vehicle security deposit held", actorId);
+        }
+        return held;
+    }
+
+    @Transactional
+    public void payReservationFee(Long userId, Long bookingId, BigDecimal amount, String reference) {
+        requirePositive(amount);
+        if (transactionRepository.existsByReference(reference)) {
+            return;
+        }
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        if (wallet.getAvailableBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient wallet balance for reservation fee");
+        }
+        apply(wallet, bookingId, WalletTransactionType.RESERVATION_FEE, amount, amount.negate(), BigDecimal.ZERO,
+                reference, "Vehicle reservation fee", userId);
+    }
+
+    @Transactional
+    public BigDecimal payBookingBalance(Long userId, Long bookingId, BigDecimal requested, Long actorId) {
+        if (requested == null || requested.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        BigDecimal paid = requested.min(wallet.getAvailableBalance());
+        if (paid.signum() > 0) {
+            apply(
+                    wallet,
+                    bookingId,
+                    WalletTransactionType.BALANCE_PAYMENT,
+                    paid,
+                    paid.negate(),
+                    BigDecimal.ZERO,
+                    "booking:" + bookingId + ":balance:" + System.currentTimeMillis(),
+                    "Remaining rental balance payment",
+                    actorId
+            );
+        }
+        return paid;
+    }
+
+    @Transactional
     public void refundBookingDeposit(
             Long userId,
             Long bookingId,
@@ -82,6 +139,33 @@ public class WalletService {
             apply(wallet, bookingId, WalletTransactionType.REFUND_CREDIT, depositAmount,
                     depositAmount, BigDecimal.ZERO, reference, description, userId);
         }
+    }
+
+    @Transactional
+    public void refundSecurityDepositByCash(Long userId, Long bookingId, String reference, Long actorId) {
+        consumeHeldDeposit(userId, bookingId, WalletTransactionType.SECURITY_DEPOSIT_CASH_REFUND,
+                reference, "Security deposit refunded in cash", actorId);
+    }
+
+    @Transactional
+    public void retainSecurityDeposit(Long userId, Long bookingId, String reference, Long actorId) {
+        consumeHeldDeposit(userId, bookingId, WalletTransactionType.SECURITY_DEPOSIT_RETAINED,
+                reference, "Security deposit retained for repair or maintenance", actorId);
+    }
+
+    @Transactional
+    public BigDecimal payFinalRentalAmount(Long userId, Long bookingId, BigDecimal requested, Long actorId) {
+        if (requested == null || requested.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        BigDecimal paid = requested.min(wallet.getAvailableBalance());
+        if (paid.signum() > 0) {
+            apply(wallet, bookingId, WalletTransactionType.FINAL_RENTAL_PAYMENT, paid, paid.negate(), BigDecimal.ZERO,
+                    "booking:" + bookingId + ":final:" + System.currentTimeMillis(),
+                    "Final rental payment", actorId);
+        }
+        return paid;
     }
 
     @Transactional
@@ -188,6 +272,24 @@ public class WalletService {
                             : "Overdue return charge", actorId);
         }
         return charged;
+    }
+
+    private void consumeHeldDeposit(
+            Long userId,
+            Long bookingId,
+            WalletTransactionType type,
+            String reference,
+            String description,
+            Long actorId
+    ) {
+        if (transactionRepository.existsByReference(reference)) {
+            return;
+        }
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        BigDecimal held = bookingHeldAmount(wallet.getId(), bookingId);
+        if (held.signum() > 0) {
+            apply(wallet, bookingId, type, held, BigDecimal.ZERO, held.negate(), reference, description, actorId);
+        }
     }
 
     private BigDecimal bookingHeldAmount(Long walletId, Long bookingId) {

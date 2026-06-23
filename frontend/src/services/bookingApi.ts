@@ -6,6 +6,7 @@ import type {
   ApiBookingResponse,
   ApiBookingStatus,
   BackendCreateBookingRequest,
+  RentalContractResponse,
 } from '@/types';
 
 interface AdminBookingQuery {
@@ -51,9 +52,26 @@ export const cancelAdminBooking = (id: number | string) => {
   return api.post<ApiBookingResponse>(`/admin/bookings/${id}/cancel`);
 };
 
-export const requestCheckInAdmin = (id: number | string) => {
-  return api.post<ApiBookingResponse>(`/admin/bookings/${id}/check-in`);
+export const prepareSecurityDeposit = (
+  id: number | string,
+  method: 'PAYMENT_REQUEST' | 'CASH',
+) => {
+  return api.post<ApiBookingResponse>(`/admin/bookings/${id}/security-deposit`, { method });
 };
+
+export interface HandoverContractPayload {
+  actualHandoverAt: string;
+  condition: 'GOOD' | 'DAMAGE';
+  odometer: number;
+  fuelLevel: number;
+  damageFound: boolean;
+  notes?: string;
+  keyCount: number;
+  accessories?: string;
+  files: File[];
+  customerSignature: File;
+  staffSignature: File;
+}
 
 export interface ReturnConditionPayload {
   condition: 'GOOD' | 'DAMAGE' | 'NEED_MAINTENANCE';
@@ -62,31 +80,68 @@ export interface ReturnConditionPayload {
   fuelLevel: number;
   damageFound: boolean;
   damageSeverity?: 'MINOR' | 'MODERATE' | 'MAJOR';
-  estimatedDamageFee?: number;
   damageDescription?: string;
   notes?: string;
+  keyCount: number;
+  accessories?: string;
   files: File[];
+  customerSignature: File;
+  staffSignature: File;
+  finalPaymentMethod: 'PAYMENT_REQUEST' | 'CASH';
+  securityDepositRefundMethod?: 'PAYMENT_REQUEST' | 'CASH';
 }
+
+export const saveHandoverContract = (
+  id: number | string,
+  payload: HandoverContractPayload,
+) => {
+  const formData = new FormData();
+  formData.append('handover', new Blob([JSON.stringify({
+    actualHandoverAt: payload.actualHandoverAt,
+    condition: payload.condition,
+    odometer: payload.odometer,
+    fuelLevel: payload.fuelLevel,
+    damageFound: payload.damageFound,
+    notes: payload.notes?.trim() || undefined,
+    keyCount: payload.keyCount,
+    accessories: payload.accessories?.trim() || undefined,
+  })], { type: 'application/json' }));
+  payload.files.forEach((file) => formData.append('files', file));
+  formData.append('customerSignature', payload.customerSignature);
+  formData.append('staffSignature', payload.staffSignature);
+  return api.post<RentalContractResponse>(`/admin/bookings/${id}/handover`, formData);
+};
 
 export const saveReturnCondition = (
   id: number | string,
   payload: ReturnConditionPayload,
 ) => {
   const formData = new FormData();
-  formData.append('condition', new Blob([JSON.stringify({
+  formData.append('return', new Blob([JSON.stringify({
     condition: payload.condition,
     actualReturnAt: payload.actualReturnAt,
     odometer: payload.odometer,
     fuelLevel: payload.fuelLevel,
     damageFound: payload.damageFound,
     damageSeverity: payload.damageSeverity,
-    estimatedDamageFee: payload.estimatedDamageFee,
     damageDescription: payload.damageDescription?.trim() || undefined,
     notes: payload.notes?.trim() || undefined,
+    keyCount: payload.keyCount,
+    accessories: payload.accessories?.trim() || undefined,
+    finalPaymentMethod: payload.finalPaymentMethod,
+    securityDepositRefundMethod: payload.securityDepositRefundMethod,
   })], { type: 'application/json' }));
   payload.files.forEach((file) => formData.append('files', file));
-  return api.post<ApiBookingResponse>(`/admin/bookings/${id}/return-condition`, formData);
+  formData.append('customerSignature', payload.customerSignature);
+  formData.append('staffSignature', payload.staffSignature);
+  return api.post<RentalContractResponse>(`/admin/bookings/${id}/return`, formData);
 };
+
+export const getRentalContract = (bookingId: number | string) =>
+  api.get<RentalContractResponse>(`/bookings/${bookingId}/contract`);
+
+export const downloadRentalContractPdf = (bookingId: number | string) =>
+  api.get<Blob>(`/bookings/${bookingId}/contract/pdf`, { responseType: 'blob' });
 
 export const finalizeDamageAssessment = (
   id: number | string,

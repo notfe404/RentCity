@@ -91,9 +91,13 @@ export interface CheckoutRequest extends CheckinRequest {
 // ============================================================
 import type { ApiCarConditionResponse } from './vehicle.types';
 
-export type ApiBookingStatus = 'PENDING' | 'CONFIRMED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+export type ApiBookingStatus = 'PENDING' | 'CONFIRMED' | 'PAID' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
 export type ApiPricingMode = 'HOURLY' | 'DAILY' | 'MONTHLY';
+export type ApiVehiclePickupMethod = 'BRANCH_PICKUP' | 'ADDRESS_DELIVERY';
 export type ApiDepositStatus = 'UNPAID' | 'PAID' | 'FORFEITED' | 'REFUNDED' | 'NOT_REQUIRED';
+export type ApiSecurityDepositStatus = 'UNPAID' | 'PAYMENT_REQUESTED' | 'PAID' | 'RETAINED' | 'REFUNDED';
+export type ApiFinalPaymentStatus = 'NOT_DUE' | 'PAYMENT_REQUESTED' | 'PAID';
+export type SettlementMethod = 'PAYMENT_REQUEST' | 'CASH';
 export type DamageSeverity = 'MINOR' | 'MODERATE' | 'MAJOR';
 export type DamageAssessmentStatus =
   | 'PENDING_APPROVAL'
@@ -134,15 +138,31 @@ export interface ApiBookingResponse {
   customerEmail?: string;
   startTime: string;
   endTime: string;
+  pickupMethod: ApiVehiclePickupMethod;
+  deliveryAddress?: string | null;
   pricingMode: ApiPricingMode;
   status: ApiBookingStatus;
   depositStatus: ApiDepositStatus;
   baseAmount: number;
   depositAmount: number;
+  reservationFeeStatus: ApiDepositStatus;
+  reservationFeeAmount: number;
+  securityDepositAmount: number;
+  securityDepositStatus: ApiSecurityDepositStatus;
+  securityDepositPaidAmount: number;
+  securityDepositCollectionMethod?: SettlementMethod | null;
+  securityDepositPaidAt?: string | null;
+  securityDepositRefundMethod?: SettlementMethod | null;
+  securityDepositResolvedAt?: string | null;
+  finalRentalAmount: number;
+  finalPaymentStatus: ApiFinalPaymentStatus;
+  finalPaymentMethod?: SettlementMethod | null;
+  finalPaidAt?: string | null;
   totalAmount: number;
   freeCancelUntil: string;
   paymentExpiresAt: string;
   actualReturnAt?: string | null;
+  actualHandoverAt?: string | null;
   overdueMinutes: number;
   overdueFee: number;
   penaltyOverdueFee: number;
@@ -159,11 +179,52 @@ export interface ApiBookingResponse {
   updatedAt: string;
 }
 
+export type RentalContractStatus = 'HANDOVER_DRAFT' | 'ACTIVE' | 'RETURN_DRAFT' | 'COMPLETED';
+
+export interface RentalContractResponse {
+  id: number;
+  bookingId: number;
+  contractNumber: string;
+  policyVersion: string;
+  policyText: string;
+  status: RentalContractStatus;
+  handoverAt: string;
+  handoverKeyCount: number;
+  handoverAccessories?: string | null;
+  handoverCustomerSignature: string;
+  handoverCustomerSignedAt: string;
+  handoverStaffSignature: string;
+  handoverStaffUserId: number;
+  handoverStaffSignedAt: string;
+  handoverCondition: ApiCarConditionResponse;
+  securityDepositAmount: number;
+  securityDepositCollectionMethod: SettlementMethod;
+  securityDepositPaidAt: string;
+  returnKeyCount?: number | null;
+  returnAccessories?: string | null;
+  returnCustomerSignature?: string | null;
+  returnCustomerSignedAt?: string | null;
+  returnStaffSignature?: string | null;
+  returnStaffUserId?: number | null;
+  returnStaffSignedAt?: string | null;
+  returnCondition?: ApiCarConditionResponse | null;
+  securityDepositStatus?: ApiSecurityDepositStatus | null;
+  securityDepositRefundMethod?: SettlementMethod | null;
+  securityDepositResolvedAt?: string | null;
+  finalRentalAmount?: number | null;
+  finalPaymentMethod?: SettlementMethod | null;
+  finalPaymentStatus?: ApiFinalPaymentStatus | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BackendCreateBookingRequest {
   vehicleId: number;
   startTime: string;
   endTime: string;
   pricingMode: ApiPricingMode;
+  pickupMethod: ApiVehiclePickupMethod;
+  deliveryAddress?: string;
 }
 
 export interface AdminBookingTransitionPayload {

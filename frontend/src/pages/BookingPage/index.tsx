@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { Shield, Baby, Navigation, Tag, Car } from 'lucide-react';
+import { Shield, Baby, Navigation, Tag, Car, Building2, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
@@ -50,6 +50,8 @@ export default function BookingPage() {
     endDate,
     pickupLocationId,
     returnLocationId,
+    pickupMethod,
+    deliveryAddress,
     extras,
     customerNote,
     promotionCode,
@@ -60,6 +62,8 @@ export default function BookingPage() {
     depositAmount,
     totalAmount,
     setVehicle,
+    setPickupMethod,
+    setDeliveryAddress,
     toggleExtra,
     setCustomerNote,
     setPromotionCode,
@@ -114,6 +118,9 @@ export default function BookingPage() {
   const vehicleBranchName = vehicle?.branchName;
   const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
   const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
+  const selectedPickupName = pickupMethod === 'ADDRESS_DELIVERY'
+    ? (deliveryAddress.trim() || 'Giao xe tận địa chỉ')
+    : pickupName;
 
   const lineItems = [
     { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
@@ -185,6 +192,69 @@ export default function BookingPage() {
             </div>
 
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-black text-gray-900 mb-2">Hình thức nhận xe</h2>
+              <p className="text-sm font-medium text-gray-500 mb-6">Chọn nhận xe tại chi nhánh hoặc để RentCity giao xe đến địa chỉ của bạn.</p>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className={`flex cursor-pointer items-start gap-4 rounded-2xl border-2 p-5 transition-all ${
+                  pickupMethod === 'BRANCH_PICKUP' ? 'border-[#78ad44] bg-[#f4f8f7]' : 'border-gray-100 hover:border-gray-200'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pickupMethod"
+                    value="BRANCH_PICKUP"
+                    checked={pickupMethod === 'BRANCH_PICKUP'}
+                    onChange={() => setPickupMethod('BRANCH_PICKUP')}
+                    className="mt-1 h-5 w-5 accent-[#78ad44]"
+                  />
+                  <span>
+                    <span className="flex items-center gap-2 font-black text-gray-900"><Building2 size={18} className="text-[#78ad44]" /> Nhận tại chi nhánh</span>
+                    <span className="mt-2 block text-sm font-medium leading-6 text-gray-500">Nhận xe trực tiếp tại {pickupName}.</span>
+                  </span>
+                </label>
+
+                <label className={`flex cursor-pointer items-start gap-4 rounded-2xl border-2 p-5 transition-all ${
+                  pickupMethod === 'ADDRESS_DELIVERY' ? 'border-[#78ad44] bg-[#f4f8f7]' : 'border-gray-100 hover:border-gray-200'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pickupMethod"
+                    value="ADDRESS_DELIVERY"
+                    checked={pickupMethod === 'ADDRESS_DELIVERY'}
+                    onChange={() => setPickupMethod('ADDRESS_DELIVERY')}
+                    className="mt-1 h-5 w-5 accent-[#78ad44]"
+                  />
+                  <span>
+                    <span className="flex items-center gap-2 font-black text-gray-900"><Truck size={18} className="text-[#78ad44]" /> Giao xe tận địa chỉ</span>
+                    <span className="mt-2 block text-sm font-medium leading-6 text-gray-500">RentCity giao xe đến địa chỉ bạn cung cấp.</span>
+                  </span>
+                </label>
+              </div>
+
+              {pickupMethod === 'ADDRESS_DELIVERY' && (
+                <div className="mt-5">
+                  <label htmlFor="delivery-address" className="ml-2 mb-2 block text-sm font-bold text-gray-700">Địa chỉ giao xe *</label>
+                  <textarea
+                    id="delivery-address"
+                    rows={3}
+                    maxLength={500}
+                    required
+                    value={deliveryAddress}
+                    onChange={(event) => setDeliveryAddress(event.target.value)}
+                    placeholder="Ví dụ: 123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP.HCM"
+                    className="w-full resize-none rounded-2xl border-0 bg-[#f4f8f7] px-5 py-4 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-[#78ad44]"
+                  />
+                  <div className="mt-2 flex justify-between px-2 text-xs font-bold">
+                    <span className={deliveryAddress.trim() ? 'text-[#56832d]' : 'text-red-500'}>
+                      {deliveryAddress.trim() ? 'Địa chỉ sẽ được xác nhận trước khi giao xe.' : 'Vui lòng nhập địa chỉ giao xe.'}
+                    </span>
+                    <span className="text-gray-400">{deliveryAddress.length}/500</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">Dịch vụ bổ sung</h2>
               <div className="space-y-4">
                 {EXTRAS.map((ext) => (
@@ -248,7 +318,7 @@ export default function BookingPage() {
 
           <BookingSidebar
             vehicle={vehicle}
-            pickupLocation={pickupName}
+            pickupLocation={selectedPickupName}
             returnLocation={returnName}
             startDate={startDate}
             endDate={endDate}
@@ -257,6 +327,7 @@ export default function BookingPage() {
             depositAmount={depositAmount}
             totalAmount={totalAmount}
             actionLabel="Tiếp tục xác nhận"
+            actionDisabled={pickupMethod === 'ADDRESS_DELIVERY' && !deliveryAddress.trim()}
             onAction={() => navigate(`/booking/${id}/confirm`)}
           />
         </div>

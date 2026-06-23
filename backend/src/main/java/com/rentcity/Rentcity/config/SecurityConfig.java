@@ -48,7 +48,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/categories", "/categories/*", "/categories/active").permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/admin/bookings/*/return-condition"
+                                "/admin/bookings/*/handover",
+                                "/admin/bookings/*/return"
                         ).hasAnyRole("ADMIN", "STAFF")
                         // All other requests require authentication (method-level @PreAuthorize handles roles)
                         .anyRequest().authenticated()

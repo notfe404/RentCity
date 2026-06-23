@@ -3,6 +3,7 @@ import type { PaymentGateway } from './payment.types';
 export type WalletTransactionType =
   | 'TOP_UP'
   | 'BOOKING_HOLD'
+  | 'BALANCE_PAYMENT'
   | 'HOLD_RELEASE'
   | 'FORFEITURE'
   | 'OVERDUE_CHARGE'
@@ -11,7 +12,11 @@ export type WalletTransactionType =
   | 'WITHDRAWAL_REQUEST'
   | 'WITHDRAWAL_REVERSED'
   | 'ADJUSTMENT'
-  | 'DAMAGE_FEE_REFUND';
+  | 'DAMAGE_FEE_REFUND'
+  | 'RESERVATION_FEE'
+  | 'SECURITY_DEPOSIT_CASH_REFUND'
+  | 'SECURITY_DEPOSIT_RETAINED'
+  | 'FINAL_RENTAL_PAYMENT';
 
 export interface ApiWalletTransaction {
   id: number;

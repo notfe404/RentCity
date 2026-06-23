@@ -45,7 +45,8 @@ public class CarRequest {
     @Positive(message = "Giá thuê / ngày phải lớn hơn 0")
     private BigDecimal pricePerDay;
 
-    @PositiveOrZero(message = "Tiền cọc không được âm")
+    @NotNull(message = "Tiền cọc thuê xe không được để trống")
+    @Positive(message = "Tiền cọc thuê xe phải lớn hơn 0")
     private BigDecimal deposit;
 
     /** Trạng thái xe — tùy chọn, mặc định AVAILABLE khi tạo mới. */

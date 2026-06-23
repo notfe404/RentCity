@@ -156,7 +156,7 @@ export default function PaymentPage() {
     }
 
     if (booking.status !== 'PENDING' || booking.depositStatus !== 'UNPAID') {
-      toast.error('Booking này không còn ở trạng thái cần thanh toán cọc');
+      toast.error('Booking này không còn ở trạng thái cần thanh toán phí giữ chỗ');
       return;
     }
 
@@ -188,7 +188,7 @@ export default function PaymentPage() {
         if (payment.status !== 'PAID') {
           throw new Error('Wallet payment was not completed');
         }
-        toast.success('Deposit paid from My Wallet');
+        toast.success('Reservation fee paid from My Wallet');
         navigate(`/booking/${booking.id}/result`);
       }
     } catch (error) {
@@ -236,10 +236,10 @@ export default function PaymentPage() {
                   <Clock3 size={28} />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán cọc booking</h1>
+                  <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán phí giữ chỗ</h1>
                   <p className="text-sm font-medium text-gray-500 leading-relaxed">
                     Booking <span className="font-black text-gray-900">{booking.bookingCode}</span> đang chờ thanh toán
-                    cọc để chuyển sang trạng thái xác nhận.
+                    phí giữ chỗ 30% để xác nhận và giữ xe cho lịch thuê này.
                   </p>
                 </div>
               </div>
@@ -298,14 +298,14 @@ export default function PaymentPage() {
                 className="mt-6 w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <ShieldCheck size={18} />
-                {isPaying ? 'Đang xử lý...' : 'Thanh toán cọc'}
+                {isPaying ? 'Đang xử lý...' : 'Thanh toán phí giữ chỗ'}
               </button>
 
               {!canPay && (
                 <p className="mt-4 text-sm font-bold text-gray-500">
                   {paymentExpired
                     ? 'Booking đã hết 15 phút chờ thanh toán và đang được tự động hủy.'
-                    : <>Booking này đã có trạng thái cọc: <span className={depositMeta.color}>{depositMeta.label}</span>.</>}
+                    : <>Trạng thái phí giữ chỗ: <span className={depositMeta.color}>{depositMeta.label}</span>.</>}
                 </p>
               )}
             </section>
@@ -369,11 +369,11 @@ export default function PaymentPage() {
                   <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tiền cọc</span>
+                  <span>Phí giữ chỗ (30%)</span>
                   <span className="text-[#78ad44]">{formatVND(booking.depositAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Trạng thái cọc</span>
+                  <span>Trạng thái phí giữ chỗ</span>
                   <span className={depositMeta.color}>{depositMeta.label}</span>
                 </div>
               </div>

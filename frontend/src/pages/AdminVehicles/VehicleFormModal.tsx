@@ -20,7 +20,7 @@ const EMPTY: AdminCarPayload = {
   year: new Date().getFullYear(),
   transmission: 'AUTO',
   pricePerDay: 0,
-  deposit: 0,
+  deposit: 5_000_000,
   status: 'AVAILABLE',
   description: '',
   categoryId: undefined,
@@ -73,7 +73,8 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim()) {
+    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim()
+      || form.pricePerDay <= 0 || (form.deposit ?? 0) <= 0) {
       return;
     }
     setIsSaving(true);
@@ -115,7 +116,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
             {field('Năm sản xuất', 'year', 'number', '2024')}
             {field('Số chỗ', 'seats', 'number', '5')}
             {field('Giá / ngày (VND) *', 'pricePerDay', 'number', '500000')}
-            {field('Tiền cọc (VND)', 'deposit', 'number', '0')}
+            {field('Tiền cọc thuê xe (VND) *', 'deposit', 'number', '5000000')}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

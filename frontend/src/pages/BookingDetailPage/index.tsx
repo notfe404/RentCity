@@ -5,13 +5,13 @@ import Footer from '../LandingPage/Footer';
 import { ChevronLeft, Calendar, MapPin, Download, CheckCircle2, Ticket, XCircle, AlertTriangle, Car, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { cancelMyBooking, getMyBooking } from '@/services/bookingApi';
+import { cancelMyBooking, downloadRentalContractPdf, getMyBooking, getRentalContract } from '@/services/bookingApi';
 import { downloadBookingInvoicePdf } from '@/services/paymentApi';
 import { getMyBookingReview } from '@/services/reviewApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
-import type { ApiBookingResponse, Review } from '@/types';
+import type { ApiBookingResponse, RentalContractResponse, Review } from '@/types';
 
 export default function BookingDetailPage() {
   const { id } = useParams();
@@ -22,6 +22,8 @@ export default function BookingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+  const [isDownloadingContract, setIsDownloadingContract] = useState(false);
+  const [contract, setContract] = useState<RentalContractResponse | null>(null);
   const [review, setReview] = useState<Review | null>(null);
 
   useEffect(() => {
@@ -37,6 +39,16 @@ export default function BookingDetailPage() {
         const { data } = await getMyBooking(id);
         if (!cancelled) {
           setBooking(data);
+        }
+        if (data.status === 'ONGOING' || data.status === 'COMPLETED') {
+          try {
+            const { data: contractData } = await getRentalContract(data.id);
+            if (!cancelled) setContract(contractData);
+          } catch {
+            if (!cancelled) setContract(null);
+          }
+        } else if (!cancelled) {
+          setContract(null);
         }
         if (data.status === 'COMPLETED') {
           try {
@@ -147,6 +159,30 @@ export default function BookingDetailPage() {
     }
   };
 
+  const handleDownloadContract = async () => {
+    if (isDownloadingContract) return;
+    setIsDownloadingContract(true);
+    try {
+      const { data } = await downloadRentalContractPdf(booking.id);
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rentcity-contract-${booking.bookingCode}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success('Rental contract downloaded');
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        ?? 'Could not download the rental contract';
+      toast.error(message);
+    } finally {
+      setIsDownloadingContract(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
@@ -192,8 +228,14 @@ export default function BookingDetailPage() {
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><MapPin size={14} className="text-[#78ad44]" /></div>
                         <div>
-                          <p className="text-xs font-bold text-gray-400">Nhận xe tại</p>
-                          <p className="text-sm font-bold text-gray-900">Chi nhánh Cầu Giấy</p>
+                          <p className="text-xs font-bold text-gray-400">
+                            {booking.pickupMethod === 'ADDRESS_DELIVERY' ? 'Giao xe đến' : 'Nhận xe tại'}
+                          </p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {booking.pickupMethod === 'ADDRESS_DELIVERY'
+                              ? (booking.deliveryAddress || 'Địa chỉ giao xe chưa cập nhật')
+                              : 'Chi nhánh của xe'}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
@@ -209,7 +251,7 @@ export default function BookingDetailPage() {
                         <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><MapPin size={14} className="text-gray-400" /></div>
                         <div>
                           <p className="text-xs font-bold text-gray-400">Trả xe tại</p>
-                          <p className="text-sm font-bold text-gray-900">Chi nhánh Cầu Giấy</p>
+                          <p className="text-sm font-bold text-gray-900">Chi nhánh của xe</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
@@ -232,7 +274,7 @@ export default function BookingDetailPage() {
                       <div><p className="text-xs font-bold text-gray-400 mb-1">Email</p><p className="text-sm font-black text-gray-900">{user?.email ?? '—'}</p></div>
                       <div><p className="text-xs font-bold text-gray-400 mb-1">Điện thoại</p><p className="text-sm font-black text-gray-900">{user?.phone ?? '—'}</p></div>
                       <div>
-                        <p className="text-xs font-bold text-gray-400 mb-1">Trạng thái cọc</p>
+                        <p className="text-xs font-bold text-gray-400 mb-1">Trạng thái phí giữ chỗ</p>
                         <p className={`text-sm font-black flex items-center gap-1 ${depositCfg.color}`}>
                           {booking.depositStatus === 'PAID' ? <CheckCircle2 size={16} /> : booking.depositStatus === 'REFUNDED' ? <XCircle size={16} /> : <AlertTriangle size={16} />}
                           {depositCfg.label}
@@ -255,6 +297,46 @@ export default function BookingDetailPage() {
                   <section>
                     <h3 className="text-lg font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Lý do hủy</h3>
                     <p className="text-sm text-gray-600 font-medium bg-[#f4f8f7] p-4 rounded-xl">{booking.cancelReason}</p>
+                  </section>
+                )}
+
+                {contract && (
+                  <section>
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                      <div>
+                        <h3 className="text-lg font-black text-gray-900">Rental contract</h3>
+                        <p className="text-xs font-bold text-gray-400">{contract.contractNumber} · Policy {contract.policyVersion}</p>
+                      </div>
+                      <button onClick={handleDownloadContract} disabled={isDownloadingContract} className="flex items-center gap-2 rounded-xl bg-[#212529] px-4 py-2.5 text-xs font-bold text-white disabled:bg-gray-300">
+                        <Download size={15} /> {isDownloadingContract ? 'Preparing...' : 'Download contract'}
+                      </button>
+                    </div>
+                    <div className="space-y-4 rounded-2xl bg-[#f4f8f7] p-5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500">Contract status</span>
+                        <span className="rounded-lg bg-[#e9f2eb] px-3 py-1 text-xs font-black text-[#56832d]">{contract.status.replaceAll('_', ' ')}</span>
+                      </div>
+                      <div className="grid gap-3 text-sm md:grid-cols-2">
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="font-black text-gray-900">Handover signatures</p>
+                          <p className="mt-2 text-xs font-bold text-gray-500">Customer: {formatDateTime(contract.handoverCustomerSignedAt)}</p>
+                          <p className="text-xs font-bold text-gray-500">Staff: {formatDateTime(contract.handoverStaffSignedAt)}</p>
+                        </div>
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="font-black text-gray-900">Return signatures</p>
+                          {contract.returnCustomerSignedAt ? (
+                            <>
+                              <p className="mt-2 text-xs font-bold text-gray-500">Customer: {formatDateTime(contract.returnCustomerSignedAt)}</p>
+                              <p className="text-xs font-bold text-gray-500">Staff: {formatDateTime(contract.returnStaffSignedAt!)}</p>
+                            </>
+                          ) : <p className="mt-2 text-xs font-bold text-gray-400">Not returned yet</p>}
+                        </div>
+                      </div>
+                      <details className="rounded-xl bg-white p-4">
+                        <summary className="cursor-pointer text-sm font-black text-gray-900">Rental policy</summary>
+                        <div className="mt-3 whitespace-pre-line text-xs font-medium leading-6 text-gray-600">{contract.policyText}</div>
+                      </details>
+                    </div>
                   </section>
                 )}
 
@@ -335,9 +417,19 @@ export default function BookingDetailPage() {
                         <span className="font-bold text-gray-900">{formatVND(booking.baseAmount)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Tiền cọc</span>
-                        <span className="font-bold text-gray-900">{formatVND(booking.depositAmount)}</span>
+                        <span>Phí giữ chỗ (30%)</span>
+                        <span className="font-bold text-gray-900">{formatVND(booking.reservationFeeAmount)}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span>Cọc thuê xe ({booking.securityDepositStatus.replaceAll('_', ' ')})</span>
+                        <span className="font-bold text-gray-900">{formatVND(booking.securityDepositAmount)}</span>
+                      </div>
+                      {booking.finalPaymentStatus !== 'NOT_DUE' && (
+                        <div className="flex justify-between text-[#56832d] font-black">
+                          <span>Thanh toán khi trả xe ({booking.finalPaymentStatus.replaceAll('_', ' ')})</span>
+                          <span>{formatVND(booking.finalRentalAmount)}</span>
+                        </div>
+                      )}
                       {booking.overdueFee > 0 && (
                         <>
                           <div className="flex justify-between text-orange-600">
@@ -378,7 +470,7 @@ export default function BookingDetailPage() {
                     </div>
                     <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
                       <span className="font-bold text-gray-500 text-sm">
-                        {booking.depositStatus === 'REFUNDED' ? 'Đã hoàn cọc' : 'Tổng cộng'}
+                        {booking.depositStatus === 'REFUNDED' ? 'Đã hoàn phí giữ chỗ' : 'Tổng cộng'}
                       </span>
                       <span className="font-black text-2xl text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                     </div>
@@ -391,7 +483,7 @@ export default function BookingDetailPage() {
                     onClick={() => navigate(`/booking/${booking.id}/payment`)}
                     className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold py-4 rounded-xl transition-colors shadow-lg mb-3"
                   >
-                    Tiếp tục thanh toán cọc
+                    Tiếp tục thanh toán phí giữ chỗ
                   </button>
                 )}
                 {isBookingCancellable(booking) && (

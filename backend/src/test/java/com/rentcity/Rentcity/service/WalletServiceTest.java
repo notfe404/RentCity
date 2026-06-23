@@ -79,6 +79,19 @@ class WalletServiceTest {
     }
 
     @Test
+    void balancePaymentUsesAvailableFundsWithoutConsumingDepositHold() {
+        service.creditAndHoldDeposit(1L, 10L, new BigDecimal("300000"), "payment:10");
+        service.creditTopUp(1L, new BigDecimal("500000"), "payment:11:wallet");
+
+        BigDecimal paid = service.payBookingBalance(1L, 10L, new BigDecimal("400000"), 1L);
+
+        assertThat(paid).isEqualByComparingTo("400000");
+        assertThat(storedWallet.get().getAvailableBalance()).isEqualByComparingTo("100000");
+        assertThat(storedWallet.get().getHeldBalance()).isEqualByComparingTo("300000");
+        assertThat(transactions.get(3).getType()).isEqualTo(WalletTransactionType.BALANCE_PAYMENT);
+    }
+
+    @Test
     void settlementUsesHeldThenAvailableAndRecordsOutstanding() {
         service.creditAndHoldDeposit(1L, 10L, new BigDecimal("300000"), "payment:10");
         service.creditTopUp(1L, new BigDecimal("100000"), "payment:11:wallet");

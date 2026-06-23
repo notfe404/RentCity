@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CreditCard, Landmark, Loader2, LockKeyhole, PlusCircle, Send, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '../LandingPage/Header';
@@ -19,6 +19,11 @@ import PaymentCheckoutModal from './PaymentCheckoutModal';
 const TYPE_LABELS: Record<string, string> = {
   TOP_UP: 'Wallet top-up',
   BOOKING_HOLD: 'Booking deposit held',
+  BALANCE_PAYMENT: 'Remaining rental balance',
+  RESERVATION_FEE: 'Vehicle reservation fee',
+  SECURITY_DEPOSIT_CASH_REFUND: 'Security deposit cash refund',
+  SECURITY_DEPOSIT_RETAINED: 'Security deposit retained',
+  FINAL_RENTAL_PAYMENT: 'Final rental payment',
   HOLD_RELEASE: 'Deposit/refund released',
   FORFEITURE: 'Deposit forfeited',
   OVERDUE_CHARGE: 'Overdue charge',
@@ -47,7 +52,7 @@ export default function MyWalletPage() {
     accountHolderName: '',
   });
 
-  const loadPage = async () => {
+  const loadPage = useCallback(async () => {
     const [{ data: walletData }, { data: bookings }, { data: withdrawalData }] = await Promise.all([
       getMyWallet(),
       getMyBookings(),
@@ -58,13 +63,20 @@ export default function MyWalletPage() {
     setPaymentRequests(
       bookings.filter((booking) => (booking.outstandingAmount ?? 0) > 0),
     );
-  };
+  }, []);
 
   useEffect(() => {
     loadPage()
       .catch(() => toast.error('Could not load wallet'))
       .finally(() => setIsLoading(false));
-  }, []);
+    const refresh = () => void loadPage().catch(() => undefined);
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [loadPage]);
 
   const topUp = async () => {
     if (amount < 10000) {
@@ -385,7 +397,8 @@ function PaymentRequestRow({
   
   const hasOverdueFee = (booking.totalOverdueFee ?? 0) > 0;
   const hasDamageFee = (assessment?.approvedFee ?? 0) > 0;
-  const isCheckInFee = !hasOverdueFee && !hasDamageFee && (booking.outstandingAmount ?? 0) > 0;
+  const isSecurityDeposit = booking.securityDepositStatus === 'PAYMENT_REQUESTED';
+  const isFinalRentalPayment = booking.finalPaymentStatus === 'PAYMENT_REQUESTED';
 
   return (
     <div className="p-6 grid lg:grid-cols-[1fr_auto] gap-5 items-center">
@@ -402,9 +415,14 @@ function PaymentRequestRow({
               <span className="font-medium">Damage fee:</span> {assessment?.description}
             </p>
           )}
-          {isCheckInFee && (
+          {isSecurityDeposit && (
             <p className="text-sm text-gray-600">
-              <span className="font-medium">Check-in balance:</span> Please pay the remaining amount to start your rental.
+              <span className="font-medium">Vehicle security deposit:</span> Refundable after a good return; retained for damage or maintenance.
+            </p>
+          )}
+          {isFinalRentalPayment && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Final rental payment:</span> Rental price minus reservation fee, plus overdue charges.
             </p>
           )}
         </div>

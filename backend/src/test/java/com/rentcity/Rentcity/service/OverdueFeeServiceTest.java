@@ -44,4 +44,44 @@ class OverdueFeeServiceTest {
         assertThat(charge.penaltyFee()).isEqualByComparingTo("180000");
         assertThat(charge.totalFee()).isEqualByComparingTo("380000");
     }
+
+    @Test
+    void earlyHandoverIsChargedAsAdditionalUsage() {
+        LocalDateTime scheduledStart = LocalDateTime.of(2026, 6, 15, 10, 0);
+        LocalDateTime scheduledReturn = scheduledStart.plusHours(4);
+
+        OverdueFeeService.OverdueCharge charge = service.calculate(
+                scheduledStart,
+                scheduledStart.minusMinutes(61),
+                scheduledReturn,
+                scheduledReturn,
+                new BigDecimal("2400000"),
+                new BigDecimal("1000000")
+        );
+
+        assertThat(charge.overdueMinutes()).isEqualTo(61);
+        assertThat(charge.billableHours()).isEqualTo(2);
+        assertThat(charge.fee()).isEqualByComparingTo("200000");
+        assertThat(charge.totalFee()).isEqualByComparingTo("380000");
+    }
+
+    @Test
+    void earlyAndLateMinutesAreCombinedBeforeRounding() {
+        LocalDateTime scheduledStart = LocalDateTime.of(2026, 6, 15, 10, 0);
+        LocalDateTime scheduledReturn = scheduledStart.plusHours(4);
+
+        OverdueFeeService.OverdueCharge charge = service.calculate(
+                scheduledStart,
+                scheduledStart.minusMinutes(30),
+                scheduledReturn,
+                scheduledReturn.plusMinutes(30),
+                new BigDecimal("2400000"),
+                new BigDecimal("1000000")
+        );
+
+        assertThat(charge.overdueMinutes()).isEqualTo(60);
+        assertThat(charge.billableHours()).isEqualTo(1);
+        assertThat(charge.fee()).isEqualByComparingTo("100000");
+        assertThat(charge.totalFee()).isEqualByComparingTo("265000");
+    }
 }

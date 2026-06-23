@@ -1,7 +1,7 @@
 // Payment, promotion, review, and notification types.
 
 // ---- Payments ----
-export type PaymentType = 'DEPOSIT' | 'WALLET_TOP_UP' | 'DAMAGE_PAYMENT' | 'BALANCE_PAYMENT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
+export type PaymentType = 'DEPOSIT' | 'SECURITY_DEPOSIT' | 'SECURITY_DEPOSIT_REFUND' | 'FINAL_RENTAL_PAYMENT' | 'WALLET_TOP_UP' | 'DAMAGE_PAYMENT' | 'BALANCE_PAYMENT' | 'FULL' | 'EXTRA_CHARGE' | 'REFUND';
 export type PaymentGateway = 'PAYPAL' | 'VNPAY' | 'WALLET';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'EXPIRED';
 

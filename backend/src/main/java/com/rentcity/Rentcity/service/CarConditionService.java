@@ -28,6 +28,32 @@ public class CarConditionService {
     }
 
     @Transactional
+    public CarConditionReport createHandover(
+            Long carId,
+            Long bookingId,
+            CarConditionRequest request,
+            Long actorId,
+            Role actorRole,
+            List<MultipartFile> files
+    ) {
+        if (reportRepository.findFirstByBookingIdAndReportTypeOrderByCreatedAtDesc(
+                bookingId,
+                CarConditionReportType.HANDOVER
+        ).isPresent()) {
+            throw new IllegalArgumentException("A handover condition already exists for this booking");
+        }
+        CarConditionReport report = createReport(
+                carId,
+                bookingId,
+                CarConditionReportType.HANDOVER,
+                request,
+                actorId,
+                actorRole
+        );
+        return addImages(report, files);
+    }
+
+    @Transactional
     public CarConditionReport createReturn(
             Long carId,
             Long bookingId,

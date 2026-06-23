@@ -71,7 +71,8 @@ public class BookingStateMachineService {
     private static Map<BookingStatus, Set<BookingStatus>> buildAllowedTransitions() {
         Map<BookingStatus, Set<BookingStatus>> transitions = new EnumMap<>(BookingStatus.class);
         transitions.put(BookingStatus.PENDING, EnumSet.of(BookingStatus.CONFIRMED, BookingStatus.CANCELLED));
-        transitions.put(BookingStatus.CONFIRMED, EnumSet.of(BookingStatus.ONGOING, BookingStatus.CANCELLED));
+        transitions.put(BookingStatus.CONFIRMED, EnumSet.of(BookingStatus.PAID, BookingStatus.CANCELLED));
+        transitions.put(BookingStatus.PAID, EnumSet.of(BookingStatus.ONGOING, BookingStatus.CANCELLED));
         transitions.put(BookingStatus.ONGOING, EnumSet.of(BookingStatus.COMPLETED, BookingStatus.CANCELLED));
         transitions.put(BookingStatus.COMPLETED, EnumSet.noneOf(BookingStatus.class));
         transitions.put(BookingStatus.CANCELLED, EnumSet.noneOf(BookingStatus.class));

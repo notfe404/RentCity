@@ -318,7 +318,30 @@ Recent unpaid-booking hold implementation:
 - Payment creation and completion reject requests after the deadline, preventing late gateway callbacks from confirming an expired booking.
 - Legacy pending bookings without `paymentExpiresAt` use `createdAt + 15 minutes` as the fallback deadline.
 - The payment selection, PayPal, and VNPay screens show a prominent `MM:SS` countdown with a clear 15-minute auto-cancellation warning; payment controls are disabled at zero.
+
+Recent reservation, security-deposit, and return-settlement update:
+
+- Booking lifecycle now includes `PAID`: `PENDING -> CONFIRMED -> PAID -> ONGOING -> COMPLETED`.
+- The original 30% `depositAmount` is now explicitly a vehicle reservation fee. It confirms and reserves the booking; it is not the refundable vehicle security deposit.
+- Every vehicle must have a positive fixed `car.deposit`. New bookings snapshot this value as `securityDepositAmount` so later vehicle edits cannot change an existing booking's obligation.
+- For a `CONFIRMED` booking, staff opens the security-deposit popup and chooses `PAYMENT_REQUEST` or `CASH`. Amount paid, collection method, timestamp, and payment ledger entry are recorded.
+- A booking moves from `CONFIRMED` to `PAID` only when its vehicle security deposit is fully paid; signed handover requires this state.
+- The normal rental balance is no longer collected at handover. At return, the final rental amount is `baseAmount - reservationFeeAmount + totalOverdueFee`.
+- Staff chooses `PAYMENT_REQUEST` or `CASH` for the final rental amount. Cash is immediately recorded as paid; a payment request appears in customer My Wallet and remains outstanding until gateway payment succeeds.
+- A `GOOD` return requires staff to choose electronic or cash refund for the full security deposit. The refund amount, method, and timestamp are recorded in the booking, payment ledger, contract detail, and PDF.
+- A `DAMAGE` or `NEED_MAINTENANCE` return retains the full security deposit for repair/maintenance, creates no separate damage fee, and makes the vehicle unavailable in `MAINTENANCE` state.
+- The Staff Bookings action-row eye/date control opens a read-only detail modal with the latest booking financials, handover contract, return contract, condition photos, signatures, policy, and PDF download.
+- Staff booking data and customer My Wallet data poll every 5 seconds and refresh on window focus.
+- Handover condition only allows `GOOD` or `DAMAGE`; clearing the damage checkbox restores `GOOD`.
+- Actual handover time cannot be earlier than the booking creation time or later than the scheduled return time; both the staff form and backend enforce this window.
+- An early handover is treated as additional rental usage. Early-handover time and late-return time are added together before rounding to billable hours, then charged through the overdue-fee flow when the vehicle is returned.
+- Rental contract PDFs embed DejaVu Sans instead of replacing non-ASCII characters, use an A4 sectioned layout, and preserve Vietnamese customer names, notes, addresses, and signature labels.
+- Staff contract detail resolves condition images through the configured API base path (`/api/uploads/...`), so handover photos load correctly with the backend context path.
+- Booking pickup now supports `BRANCH_PICKUP` or `ADDRESS_DELIVERY`. Address delivery requires and persists a delivery address, carries it through confirmation, and exposes it in customer/staff booking details and contract PDFs.
+- Flyway `V8__add_booking_pickup_method.sql` adds the pickup method and delivery address columns with database-level consistency checks.
+- Customer header menus on desktop and mobile expose `My Wallet` alongside profile and booking navigation.
 - Axios now removes the JSON content type for `FormData` requests so condition-image uploads receive a valid browser-generated multipart boundary.
+- Flyway `V9__separate_reservation_and_security_deposit.sql` adds the separate money lifecycles and contract snapshots; `V10__require_vehicle_security_deposit.sql` enforces a positive deposit for every vehicle and reconciles payment types.
 
 Implemented behavior:
 
@@ -339,8 +362,8 @@ Implemented behavior:
 State and deposit behavior:
 
 - New booking starts as `PENDING`.
-- New booking starts with `depositStatus = UNPAID`.
-- Payment completion moves deposit to `PAID`.
+- New booking starts with reservation `depositStatus = UNPAID` and vehicle `securityDepositStatus = UNPAID`.
+- Reservation-fee completion moves `depositStatus` to `PAID` and confirms the booking.
 - Payment completion can move booking from `PENDING` to `CONFIRMED`.
 - Admin transition to `CONFIRMED` marks unpaid deposit as paid.
 - Cancellation updates `cancelledAt`, `cancelReason`, `cancelledBy`, and deposit status based on cancellation policy.

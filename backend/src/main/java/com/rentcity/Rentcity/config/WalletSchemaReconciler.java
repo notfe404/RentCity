@@ -25,10 +25,11 @@ public class WalletSchemaReconciler implements CommandLineRunner {
                 ALTER TABLE wallet_transactions
                 ADD CONSTRAINT wallet_transactions_type_check
                 CHECK (type IN (
-                    'TOP_UP', 'BOOKING_HOLD', 'HOLD_RELEASE', 'FORFEITURE',
+                    'TOP_UP', 'BOOKING_HOLD', 'BALANCE_PAYMENT', 'HOLD_RELEASE', 'FORFEITURE',
                     'OVERDUE_CHARGE', 'DAMAGE_CHARGE', 'REFUND_CREDIT',
                     'WITHDRAWAL_REQUEST', 'WITHDRAWAL_REVERSED', 'ADJUSTMENT',
-                    'DAMAGE_FEE_REFUND'
+                    'DAMAGE_FEE_REFUND', 'RESERVATION_FEE', 'SECURITY_DEPOSIT_CASH_REFUND',
+                    'SECURITY_DEPOSIT_RETAINED', 'FINAL_RENTAL_PAYMENT'
                 ))
                 """);
         log.info("[WalletSchemaReconciler] Wallet transaction values reconciled");
