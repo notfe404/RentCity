@@ -1,4 +1,4 @@
-// Re-export tất cả types từ 1 điểm duy nhất
+// Re-export all types from one place
 // Import: import type { User, Vehicle, Booking } from '@/types'
 
 export * from './user.types';

@@ -34,11 +34,11 @@ export default function AuthModal() {
     noSpecial: /^[a-zA-Z0-9]*$/.test(regPassword) && regPassword.length > 0,
   };
 
-  // Khôi phục auto-open từ ProtectedRoute
+  // Restore auto-open from ProtectedRoute
   useEffect(() => {
     if (location.state?.openAuth) {
       openAuthModal('login');
-      // Xóa flag openAuth nhưng giữ lại đường dẫn from để redirect back
+      // Delete the openAuth flag but keep the from path for redirect back
       navigate(location.pathname, { replace: true, state: { from: location.state.from } });
     }
   }, [location.state, navigate, location.pathname, openAuthModal]);
@@ -66,15 +66,15 @@ export default function AuthModal() {
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!loginEmail || !loginPassword) { setError('Vui lòng nhập đầy đủ email và mật khẩu.'); return; }
+    if (!loginEmail || !loginPassword) { setError('Please enter both email and password.'); return; }
     setError('');
     setIsLoading(true);
     try {
       await login({ email: loginEmail, password: loginPassword });
-      toast.success('Đăng nhập thành công! Chào mừng trở lại 👋');
+      toast.success('Login successful! Welcome back 👋');
       handleAuthSuccess();
     } catch {
-      setError('Email hoặc mật khẩu không đúng. Thử lại nhé!');
+      setError('Email or password is incorrect. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -82,31 +82,31 @@ export default function AuthModal() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    if (!regName || !regEmail || !regPassword || !regPhone) { setError('Vui lòng điền đầy đủ tất cả thông tin.'); return; }
-    if (!/^0\d{9}$/.test(regPhone)) { setError('Số điện thoại phải có đúng 10 chữ số và bắt đầu bằng số 0.'); return; }
-    if (!/^(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]{8,}$/.test(regPassword)) { setError('Mật khẩu chưa đúng định dạng. Vui lòng kiểm tra lại hướng dẫn bên dưới.'); return; }
-    if (regPassword !== regConfirm) { setError('Mật khẩu xác nhận không khớp.'); return; }
+    if (!regName || !regEmail || !regPassword || !regPhone) { setError('Please fill in all required information.'); return; }
+    if (!/^0\d{9}$/.test(regPhone)) { setError('Phone number must have exactly 10 digits and start with 0.'); return; }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])[a-zA-Z0-9]{8,}$/.test(regPassword)) { setError('Password does not meet the requirements. Please check the guide below.'); return; }
+    if (regPassword !== regConfirm) { setError('Password confirmation does not match.'); return; }
     setError('');
     setIsLoading(true);
     try {
       await register({ email: regEmail, password: regPassword, fullName: regName, phone: regPhone });
-      toast.success('Tài khoản đã được tạo! Chào mừng đến với RentCity 🎉');
+      toast.success('Account created! Welcome to RentCity 🎉');
       handleAuthSuccess();
     } catch (err: unknown) {
-      // Lấy thông báo lỗi thực tế từ backend
+      // Read the actual error message from the backend
       const axiosErr = err as { response?: { data?: Record<string, string> | { error?: string } } };
       const data = axiosErr?.response?.data;
       if (data) {
         if ('error' in data && data.error) {
           setError(data.error);
         } else {
-          // Validation errors trả về dạng { fieldName: message }
+          // Validation errors return as { fieldName: message }
           const fieldErrors = data as Record<string, string>;
           const firstError = Object.values(fieldErrors)[0];
-          setError(firstError || 'Đăng ký thất bại. Vui lòng thử lại.');
+          setError(firstError || 'Registration failed. Please try again.');
         }
       } else {
-        setError('Đăng ký thất bại. Vui lòng thử lại.');
+        setError('Registration failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -210,12 +210,12 @@ export default function AuthModal() {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                 <input type="email" placeholder="Email" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-md px-12 py-3.5 text-sm focus:ring-1 focus:ring-[#49B096] outline-none text-gray-700" />
               </div>
-              <input type="tel" placeholder="Số điện thoại (VD: 0901234567)" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-md px-4 py-3.5 text-sm focus:ring-1 focus:ring-[#49B096] outline-none text-gray-700" />
+              <input type="tel" placeholder="Phone number (e.g. 0901234567)" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full bg-[#f4f8f7] border-none rounded-md px-4 py-3.5 text-sm focus:ring-1 focus:ring-[#49B096] outline-none text-gray-700" />
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Mật khẩu"
+                  placeholder="Password"
                   value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
                   onFocus={() => setShowPasswordHint(true)}
@@ -226,22 +226,22 @@ export default function AuthModal() {
               {/* Password Hint Box */}
               {showPasswordHint && (
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[11px] leading-relaxed space-y-1">
-                  <p className="font-bold text-gray-600 mb-1">Yêu cầu mật khẩu:</p>
+                  <p className="font-bold text-gray-600 mb-1">Password requirements:</p>
                   <p className={`flex items-center gap-1.5 ${pwRules.length ? 'text-green-600' : 'text-gray-400'}`}>
                     <span className={`inline-block w-3.5 h-3.5 rounded-full border ${pwRules.length ? 'bg-green-500 border-green-500' : 'border-gray-300'} shrink-0`} />
-                    Tối thiểu 8 ký tự
+                    At least 8 characters
                   </p>
                   <p className={`flex items-center gap-1.5 ${pwRules.uppercase ? 'text-green-600' : 'text-gray-400'}`}>
                     <span className={`inline-block w-3.5 h-3.5 rounded-full border ${pwRules.uppercase ? 'bg-green-500 border-green-500' : 'border-gray-300'} shrink-0`} />
-                    Có ít nhất 1 chữ IN HOA (A-Z)
+                    At least 1 uppercase letter (A-Z)
                   </p>
                   <p className={`flex items-center gap-1.5 ${pwRules.lowercase ? 'text-green-600' : 'text-gray-400'}`}>
                     <span className={`inline-block w-3.5 h-3.5 rounded-full border ${pwRules.lowercase ? 'bg-green-500 border-green-500' : 'border-gray-300'} shrink-0`} />
-                    Có ít nhất 1 chữ in thường (a-z)
+                    At least 1 lowercase letter (a-z)
                   </p>
                   <p className={`flex items-center gap-1.5 ${pwRules.noSpecial ? 'text-green-600' : 'text-gray-400'}`}>
                     <span className={`inline-block w-3.5 h-3.5 rounded-full border ${pwRules.noSpecial ? 'bg-green-500 border-green-500' : 'border-gray-300'} shrink-0`} />
-                    Không chứa ký tự đặc biệt (@, #, !...)
+                    No special characters (@, #, !...)
                   </p>
                 </div>
               )}

@@ -9,11 +9,11 @@ export const useRentalDuration = (startTime: string | null, endTime: string | nu
 
     if (end <= start) return 0;
 
-    // Tính toán số mili-giây, chuyển sang giờ
+    // Calculate milliseconds and convert to hours
     const diffInMs = end - start;
     const diffInHours = diffInMs / (1000 * 60 * 60);
 
-    // Làm tròn lên 1 giờ theo rules thiết kế (1 giờ 5 phút -> 2 giờ)
+    // Round up to one hour according to design rules (1 hour 5 minutes -> 2 hours)
     return Math.ceil(diffInHours);
   }, [startTime, endTime]);
 };

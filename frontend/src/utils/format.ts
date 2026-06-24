@@ -27,27 +27,27 @@ export function formatVNDCompact(amount: number): string {
   return `${amount} ₫`;
 }
 
-/** Format ngày + giờ: "10:00, 15/03/2024" */
+/** Format days + hours: "10:00, 15/03/2024" */
 export function formatDateTime(dateStr: string): string {
   return dayjs(dateStr).format('HH:mm, DD/MM/YYYY');
 }
 
-/** Format chỉ ngày: "15/03/2024" */
+/** Format date only: "15/03/2024" */
 export function formatDate(dateStr: string): string {
   return dayjs(dateStr).format('DD/MM/YYYY');
 }
 
-/** Thời gian tương đối: "2 giờ trước" */
+/** Relative time: "2 hours ago" */
 export function formatRelative(dateStr: string): string {
   return dayjs(dateStr).fromNow();
 }
 
-/** Tính số ngày giữa 2 mốc */
+/** Calculate number of days between two points */
 export function calcDays(startDate: string, endDate: string): number {
   return Math.max(1, dayjs(endDate).diff(dayjs(startDate), 'day'));
 }
 
-/** Format điểm loyalty: 15000 → "15.000 pts" */
+/** Format loyalty points: 15000 -> "15,000 pts" */
 export function formatPoints(points: number): string {
   return `${new Intl.NumberFormat('vi-VN').format(points)} pts`;
 }

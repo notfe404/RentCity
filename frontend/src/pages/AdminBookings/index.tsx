@@ -108,11 +108,11 @@ export default function AdminBookingsPage() {
         : await transitionAdminBooking(bookingId, payload);
 
       setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
-      toast.success(`Đã cập nhật booking ${data.bookingCode}`);
+      toast.success(`Booking updated ${data.bookingCode}`);
     } catch (error) {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
-        ?? 'Không thể cập nhật booking';
+        ?? 'Could not update booking';
       toast.error(message);
     } finally {
       setActiveBookingId(null);
@@ -124,11 +124,11 @@ export default function AdminBookingsPage() {
     try {
       const { data } = await cancelAdminBooking(bookingId);
       setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)));
-      toast.success(`Đã hủy booking ${data.bookingCode}`);
+      toast.success(`Cancelled booking ${data.bookingCode}`);
     } catch (error) {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
-        ?? 'Không thể hủy booking';
+        ?? 'Could not cancel booking';
       toast.error(message);
     } finally {
       setActiveBookingId(null);
@@ -208,7 +208,7 @@ export default function AdminBookingsPage() {
       const { data } = await getAdminBooking(returnBooking.id);
       setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)));
       setReturnBooking(null);
-      toast.success(`Đã hoàn tất kiểm tra xe trả cho ${data.bookingCode}`);
+      toast.success(`Return inspection completed for ${data.bookingCode}`);
     } catch (error) {
       const message =
         (error as { response?: { data?: { error?: string } } }).response?.data?.error
@@ -414,7 +414,7 @@ export default function AdminBookingsPage() {
                             disabled={busy}
                             onClick={() => setFinalizeBooking(booking)}
                             className="p-2 text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
-                            title="Chốt chi phí sửa chữa"
+                            title="Finalize repair cost"
                           >
                             <Wrench size={16} />
                           </button>

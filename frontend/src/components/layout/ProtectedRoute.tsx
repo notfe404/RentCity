@@ -7,8 +7,8 @@ import Spinner from '@/components/ui/Spinner';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   /**
-   * Nếu truyền vào — bắt buộc user phải có 1 trong những role này.
-   * Nếu không truyền — chỉ cần đăng nhập là đủ.
+   * If provided, the user must have one of these roles.
+   * If omitted, the user only needs to be signed in.
    */
   allowedRoles?: UserRole[];
 }
@@ -30,7 +30,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Redirect về đúng trang chủ của từng role
+    // Redirect to the correct home page for each role
     if (user.role === 'STAFF') {
       return <Navigate to={ROUTES.ADMIN_BOOKINGS} replace />;
     }

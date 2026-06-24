@@ -16,7 +16,7 @@ export default function Spinner({ size = 'md', className }: SpinnerProps) {
   return (
     <Loader2
       className={cn('animate-spin text-gold', sizeMap[size], className)}
-      aria-label="Đang tải..."
+      aria-label="Loading..."
     />
   );
 }

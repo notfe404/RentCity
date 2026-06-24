@@ -22,7 +22,7 @@ export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, 
           className="w-full h-full object-cover rounded-xl mt-4 group-hover:scale-105 transition-transform duration-500 shadow-md"
         />
         <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 justify-center flex items-center font-bold text-sm rounded-full text-[#78ad44] shadow-sm">
-          {formatVND(car.price)} <span className="text-gray-400 text-xs ml-1 font-medium">/ ngày</span>
+          {formatVND(car.price)} <span className="text-gray-400 text-xs ml-1 font-medium">/ day</span>
         </div>
         {/* Fuel type badge */}
         <div className="absolute top-4 left-4 bg-[#212529]/80 backdrop-blur-sm px-2.5 py-1 rounded-full flex items-center gap-1">
@@ -48,13 +48,13 @@ export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, 
         {/* Specs Grid */}
         <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-6 pt-4 border-t border-gray-100">
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
-            <Users size={16} className="text-[#78ad44]" /> {car.passengers} chỗ
+            <Users size={16} className="text-[#78ad44]" /> {car.passengers} seats
           </div>
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
-            <Briefcase size={16} className="text-[#78ad44]" /> {car.luggage} hành lý
+            <Briefcase size={16} className="text-[#78ad44]" /> {car.luggage} luggage
           </div>
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
-            <Car size={16} className="text-[#78ad44]" /> {car.doors} cửa
+            <Car size={16} className="text-[#78ad44]" /> {car.doors} doors
           </div>
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
             <Settings size={16} className="text-[#78ad44]" /> {car.transmission}
@@ -67,13 +67,13 @@ export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, 
             onClick={() => onDetailsClick(car.id)}
             className="flex-1 bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-full font-bold text-sm tracking-wide hover:border-[#78ad44] hover:text-[#78ad44] transition-colors"
           >
-            Chi tiết
+            Details
           </button>
           <button
             onClick={() => onBookClick(car.id)}
             className="flex-1 bg-[#212529] text-white py-3 rounded-full font-bold text-sm tracking-wide hover:bg-[#78ad44] transition-colors shadow-lg"
           >
-            Đặt ngay
+            Book Now
           </button>
         </div>
       </div>

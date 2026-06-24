@@ -74,7 +74,7 @@ export const PricingDisplay: React.FC<Props> = ({
           onClick={() => setShowAlternatives(true)}
           className="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors"
         >
-          {isRecommendedSelected ? `Xem các phương án khác (${data.alternatives.length})` : 'Quay lại xem phương án khuyến nghị'}
+          {isRecommendedSelected ? `View other options (${data.alternatives.length})` : 'Back to recommended option'}
         </button>
       )}
 

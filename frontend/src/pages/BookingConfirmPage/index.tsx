@@ -17,9 +17,9 @@ import { toBackendDateTime } from '@/utils/bookingDateTime';
 import { formatVND } from '@/utils/formatters';
 
 const EXTRAS_CONFIG = [
-  { key: 'insurance' as const, label: 'Bảo hiểm toàn diện', pricePerDay: 200000 },
-  { key: 'childSeat' as const, label: 'Ghế trẻ em (0-4 tuổi)', pricePerDay: 100000 },
-  { key: 'gps' as const, label: 'Bộ định vị GPS', pricePerDay: 50000 },
+  { key: 'insurance' as const, label: 'Comprehensive insurance', pricePerDay: 200000 },
+  { key: 'childSeat' as const, label: 'Child seat (0-4 years)', pricePerDay: 100000 },
+  { key: 'gps' as const, label: 'GPS Navigation Device', pricePerDay: 50000 },
 ];
 
 export default function BookingConfirmPage() {
@@ -66,7 +66,7 @@ export default function BookingConfirmPage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được xe');
+          toast.error('Could not load vehicle');
           setVehicleData(null);
         }
       } finally {
@@ -83,20 +83,20 @@ export default function BookingConfirmPage() {
   }, [id]);
 
   const vehicleBranchName = vehicle?.branchName;
-  const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
-  const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Theo chi nhánh của xe';
+  const pickupName = MOCK_LOCATIONS.find((l) => l.id === pickupLocationId)?.name ?? vehicleBranchName ?? 'Vehicle branch';
+  const returnName = MOCK_LOCATIONS.find((l) => l.id === returnLocationId)?.name ?? vehicleBranchName ?? 'Vehicle branch';
   const selectedPickupName = pickupMethod === 'ADDRESS_DELIVERY' ? deliveryAddress : pickupName;
 
   const lineItems = [
-    { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
+    { label: `Vehicle Rental (${durationLabel})`, amount: baseAmount },
     ...(extras.insurance ? [{ label: EXTRAS_CONFIG[0].label, amount: EXTRAS_CONFIG[0].pricePerDay * totalDays }] : []),
     ...(extras.childSeat ? [{
       label: `${EXTRAS_CONFIG[1].label} x ${Math.max(1, extras.childSeatQuantity)}`,
       amount: EXTRAS_CONFIG[1].pricePerDay * Math.max(1, extras.childSeatQuantity) * totalDays,
     }] : []),
     ...(extras.gps ? [{ label: EXTRAS_CONFIG[2].label, amount: EXTRAS_CONFIG[2].pricePerDay * totalDays }] : []),
-    ...(deliveryFeeAmount > 0 ? [{ label: 'Phí giao xe tận nơi', amount: deliveryFeeAmount }] : []),
-    ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
+    ...(deliveryFeeAmount > 0 ? [{ label: 'Delivery Fee', amount: deliveryFeeAmount }] : []),
+    ...(discountAmount > 0 ? [{ label: 'Discount', amount: -discountAmount }] : []),
   ];
 
   if (!vehicle) {
@@ -104,7 +104,7 @@ export default function BookingConfirmPage() {
       return (
         <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
           <Header />
-          <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải xe...</div>
+          <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Loading vehicles...</div>
           <Footer />
         </div>
       );
@@ -115,9 +115,9 @@ export default function BookingConfirmPage() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-24 h-24 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300"><Car size={48} /></div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">Không tìm thấy xe</h2>
-            <p className="text-gray-500 mb-8">Xe bạn đang tìm không tồn tại.</p>
-            <button onClick={() => navigate('/search')} className="bg-[#78ad44] text-white px-8 py-3 rounded-full font-bold shadow-lg">Quay lại tìm xe</button>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">Vehicle Not Found</h2>
+            <p className="text-gray-500 mb-8">The vehicle you are looking for does not exist.</p>
+            <button onClick={() => navigate('/search')} className="bg-[#78ad44] text-white px-8 py-3 rounded-full font-bold shadow-lg">Back to Search</button>
           </div>
         </div>
         <Footer />
@@ -131,17 +131,17 @@ export default function BookingConfirmPage() {
     }
 
     if (new Date(startDate).getTime() <= Date.now()) {
-      toast.error('Thời gian nhận xe phải ở tương lai');
+      toast.error('Pick-up time must be in the future');
       return;
     }
 
     if (new Date(endDate).getTime() <= new Date(startDate).getTime()) {
-      toast.error('Thời gian trả xe phải sau thời gian nhận xe');
+      toast.error('Return time must be after pick-up time');
       return;
     }
 
     if (pickupMethod === 'ADDRESS_DELIVERY' && !deliveryAddress.trim()) {
-      toast.error('Vui lòng nhập địa chỉ giao xe');
+      toast.error('Please enter the delivery address');
       return;
     }
 
@@ -159,7 +159,7 @@ export default function BookingConfirmPage() {
         gpsSelected: extras.gps,
       });
 
-      toast.success('Đã tạo booking thành công');
+      toast.success('Booking created successfully');
       navigate(`/booking/${data.id}/payment`);
     } catch (error) {
       const responseData = (error as { response?: { data?: Record<string, string> } }).response?.data;
@@ -169,7 +169,7 @@ export default function BookingConfirmPage() {
         ?? responseData?.endTime
         ?? responseData?.vehicleId
         ?? Object.values(responseData ?? {})[0]
-        ?? 'Không thể tạo booking';
+        ?? 'Could not create booking';
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -186,26 +186,26 @@ export default function BookingConfirmPage() {
         <div className="flex flex-col lg:flex-row gap-10">
           <div className="flex-1 w-full space-y-8">
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
-              <h2 className="text-3xl font-black text-gray-900 mb-2">Xem lại đặt xe</h2>
-              <p className="text-sm font-medium text-gray-500 mb-8">Vui lòng kiểm tra thông tin trước khi thanh toán.</p>
+              <h2 className="text-3xl font-black text-gray-900 mb-2">Review Your Booking</h2>
+              <p className="text-sm font-medium text-gray-500 mb-8">Please review the information before payment.</p>
 
               <div className="space-y-6">
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin khách hàng</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Customer Information</h3>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm font-medium">
-                    <div><span className="text-gray-400 block mb-1">Họ tên</span><span className="text-gray-900">{user?.fullName ?? 'Khách'}</span></div>
+                    <div><span className="text-gray-400 block mb-1">Full Name</span><span className="text-gray-900">{user?.fullName ?? 'Guest'}</span></div>
                     <div><span className="text-gray-400 block mb-1">Email</span><span className="text-gray-900">{user?.email ?? '—'}</span></div>
-                    <div><span className="text-gray-400 block mb-1">Điện thoại</span><span className="text-gray-900">{user?.phone ?? '—'}</span></div>
+                    <div><span className="text-gray-400 block mb-1">Phone</span><span className="text-gray-900">{user?.phone ?? '—'}</span></div>
                   </div>
                 </div>
 
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Hình thức nhận xe</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Pick-up Method</h3>
                   <div className="flex items-start gap-3">
                     <Check size={18} className="mt-0.5 shrink-0 text-[#78ad44]" />
                     <div>
                       <p className="text-sm font-black text-gray-900">
-                        {pickupMethod === 'ADDRESS_DELIVERY' ? 'Giao xe tận địa chỉ' : 'Nhận xe tại chi nhánh'}
+                        {pickupMethod === 'ADDRESS_DELIVERY' ? 'Deliver to address' : 'Pick up at branch'}
                       </p>
                       <p className="mt-1 text-sm font-medium leading-6 text-gray-600">{selectedPickupName}</p>
                     </div>
@@ -213,7 +213,7 @@ export default function BookingConfirmPage() {
                 </div>
 
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Dịch vụ đã chọn</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Selected Services</h3>
                   <ul className="space-y-2 text-sm font-medium text-gray-700">
                     {EXTRAS_CONFIG.map((e) => {
                       const quantity = e.key === 'childSeat' ? Math.max(1, extras.childSeatQuantity) : 1;
@@ -225,14 +225,14 @@ export default function BookingConfirmPage() {
                         </li>
                       ) : (
                         <li key={e.key} className="flex items-center gap-2 text-gray-400">
-                          <XIcon /> {e.label} (Chưa chọn)
+                          <XIcon /> {e.label} (Not selected)
                         </li>
                       );
                     })}
                     {deliveryFeeAmount > 0 && (
                       <li className="flex items-center gap-2">
                         <Check size={16} className="text-[#78ad44]" />
-                        Phí giao xe tận nơi — {formatVND(deliveryFeeAmount)}
+                        Delivery Fee — {formatVND(deliveryFeeAmount)}
                       </li>
                     )}
                   </ul>
@@ -241,9 +241,9 @@ export default function BookingConfirmPage() {
                 <div className="p-5 border border-[#78ad44]/30 rounded-2xl bg-[#78ad44]/5 flex items-start gap-4">
                   <AlertCircle className="text-[#78ad44] shrink-0 mt-0.5" size={20} />
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">Chính sách hủy</h4>
+                    <h4 className="text-sm font-bold text-gray-900">Cancellation Policy</h4>
                     <p className="text-xs font-medium text-gray-600 mt-1 leading-relaxed">
-                      Phí giữ chỗ chỉ được hoàn nếu booking được hủy ít nhất 24 giờ trước thời điểm nhận xe. Tiền cọc thuê xe riêng của phương tiện sẽ được thu khi khách đến nhận xe.
+                      The reservation fee is refundable only if the booking is cancelled at least 24 hours before pick-up. The separate vehicle deposit will be collected when the customer picks up the vehicle.
                     </p>
                   </div>
                 </div>
@@ -256,10 +256,10 @@ export default function BookingConfirmPage() {
                     className="mt-1 w-5 h-5 rounded border-gray-300 text-[#78ad44] focus:ring-[#78ad44] accent-[#78ad44]"
                   />
                   <span className="text-sm font-medium text-gray-600 leading-relaxed">
-                    Tôi đã đọc và đồng ý với{' '}
-                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Điều khoản sử dụng</a>{' '}
-                    và{' '}
-                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Chính sách bảo mật</a>.
+                    I have read and agree to the{' '}
+                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Terms of Use</a>{' '}
+                    and{' '}
+                    <a href="#" className="text-[#78ad44] hover:underline font-bold">Privacy Policy</a>.
                   </span>
                 </label>
               </div>
@@ -276,7 +276,7 @@ export default function BookingConfirmPage() {
             lineItems={lineItems}
             depositAmount={depositAmount}
             totalAmount={totalAmount}
-            actionLabel={isSubmitting ? 'Đang tạo booking...' : 'Tạo booking'}
+            actionLabel={isSubmitting ? 'Creating booking...' : 'Create Booking'}
             actionDisabled={!agreed || isSubmitting}
             onAction={handleCreateBooking}
           />

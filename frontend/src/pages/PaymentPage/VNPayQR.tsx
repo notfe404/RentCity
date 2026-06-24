@@ -44,7 +44,7 @@ export default function VNPayQR() {
     const initPayment = async () => {
       if (!id) {
         setStatus('error');
-        setErrorMessage('Booking không tồn tại');
+        setErrorMessage('Booking does not exist');
         return;
       }
 
@@ -129,7 +129,7 @@ export default function VNPayQR() {
       const { data: result } = await completeVnpayMockCallback(reference);
 
       if (result.status !== 'PAID') {
-        throw new Error('Thanh toán chưa hoàn tất');
+        throw new Error('Payment is not completed yet');
       }
 
       setStatus('success');
@@ -170,7 +170,7 @@ export default function VNPayQR() {
             onClick={() => navigate(`/booking/${id}/payment`)}
             className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors"
           >
-            <ArrowLeft size={16} /> Quay lại chọn thanh toán
+            <ArrowLeft size={16} /> Back to payment selection
           </button>
         </div>
 
@@ -181,9 +181,9 @@ export default function VNPayQR() {
                 <QrCode size={28} />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán VNPay</h1>
+                <h1 className="text-3xl font-black text-gray-900 mb-2">Payment VNPay</h1>
                 <p className="text-sm font-medium text-gray-500 leading-relaxed">
-                  Quét mã QR ngay trong giao diện RentCity để hoàn tất phí giữ chỗ cho booking
+                  Scan the QR code inside RentCity to complete the booking reservation fee
                   {booking && <span className="font-black text-gray-900"> {booking.bookingCode}</span>}.
                 </p>
               </div>
@@ -199,8 +199,8 @@ export default function VNPayQR() {
             {status === 'loading' && (
               <div className="rounded-[1.75rem] border border-gray-100 bg-[#f4f8f7] p-12 text-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin mx-auto mb-4" />
-                <h2 className="text-xl font-black text-gray-900">Đang tạo mã QR...</h2>
-                <p className="text-sm text-gray-500 mt-2">Vui lòng chờ trong giây lát</p>
+                <h2 className="text-xl font-black text-gray-900">Generating QR code...</h2>
+                <p className="text-sm text-gray-500 mt-2">Please wait a moment</p>
               </div>
             )}
 
@@ -219,24 +219,24 @@ export default function VNPayQR() {
                     </div>
 
                     <div>
-                      <h2 className="text-2xl font-black text-gray-900 mb-3">Quét mã QR để thanh toán</h2>
+                      <h2 className="text-2xl font-black text-gray-900 mb-3">Scan QR Code to Pay</h2>
                       <p className="text-sm text-gray-500 leading-relaxed mb-5">
-                        Dùng ứng dụng ngân hàng hoặc VNPay trên điện thoại để quét mã. Hệ thống đang mô phỏng
-                        xác nhận tự động sau vài giây.
+                        Use your banking app or VNPay on your phone to scan the code. The system is simulating
+                        automatic confirmation after a few seconds.
                       </p>
 
                       {booking && (
                         <div className="bg-white rounded-2xl border border-blue-100 p-5 space-y-3">
                           <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
-                            <span>Số tiền cần thanh toán</span>
+                            <span>Amount due</span>
                             <span className="text-blue-600">{formatVND(booking.depositAmount)}</span>
                           </div>
                           <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
-                            <span>Mã booking</span>
+                            <span>Booking Code</span>
                             <span className="text-gray-900">{booking.bookingCode}</span>
                           </div>
                           <div className="flex justify-between gap-4 text-sm font-bold text-gray-600">
-                            <span>Tự động xác nhận sau</span>
+                            <span>Auto-confirm after</span>
                             <span className="text-gray-900">{autoConfirmCountdown}s</span>
                           </div>
                         </div>
@@ -251,13 +251,13 @@ export default function VNPayQR() {
                     disabled={status !== 'qr_display' || paymentExpired}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-colors disabled:bg-gray-300"
                   >
-                    Xác nhận thanh toán
+                    Confirm Payment
                   </button>
                   <button
                     onClick={() => navigate(`/booking/${id}/payment`)}
                     className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-bold py-4 rounded-2xl transition-colors border-2 border-gray-200"
                   >
-                    Đổi phương thức khác
+                    Choose another method
                   </button>
                 </div>
 
@@ -268,8 +268,8 @@ export default function VNPayQR() {
             {status === 'processing' && (
               <div className="rounded-[1.75rem] border border-gray-100 bg-[#f4f8f7] p-12 text-center">
                 <Loader2 size={48} className="text-purple-600 animate-spin mx-auto mb-4" />
-                <h2 className="text-xl font-black text-gray-900">Đang xử lý thanh toán...</h2>
-                <p className="text-sm text-gray-500 mt-2">Vui lòng chờ, hệ thống đang xác nhận giao dịch VNPay</p>
+                <h2 className="text-xl font-black text-gray-900">Processing payment...</h2>
+                <p className="text-sm text-gray-500 mt-2">Please wait, the system is confirming the VNPay transaction</p>
               </div>
             )}
 
@@ -278,8 +278,8 @@ export default function VNPayQR() {
                 <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <CheckCircle2 size={48} className="text-green-600" />
                 </div>
-                <h2 className="text-xl font-black text-gray-900">Thanh toán thành công</h2>
-                <p className="text-sm text-gray-500 mt-2">Giao dịch đã được xác nhận. Đang chuyển hướng về kết quả booking...</p>
+                <h2 className="text-xl font-black text-gray-900">Payment successful</h2>
+                <p className="text-sm text-gray-500 mt-2">Transaction confirmed. Redirecting to booking result...</p>
               </div>
             )}
 
@@ -288,13 +288,13 @@ export default function VNPayQR() {
                 <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <Receipt size={40} className="text-red-600" />
                 </div>
-                <h2 className="text-xl font-black text-gray-900">Thanh toán thất bại</h2>
+                <h2 className="text-xl font-black text-gray-900">Payment failed</h2>
                 <p className="text-sm text-gray-600 font-medium mt-2">{errorMessage}</p>
                 <button
                   onClick={() => navigate(`/booking/${id}/payment`)}
                   className="mt-6 w-full sm:w-auto px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl transition-colors"
                 >
-                  Quay lại thanh toán
+                  Back to Payment
                 </button>
               </div>
             )}
@@ -302,7 +302,7 @@ export default function VNPayQR() {
 
           <aside className="space-y-6">
             <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100">
-              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Tóm tắt booking</h3>
+              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Booking Summary</h3>
 
               {booking && (
                 <>
@@ -314,30 +314,30 @@ export default function VNPayQR() {
                     )}
                     <div>
                       <h4 className="font-black text-gray-900">{vehicleName}</h4>
-                      <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'Chưa có biển số'}</p>
+                      <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'No license plate yet'}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-sm font-bold text-gray-600 px-2">
                     <div className="flex justify-between gap-4">
-                      <span>Nhận xe</span>
+                      <span>Pick-up</span>
                       <span className="text-gray-900 text-right">{formatDateTime(booking.startTime)}</span>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <span>Trả xe</span>
+                      <span>Return</span>
                       <span className="text-gray-900 text-right">{formatDateTime(booking.endTime)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tổng tiền</span>
+                      <span>Total Amount</span>
                       <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Phí giữ chỗ (30%)</span>
+                      <span>Reservation Fee (30%)</span>
                       <span className="text-blue-600">{formatVND(booking.depositAmount)}</span>
                     </div>
                     {depositMeta && (
                       <div className="flex justify-between">
-                        <span>Trạng thái phí giữ chỗ</span>
+                        <span>Reservation Fee Status</span>
                         <span className={depositMeta.color}>{depositMeta.label}</span>
                       </div>
                     )}
@@ -350,13 +350,13 @@ export default function VNPayQR() {
                   onClick={() => navigate(`/booking/${id}/payment`)}
                   className="w-full bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2"
                 >
-                  <CreditCard size={18} /> Quay lại trang thanh toán
+                  <CreditCard size={18} /> Back to Payment Page
                 </button>
                 <Link
                   to={`/my-bookings/${id}`}
                   className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl py-4 transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
                 >
-                  <Receipt size={18} /> Xem chi tiết booking
+                  <Receipt size={18} /> View Booking Details
                 </Link>
               </div>
             </div>
@@ -367,9 +367,9 @@ export default function VNPayQR() {
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <h4 className="font-black text-gray-900">Thanh toán trong giao diện web</h4>
+                  <h4 className="font-black text-gray-900">Payment inside the web interface</h4>
                   <p className="text-sm text-gray-500 font-medium mt-2 leading-relaxed">
-                    Mã QR VNPay giờ được hiển thị ngay trong giao diện RentCity thay vì một màn hình tách rời kiểu standalone.
+                    The VNPay QR code is now shown directly in RentCity instead of a separate standalone screen.
                   </p>
                 </div>
               </div>

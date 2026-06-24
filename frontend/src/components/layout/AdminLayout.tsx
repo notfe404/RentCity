@@ -26,15 +26,15 @@ interface AdminLayoutProps {
 
 const NAV_LINKS = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, exact: true },
-  { name: 'Quản lý xe', path: '/admin/vehicles', icon: Car },
+  { name: 'Vehicle Management', path: '/admin/vehicles', icon: Car },
   { name: 'Booking', path: '/admin/bookings', icon: ListOrdered },
   { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
-  { name: 'Thông báo', path: '/admin/notifications', icon: Bell },
+  { name: 'Notifications', path: '/admin/notifications', icon: Bell },
   { name: 'Withdraw Requests', path: '/admin/withdrawals', icon: Landmark },
-  { name: 'Thanh toán', path: '/admin/payments', icon: CreditCard },
-  { name: 'Người dùng', path: '/admin/users', icon: Users },
-  { name: 'Chi nhánh', path: '/admin/branches', icon: MapPin },
-  { name: 'Danh mục xe', path: '/admin/categories', icon: Tag },
+  { name: 'Payment', path: '/admin/payments', icon: CreditCard },
+  { name: 'Users', path: '/admin/users', icon: Users },
+  { name: 'Branches', path: '/admin/branches', icon: MapPin },
+  { name: 'Vehicle Categories', path: '/admin/categories', icon: Tag },
 ];
 
 function isLinkActive(path: string, currentPath: string, exact = false) {
@@ -102,7 +102,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-gray-500 hover:text-red-500 hover:bg-red-50 transition-all text-sm"
         >
-          <LogOut size={18} /> Đăng xuất
+          <LogOut size={18} /> Logout
         </button>
       </div>
     </>

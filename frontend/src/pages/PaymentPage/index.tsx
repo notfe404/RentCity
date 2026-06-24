@@ -36,13 +36,13 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   {
     gateway: 'PAYPAL',
     title: 'PayPal',
-    description: 'Thanh toán an toàn qua PayPal. Chuyển hướng đến trang PayPal để hoàn tất.',
+    description: 'Secure payment via PayPal. You will be redirected to PayPal to complete it.',
     icon: <WalletCards size={22} />,
   },
   {
     gateway: 'VNPAY',
     title: 'VNPay',
-    description: 'Quét mã QR để thanh toán. Hỗ trợ tất cả ngân hàng và ví điện tử.',
+    description: 'Scan the QR code to pay. Supports all banks and e-wallets.',
     icon: <CreditCard size={22} />,
   },
   {
@@ -54,11 +54,11 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 const PAYMENT_STATUS_META: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'Chờ thanh toán', color: 'text-orange-500' },
-  PAID: { label: 'Đã thanh toán', color: 'text-[#78ad44]' },
-  FAILED: { label: 'Thất bại', color: 'text-red-500' },
-  REFUNDED: { label: 'Đã hoàn tiền', color: 'text-gray-500' },
-  EXPIRED: { label: 'Hết hạn', color: 'text-gray-500' },
+  PENDING: { label: 'Pending Payment', color: 'text-orange-500' },
+  PAID: { label: 'Paid', color: 'text-[#78ad44]' },
+  FAILED: { label: 'Failed', color: 'text-red-500' },
+  REFUNDED: { label: 'Refunded', color: 'text-gray-500' },
+  EXPIRED: { label: 'Expired', color: 'text-gray-500' },
 };
 
 export default function PaymentPage() {
@@ -104,7 +104,7 @@ export default function PaymentPage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được thông tin booking');
+          toast.error('Could not load booking information');
           navigate('/my-bookings', { replace: true });
         }
       } finally {
@@ -151,12 +151,12 @@ export default function PaymentPage() {
     }
 
     if (paymentExpired) {
-      toast.error('Đã hết 15 phút giữ booking');
+      toast.error('The 15-minute booking hold has expired');
       return;
     }
 
     if (booking.status !== 'PENDING' || booking.depositStatus !== 'UNPAID') {
-      toast.error('Booking này không còn ở trạng thái cần thanh toán phí giữ chỗ');
+      toast.error('This booking no longer requires reservation fee payment');
       return;
     }
 
@@ -202,7 +202,7 @@ export default function PaymentPage() {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
         <Header />
-        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải booking...</div>
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Loading booking...</div>
         <Footer />
       </div>
     );
@@ -236,10 +236,10 @@ export default function PaymentPage() {
                   <Clock3 size={28} />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-black text-gray-900 mb-2">Thanh toán phí giữ chỗ</h1>
+                  <h1 className="text-3xl font-black text-gray-900 mb-2">Pay Reservation Fee</h1>
                   <p className="text-sm font-medium text-gray-500 leading-relaxed">
-                    Booking <span className="font-black text-gray-900">{booking.bookingCode}</span> đang chờ thanh toán
-                    phí giữ chỗ 30% để xác nhận và giữ xe cho lịch thuê này.
+                    Booking <span className="font-black text-gray-900">{booking.bookingCode}</span> is waiting for payment
+                    30% reservation fee to confirm and reserve the vehicle for this rental schedule.
                   </p>
                 </div>
               </div>
@@ -252,7 +252,7 @@ export default function PaymentPage() {
             </section>
 
             <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-black text-gray-900 mb-6">Chọn phương thức thanh toán</h2>
+              <h2 className="text-2xl font-black text-gray-900 mb-6">Choose Payment Method</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PAYMENT_METHODS.map((method) => (
                   <button
@@ -298,14 +298,14 @@ export default function PaymentPage() {
                 className="mt-6 w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <ShieldCheck size={18} />
-                {isPaying ? 'Đang xử lý...' : 'Thanh toán phí giữ chỗ'}
+                {isPaying ? 'Processing...' : 'Pay Reservation Fee'}
               </button>
 
               {!canPay && (
                 <p className="mt-4 text-sm font-bold text-gray-500">
                   {paymentExpired
-                    ? 'Booking đã hết 15 phút chờ thanh toán và đang được tự động hủy.'
-                    : <>Trạng thái phí giữ chỗ: <span className={depositMeta.color}>{depositMeta.label}</span>.</>}
+                    ? 'The booking has passed the 15-minute payment window and is being automatically cancelled.'
+                    : <>Reservation Fee Status: <span className={depositMeta.color}>{depositMeta.label}</span>.</>}
                 </p>
               )}
             </section>
@@ -313,11 +313,11 @@ export default function PaymentPage() {
             <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-6">
                 <History size={22} className="text-[#78ad44]" />
-                <h2 className="text-2xl font-black text-gray-900">Lịch sử thanh toán</h2>
+                <h2 className="text-2xl font-black text-gray-900">Payment History</h2>
               </div>
 
               {payments.length === 0 ? (
-                <p className="text-sm font-bold text-gray-500">Chưa có giao dịch nào cho booking này.</p>
+                <p className="text-sm font-bold text-gray-500">No transactions for this booking yet.</p>
               ) : (
                 <div className="space-y-3">
                   {payments.map((payment) => {
@@ -342,7 +342,7 @@ export default function PaymentPage() {
 
           <aside className="space-y-6">
             <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100">
-              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Tóm tắt booking</h3>
+              <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2 mb-6">Booking Summary</h3>
               <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl mb-6">
                 {vehicleImage ? (
                   <img src={vehicleImage} alt={vehicleName} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
@@ -351,29 +351,29 @@ export default function PaymentPage() {
                 )}
                 <div>
                   <h4 className="font-black text-gray-900">{vehicleName}</h4>
-                  <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'Chưa có biển số'}</p>
+                  <p className="text-xs text-gray-500 font-bold mt-1">{booking.vehicleLicensePlate ?? 'No license plate yet'}</p>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm font-bold text-gray-600 px-2">
                 <div className="flex justify-between gap-4">
-                  <span>Nhận xe</span>
+                  <span>Pick-up</span>
                   <span className="text-gray-900 text-right">{formatDateTime(booking.startTime)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span>Trả xe</span>
+                  <span>Return</span>
                   <span className="text-gray-900 text-right">{formatDateTime(booking.endTime)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tổng tiền</span>
+                  <span>Total Amount</span>
                   <span className="text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Phí giữ chỗ (30%)</span>
+                  <span>Reservation Fee (30%)</span>
                   <span className="text-[#78ad44]">{formatVND(booking.depositAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Trạng thái phí giữ chỗ</span>
+                  <span>Reservation Fee Status</span>
                   <span className={depositMeta.color}>{depositMeta.label}</span>
                 </div>
               </div>
@@ -382,7 +382,7 @@ export default function PaymentPage() {
                 <div className="mt-6 bg-[#f4f8f7] rounded-2xl p-4 flex items-start gap-3">
                   <Receipt size={18} className="text-[#78ad44] mt-0.5" />
                   <div>
-                    <p className="text-sm font-black text-gray-900">Giao dịch gần nhất</p>
+                    <p className="text-sm font-black text-gray-900">Latest Transactions</p>
                     <p className="text-xs font-bold text-gray-500 mt-1">
                       {latestPayment.gateway} - {PAYMENT_STATUS_META[latestPayment.status].label}
                     </p>
@@ -395,19 +395,19 @@ export default function PaymentPage() {
                   onClick={() => navigate(`/booking/${booking.id}/result`)}
                   className="w-full bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex items-center justify-center gap-2"
                 >
-                  <CheckCircle2 size={18} /> Xem kết quả booking
+                  <CheckCircle2 size={18} /> View Booking Result
                 </button>
                 <button
                   onClick={() => navigate(`/my-bookings/${booking.id}`)}
                   className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl py-4 transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
                 >
-                  <FileText size={18} /> Xem chi tiết booking
+                  <FileText size={18} /> View Booking Details
                 </button>
                 <Link
                   to="/my-bookings"
                   className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-2xl py-4 transition-colors border-2 border-gray-200 flex items-center justify-center gap-2"
                 >
-                  <CheckCircle2 size={18} /> Đến danh sách booking
+                  <CheckCircle2 size={18} /> Go to Booking List
                 </Link>
               </div>
             </div>
@@ -424,5 +424,5 @@ function getErrorMessage(error: unknown) {
   const responseData = (error as { response?: { data?: Record<string, string> } }).response?.data;
   return responseData?.error
     ?? Object.values(responseData ?? {})[0]
-    ?? 'Không thể xử lý thanh toán';
+    ?? 'Could not process payment';
 }

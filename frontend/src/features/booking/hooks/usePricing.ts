@@ -9,7 +9,7 @@ interface UsePricingParams {
   enabled?: boolean;
 }
 
-// Giả lập bảng giá cho một xe (VD: Toyota Vios)
+// Mock pricing table for one vehicle (e.g. Toyota Vios)
 const MOCK_RULES = {
   hourly_rate: 80000,
   daily_rate: 800000,
@@ -44,13 +44,13 @@ export const usePricing = ({
       if (!isMounted) return;
 
       try {
-        // Thuật toán Best Price Mock
+        // Best Price mock algorithm
         const priceA = totalHours * MOCK_RULES.hourly_rate;
 
         const fullDays = Math.floor(totalHours / 24);
         const remainHours = totalHours - fullDays * 24;
         let priceB = fullDays * MOCK_RULES.daily_rate + remainHours * MOCK_RULES.hourly_rate;
-        // Logic làm tròn lên ngày
+        // Round-up-to-days logic
         if (remainHours * MOCK_RULES.hourly_rate > MOCK_RULES.daily_rate) {
            priceB = (fullDays + 1) * MOCK_RULES.daily_rate;
         }
@@ -75,8 +75,8 @@ export const usePricing = ({
             surcharge: 0,
             discount: 0,
             finalAmount: priceA,
-            breakdown: { hours: totalHours, detail: `${totalHours} giờ × 80.000đ` },
-            label: 'Theo giờ',
+            breakdown: { hours: totalHours, detail: `${totalHours} hours × 80,000 VND` },
+            label: 'Hourly',
           },
           {
             mode: 'DAILY' as const,
@@ -84,8 +84,8 @@ export const usePricing = ({
             surcharge: 0,
             discount: 0,
             finalAmount: priceB,
-            breakdown: { days: fullDays, hours: remainHours, detail: `${fullDays} ngày × 800.000đ + ${remainHours} giờ × 80.000đ` },
-            label: 'Theo ngày',
+            breakdown: { days: fullDays, hours: remainHours, detail: `${fullDays} days × 800,000 VND + ${remainHours} hours × 80,000 VND` },
+            label: 'Daily',
           },
         ];
 
@@ -96,8 +96,8 @@ export const usePricing = ({
             surcharge: 0,
             discount: 0,
             finalAmount: priceC,
-            breakdown: { weeks: fullWeeks, days: remainDaysC, hours: remainHrsC, detail: `${fullWeeks} tuần × 5.000.000đ + ...` },
-            label: 'Theo tuần',
+            breakdown: { weeks: fullWeeks, days: remainDaysC, hours: remainHrsC, detail: `${fullWeeks} weeks × 5,000,000 VND + ...` },
+            label: 'Weekly',
           });
         }
         
@@ -108,17 +108,17 @@ export const usePricing = ({
             surcharge: 0,
             discount: 0,
             finalAmount: priceD,
-            breakdown: { months: fullMonths, weeks: remainWeeksD, detail: `${fullMonths} tháng × 18.000.000đ + ...` },
-            label: 'Theo tháng',
+            breakdown: { months: fullMonths, weeks: remainWeeksD, detail: `${fullMonths} months × 18,000,000 VND + ...` },
+            label: 'Monthly',
            });
         }
 
         const bestOption = alternatives.reduce((min, opt) => opt.finalAmount < min.finalAmount ? opt : min, alternatives[0]);
-        // Cập nhật lại nhãn cho recommended
-        bestOption.label = 'Khuyến nghị — Tiết kiệm nhất';
-        bestOption.mode = 'MIXED'; // Giả sử là MIXED
+        // Update the label for the recommended option
+        bestOption.label = 'Recommended - Best Savings';
+        bestOption.mode = 'MIXED'; // Assume MIXED
 
-        const savingsAmount = alternatives[0].finalAmount - bestOption.finalAmount; // So với gói giờ
+        const savingsAmount = alternatives[0].finalAmount - bestOption.finalAmount; // Compared with the hourly package
 
         setData({
           recommended: bestOption,
@@ -129,14 +129,14 @@ export const usePricing = ({
             comparedTo: 'HOURLY',
           },
           totalHours,
-          validUntil: new Date(Date.now() + 5 * 60000).toISOString(),
+          bagsdUntil: new Date(Date.now() + 5 * 60000).toISOString(),
         });
       } catch {
-        setError('Có lỗi xảy ra khi tính giá');
+        setError('An error occurred while calculating price');
       } finally {
         setIsLoading(false);
       }
-    }, 800); // Giả lập delay mạng
+    }, 800); // Mock network delay
 
     return () => {
       isMounted = false;

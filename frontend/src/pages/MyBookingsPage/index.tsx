@@ -16,13 +16,13 @@ import type { ApiBookingResponse, ApiBookingStatus } from '@/types';
 type TabFilter = 'all' | ApiBookingStatus;
 
 const TABS: { key: TabFilter; label: string }[] = [
-  { key: 'all',       label: 'Tất cả' },
-  { key: 'PENDING',   label: 'Chờ xác nhận' },
-  { key: 'CONFIRMED', label: 'Đã xác nhận' },
-  { key: 'PAID',      label: 'Đã thanh toán đủ' },
-  { key: 'ONGOING',   label: 'Đang thuê' },
-  { key: 'COMPLETED', label: 'Hoàn thành' },
-  { key: 'CANCELLED', label: 'Đã hủy' },
+  { key: 'all',       label: 'All' },
+  { key: 'PENDING',   label: 'Pending Confirmation' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'PAID',      label: 'Fully Paid' },
+  { key: 'ONGOING',   label: 'Ongoing' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
 export default function MyBookingsPage() {
@@ -57,7 +57,7 @@ export default function MyBookingsPage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được danh sách booking');
+          toast.error('Could not load bookings');
         }
       } finally {
         if (!cancelled) {
@@ -86,7 +86,7 @@ export default function MyBookingsPage() {
 
         <div className="flex-1 space-y-8">
           <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 min-h-full">
-            <h2 className="text-2xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Đơn đặt xe của tôi</h2>
+            <h2 className="text-2xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">My Bookings</h2>
 
             {/* Tabs */}
             <div className="flex gap-3 mb-8 overflow-x-auto pb-2 hide-scrollbar">
@@ -108,7 +108,7 @@ export default function MyBookingsPage() {
             {/* Booking list */}
             <div className="space-y-6">
               {isLoading && (
-                <div className="text-center py-16 text-gray-500 font-bold">Đang tải danh sách booking...</div>
+                <div className="text-center py-16 text-gray-500 font-bold">Loading bookings...</div>
               )}
               <AnimatePresence mode="popLayout">
                 {!isLoading && filtered.map((booking) => {
@@ -144,7 +144,7 @@ export default function MyBookingsPage() {
                             <h3 className="text-xl font-black text-gray-900">{vehicleName}</h3>
                             <span className="text-lg font-black text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                           </div>
-                          <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Mã: {booking.bookingCode}</p>
+                          <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Code: {booking.bookingCode}</p>
 
                           <div className="flex flex-col sm:flex-row gap-x-6 gap-y-2 text-sm text-gray-600 font-medium">
                             <div className="flex items-center gap-2">
@@ -167,16 +167,16 @@ export default function MyBookingsPage() {
                               }}
                               className="text-sm font-bold bg-[#fff8f0] hover:bg-orange-100 text-orange-600 px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1"
                             >
-                              <Star size={16} className="fill-orange-500 text-orange-500" /> Đánh giá
+                              <Star size={16} className="fill-orange-500 text-orange-500" /> Reviews
                             </button>
                           )}
                           {booking.status === 'COMPLETED' && reviewedBookingIds.has(booking.id) && (
                             <span className="text-sm font-bold bg-[#f4f8f7] text-[#78ad44] px-5 py-2.5 rounded-xl flex items-center gap-1">
-                              <Star size={16} className="fill-[#78ad44] text-[#78ad44]" /> Đã đánh giá
+                              <Star size={16} className="fill-[#78ad44] text-[#78ad44]" /> Reviewed
                             </span>
                           )}
                           <button className="text-sm font-bold bg-[#f4f8f7] hover:bg-gray-100 text-gray-900 px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1">
-                            Xem chi tiết <ChevronRight size={16} />
+                            View Details <ChevronRight size={16} />
                           </button>
                         </div>
                       </div>
@@ -190,13 +190,13 @@ export default function MyBookingsPage() {
                   <div className="w-20 h-20 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
                     <Car size={40} />
                   </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-2">Chưa có đơn nào</h3>
-                  <p className="text-gray-500 font-medium mb-6">Bạn chưa có đơn đặt xe nào trong mục này.</p>
+                  <h3 className="text-xl font-black text-gray-900 mb-2">No bookings yet</h3>
+                  <p className="text-gray-500 font-medium mb-6">You do not have any bookings in this section yet.</p>
                   <button
                     onClick={() => navigate('/search')}
                     className="bg-[#78ad44] text-white px-6 py-3 rounded-full font-bold shadow-lg"
                   >
-                    Tìm xe ngay
+                    Find a Vehicle Now
                   </button>
                 </div>
               )}

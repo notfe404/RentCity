@@ -31,7 +31,7 @@ export default function PayPalRedirect() {
     script.onerror = () => {
       toast.error('Failed to load PayPal SDK');
       setStatus('error');
-      setErrorMessage('Không thể tải PayPal SDK');
+      setErrorMessage('Could not load PayPal SDK');
     };
     document.body.appendChild(script);
 
@@ -45,7 +45,7 @@ export default function PayPalRedirect() {
   const initializePayPal = async () => {
     if (!id) {
       setStatus('error');
-      setErrorMessage('Booking không tồn tại');
+      setErrorMessage('Booking does not exist');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function PayPalRedirect() {
                 intent: 'CAPTURE',
                 purchase_units: [
                   {
-                    description: `Thanh toán cọc cho Booking: ${id}`,
+                    description: `Deposit payment for booking: ${id}`,
                     amount: {
                       currency_code: "USD",
                       value: amountInUSD,
@@ -141,7 +141,7 @@ export default function PayPalRedirect() {
             </svg>
           </div>
           <h1 className="text-3xl font-black text-gray-900 mb-2">PayPal</h1>
-          <p className="text-gray-500 font-medium">Thanh toán an toàn qua PayPal</p>
+          <p className="text-gray-500 font-medium">Secure payment via PayPal</p>
         </div>
 
         {/* Status Card */}
@@ -158,8 +158,8 @@ export default function PayPalRedirect() {
               <div className="flex justify-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Đang tải...</h2>
-              <p className="text-sm text-gray-500">Vui lòng chờ, đang khởi động PayPal</p>
+              <h2 className="text-xl font-black text-gray-900">Loading...</h2>
+              <p className="text-sm text-gray-500">Please wait, PayPal is starting</p>
             </div>
           )}
 
@@ -168,10 +168,10 @@ export default function PayPalRedirect() {
               <div className="flex justify-center">
                 <Loader2 size={48} className="text-blue-600 animate-spin" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Chọn phương thức thanh toán</h2>
+              <h2 className="text-xl font-black text-gray-900">Choose Payment Method</h2>
               <div id="paypal-button-container" className="bg-gray-50 rounded-xl p-4 min-h-[150px]"></div>
               <p className="text-xs text-gray-400 italic">
-                Bạn sẽ được chuyển hướng đến PayPal để hoàn tất thanh toán
+                You will be redirected to PayPal to complete payment
               </p>
             </div>
           )}
@@ -181,8 +181,8 @@ export default function PayPalRedirect() {
               <div className="flex justify-center">
                 <CheckCircle2 size={64} className="text-green-500" />
               </div>
-              <h2 className="text-2xl font-black text-gray-900">Thanh toán thành công!</h2>
-              <p className="text-gray-600">Đơn đặt xe của bạn đã được xác nhận. Đang chuyển hướng...</p>
+              <h2 className="text-2xl font-black text-gray-900">Payment successful!</h2>
+              <p className="text-gray-600">Your booking has been confirmed. Redirecting...</p>
             </div>
           )}
 
@@ -191,13 +191,13 @@ export default function PayPalRedirect() {
               <div className="flex justify-center">
                 <AlertCircle size={64} className="text-red-500" />
               </div>
-              <h2 className="text-xl font-black text-gray-900">Thanh toán thất bại</h2>
+              <h2 className="text-xl font-black text-gray-900">Payment failed</h2>
               <p className="text-sm text-red-600">{errorMessage}</p>
               <button
                 onClick={() => navigate(`/booking/${id}`)}
                 className="w-full mt-4 px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
               >
-                Quay lại
+                Back
               </button>
             </div>
           )}

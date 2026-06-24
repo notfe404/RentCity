@@ -28,17 +28,17 @@ import { formatVND } from '@/utils/formatters';
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'trips';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'recommended', label: 'Đề xuất' },
-  { value: 'price-asc', label: 'Giá thấp → cao' },
-  { value: 'price-desc', label: 'Giá cao → thấp' },
-  { value: 'rating', label: 'Đánh giá cao nhất' },
-  { value: 'trips', label: 'Nhiều chuyến nhất' },
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'price-asc', label: 'Price Low to High' },
+  { value: 'price-desc', label: 'Price High to Low' },
+  { value: 'rating', label: 'Highest Rated' },
+  { value: 'trips', label: 'Most Trips' },
 ];
 
 const CATEGORIES = ['Sedan', 'SUV', 'Luxury', 'Van'];
 const SEAT_OPTIONS = [4, 5, 7];
-const FUEL_OPTIONS = ['Xăng', 'Dầu diesel', 'Điện', 'Hybrid'] as const;
-const TRANSMISSION_OPTIONS = ['Số tự động', 'Số sàn'] as const;
+const FUEL_OPTIONS = ['Gasoline', 'Diesel', 'Electric', 'Hybrid'] as const;
+const TRANSMISSION_OPTIONS = ['Automatic', 'Manual'] as const;
 
 export default function SearchPage() {
   const navigate = useNavigate();
@@ -123,7 +123,7 @@ export default function SearchPage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được danh sách xe');
+          toast.error('Could not load vehicle list');
         }
       } finally {
         if (!cancelled) {
@@ -224,13 +224,13 @@ export default function SearchPage() {
     <div className="space-y-8">
       {/* Location */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Chi nhánh</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Branch</h4>
         <select
           value={selectedLocation}
           onChange={e => setSelectedLocation(e.target.value)}
           className="w-full bg-[#f4f8f7] rounded-xl py-3 px-4 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#78ad44] border-none appearance-none cursor-pointer"
         >
-          <option value="">Tất cả chi nhánh</option>
+          <option value="">All branches</option>
           {locationOptions.map(loc => (
             <option key={loc.id} value={loc.id}>{loc.name}</option>
           ))}
@@ -240,8 +240,8 @@ export default function SearchPage() {
       {/* Price */}
       <div>
         <label className="text-sm font-semibold text-gray-700 block mb-4 flex justify-between">
-          <span>Giá tối đa</span>
-          <span className="text-[#78ad44]">{formatVND(priceRange)}/ngày</span>
+          <span>Maximum price</span>
+          <span className="text-[#78ad44]">{formatVND(priceRange)}/day</span>
         </label>
         <input
           type="range" min={500000} max={10000000} step={100000}
@@ -256,7 +256,7 @@ export default function SearchPage() {
 
       {/* Categories */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Danh mục</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Category</h4>
         <div className="space-y-3">
           {CATEGORIES.map(c => (
             <label key={c} className="flex items-center gap-3 cursor-pointer group">
@@ -274,7 +274,7 @@ export default function SearchPage() {
 
       {/* Seats */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Số ghế</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Seats</h4>
         <div className="flex gap-2">
           {SEAT_OPTIONS.map(s => (
             <button
@@ -286,7 +286,7 @@ export default function SearchPage() {
                   : 'bg-[#f4f8f7] text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {s} chỗ
+              {s} seats
             </button>
           ))}
         </div>
@@ -294,7 +294,7 @@ export default function SearchPage() {
 
       {/* Fuel */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Nhiên liệu</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Fuel</h4>
         <div className="space-y-3">
           {FUEL_OPTIONS.map(f => (
             <label key={f} className="flex items-center gap-3 cursor-pointer group">
@@ -312,7 +312,7 @@ export default function SearchPage() {
 
       {/* Transmission */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Hộp số</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Transmission</h4>
         <div className="space-y-3">
           {TRANSMISSION_OPTIONS.map(t => (
             <label key={t} className="flex items-center gap-3 cursor-pointer group">
@@ -331,7 +331,7 @@ export default function SearchPage() {
       {/* Clear */}
       {activeFilterCount > 0 && (
         <button onClick={clearAllFilters} className="w-full py-3 text-sm font-bold text-red-500 hover:text-red-700 transition-colors">
-          Xóa tất cả bộ lọc ({activeFilterCount})
+          Clear all filters ({activeFilterCount})
         </button>
       )}
     </div>
@@ -345,7 +345,7 @@ export default function SearchPage() {
       <div className="bg-[#212529] pt-28 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-black text-white mb-8 tracking-tight">
-            {brandFilter ? `Bộ sưu tập ${brandFilter}` : categoryFilter ? `Xe ${categoryFilter}` : 'Tìm xe phù hợp cho bạn'}
+            {brandFilter ? `Collection ${brandFilter}` : categoryFilter ? `Vehicle ${categoryFilter}` : 'Find the right vehicle for you'}
           </h1>
 
           {(brandFilter || categoryFilter) && (
@@ -353,7 +353,7 @@ export default function SearchPage() {
               onClick={() => navigate('/search')}
               className="mb-6 bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 w-fit"
             >
-              Xóa bộ lọc: <span className="text-[#78ad44]">{brandFilter || categoryFilter}</span> ✕
+              Clear filter: <span className="text-[#78ad44]">{brandFilter || categoryFilter}</span> ✕
             </button>
           )}
 
@@ -366,7 +366,7 @@ export default function SearchPage() {
                 onChange={e => setSelectedLocation(e.target.value)}
                 className="w-full bg-[#f4f8f7] rounded-full py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-[#78ad44] text-gray-700 font-bold text-sm appearance-none cursor-pointer"
               >
-                <option value="">Tất cả chi nhánh</option>
+                <option value="">All branches</option>
                 {locationOptions.map(loc => (
                   <option key={loc.id} value={loc.id}>{loc.name}</option>
                 ))}
@@ -413,7 +413,7 @@ export default function SearchPage() {
               </div>
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
-                Nhận xe
+                Pick-up
               </div>
             </div>
 
@@ -457,7 +457,7 @@ export default function SearchPage() {
               </div>
               <div className="w-[1px] bg-gray-200 my-3" />
               <div className="w-28 flex items-center justify-center text-sm font-bold text-gray-500 px-3">
-                Trả xe
+                Return
               </div>
             </div>
 
@@ -476,7 +476,7 @@ export default function SearchPage() {
           onClick={() => setShowMobileFilters(true)}
           className="lg:hidden flex items-center gap-2 bg-white rounded-2xl px-5 py-3 shadow-sm border border-gray-100 font-bold text-sm text-gray-700 w-fit"
         >
-          <SlidersHorizontal size={16} /> Bộ lọc {activeFilterCount > 0 && <span className="bg-[#78ad44] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">{activeFilterCount}</span>}
+          <SlidersHorizontal size={16} /> Filters {activeFilterCount > 0 && <span className="bg-[#78ad44] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">{activeFilterCount}</span>}
         </button>
 
         {/* Mobile filter drawer */}
@@ -494,7 +494,7 @@ export default function SearchPage() {
                 className="fixed inset-y-0 left-0 w-80 bg-white z-50 lg:hidden overflow-y-auto p-6 shadow-2xl"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-gray-900">Bộ lọc</h3>
+                  <h3 className="text-lg font-bold text-gray-900">Filters</h3>
                   <button onClick={() => setShowMobileFilters(false)} className="p-2 hover:bg-gray-100 rounded-xl">
                     <X size={20} />
                   </button>
@@ -509,7 +509,7 @@ export default function SearchPage() {
         <aside className="hidden lg:block w-72 shrink-0">
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 sticky top-24">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">Bộ lọc</h3>
+              <h3 className="text-lg font-bold text-gray-900">Filters</h3>
               <Filter size={18} className="text-gray-400" />
             </div>
             {filterContent}
@@ -520,7 +520,7 @@ export default function SearchPage() {
         <div className="flex-1 overflow-hidden">
           <div className="flex justify-between items-center mb-8">
             <p className="text-gray-500 font-medium">
-              Hiển thị <span className="text-gray-900 font-bold">{filteredVehicles.length}</span> xe
+              Showing <span className="text-gray-900 font-bold">{filteredVehicles.length}</span> vehicles
             </p>
             <div className="relative">
               <button
@@ -558,7 +558,7 @@ export default function SearchPage() {
                   exit={{ opacity: 0 }}
                   className="col-span-full bg-white rounded-[2rem] p-12 text-center shadow-sm border border-gray-100 text-gray-500 font-bold"
                 >
-                  Đang tải xe...
+                  Loading vehicles...
                 </motion.div>
               )}
               {!isLoading && filteredVehicles.map((car) => (
@@ -591,13 +591,13 @@ export default function SearchPage() {
                 <div className="w-20 h-20 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-[#78ad44]">
                   <Search size={40} />
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">Không tìm thấy xe</h3>
-                <p className="text-gray-500 mb-8 max-w-sm mx-auto">Không có xe nào phù hợp với bộ lọc hiện tại. Hãy thử điều chỉnh hoặc xóa bộ lọc.</p>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">Vehicle Not Found</h3>
+                <p className="text-gray-500 mb-8 max-w-sm mx-auto">No vehicles match the current filters. Try adjusting or clearing filters.</p>
                 <button
                   onClick={clearAllFilters}
                   className="bg-[#78ad44] text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-[#78ad44]/20"
                 >
-                  Xóa tất cả bộ lọc
+                  Clear all filters
                 </button>
               </motion.div>
             )}

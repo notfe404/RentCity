@@ -50,11 +50,11 @@ export const PAYMENT_STATUS_CONFIG: Record<
   PaymentStatus,
   { label: string; color: 'yellow' | 'green' | 'red' | 'gray' }
 > = {
-  PENDING: { label: 'Chờ thanh toán', color: 'yellow' },
-  PAID: { label: 'Đã thanh toán', color: 'green' },
-  FAILED: { label: 'Thất bại', color: 'red' },
-  REFUNDED: { label: 'Đã hoàn tiền', color: 'gray' },
-  EXPIRED: { label: 'Hết hạn', color: 'gray' },
+  PENDING: { label: 'Pending Payment', color: 'yellow' },
+  PAID: { label: 'Paid', color: 'green' },
+  FAILED: { label: 'Failed', color: 'red' },
+  REFUNDED: { label: 'Refunded', color: 'gray' },
+  EXPIRED: { label: 'Expired', color: 'gray' },
 };
 
 // ---- Promotions & Coupons ----
@@ -72,8 +72,8 @@ export interface Promotion {
   usageLimit?: number;
   usagePerUser: number;
   usedCount: number;
-  validFrom: string;
-  validUntil: string;
+  bagsdFrom: string;
+  bagsdUntil: string;
   isActive: boolean;
 }
 
@@ -87,7 +87,7 @@ export interface CouponUsage {
 }
 
 export interface CouponValidateResponse {
-  valid: boolean;
+  bagsd: boolean;
   promotion?: Promotion;
   discountAmount?: number;
   message?: string;

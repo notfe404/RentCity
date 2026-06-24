@@ -17,10 +17,10 @@ import type { ApiCarResponse } from '@/types';
 import VehicleFormModal from './VehicleFormModal';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  AVAILABLE:   { label: 'Sẵn sàng',  color: 'bg-[#e9f2eb] text-[#78ad44]' },
-  RENTED:      { label: 'Đang thuê', color: 'bg-blue-50 text-blue-600' },
-  MAINTENANCE: { label: 'Bảo dưỡng', color: 'bg-orange-50 text-orange-600' },
-  RETIRED:     { label: 'Ngừng dùng', color: 'bg-gray-100 text-gray-400' },
+  AVAILABLE:   { label: 'Available',  color: 'bg-[#e9f2eb] text-[#78ad44]' },
+  RENTED:      { label: 'Ongoing', color: 'bg-blue-50 text-blue-600' },
+  MAINTENANCE: { label: 'Maintenance', color: 'bg-orange-50 text-orange-600' },
+  RETIRED:     { label: 'Retired', color: 'bg-gray-100 text-gray-400' },
 };
 
 export default function AdminVehiclesPage() {
@@ -94,7 +94,7 @@ export default function AdminVehiclesPage() {
         }
         const refreshed = await searchCars({ size: 100 });
         setCars(refreshed.data.content);
-        toast.success('Đã cập nhật xe');
+        toast.success('Vehicle updated');
       } else {
         const { data } = await adminCreateCar(payload);
         if (carFiles.length > 0) {
@@ -105,40 +105,40 @@ export default function AdminVehiclesPage() {
         }
         const refreshed = await searchCars({ size: 100 });
         setCars(refreshed.data.content);
-        toast.success('Đã thêm xe mới');
+        toast.success('Vehicle created');
         setCurrentPage(1);
       }
       setIsModalOpen(false);
     } catch (error) {
-      const msg = (error as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Không thể lưu xe';
+      const msg = (error as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Could not save vehicle';
       toast.error(msg);
       throw error;
     }
   };
 
   const handleDelete = async (car: ApiCarResponse) => {
-    if (!window.confirm(`Xóa xe "${car.brand} ${car.model}" (${car.licensePlate})?`)) return;
+    if (!window.confirm(`Delete vehicle "${car.brand} ${car.model}" (${car.licensePlate})?`)) return;
     setDeletingId(car.id);
     try {
       await adminDeleteCar(car.id);
       setCars((cur) => cur.filter((c) => c.id !== car.id));
-      toast.success('Đã xóa xe');
+      toast.success('Vehicle deleted');
     } catch {
-      toast.error('Không thể xóa xe (có thể đang có booking)');
+      toast.error('Could not delete vehicle (it may have bookings)');
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <AdminLayout title="Quản lý xe">
+    <AdminLayout title="Vehicle Management">
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div className="relative flex-1 md:max-w-sm">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Tìm theo tên, biển số, danh mục..."
+            placeholder="Search by name, license plate, category..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#78ad44]/20 focus:border-[#78ad44]"
@@ -148,7 +148,7 @@ export default function AdminVehiclesPage() {
           onClick={openAdd}
           className="w-full md:w-auto flex items-center justify-center gap-2 bg-[#78ad44] hover:bg-[#689938] text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md"
         >
-          <Plus size={18} /> Thêm xe mới
+          <Plus size={18} /> Add New Vehicle
         </button>
       </div>
 
@@ -156,7 +156,7 @@ export default function AdminVehiclesPage() {
       {loadError && (
         <div className="bg-white rounded-2xl border border-red-100 p-6 text-red-500 font-bold flex items-center gap-3 mb-6">
           <AlertCircle size={20} />
-          Không tải được dữ liệu. Backend có thể chưa chạy — hiện tại không có xe nào.
+          Could not load data. Backend may not be running - there are currently no vehicles.
         </div>
       )}
 
@@ -166,12 +166,12 @@ export default function AdminVehiclesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#f4f8f7] border-b border-gray-100">
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Xe</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Danh mục</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Giá / ngày</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Chi nhánh</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Trạng thái</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Hành động</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Vehicle</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Category</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Price / day</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Branch</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -185,7 +185,7 @@ export default function AdminVehiclesPage() {
               {!isLoading && paged.length === 0 && (
                 <tr>
                   <td colSpan={6} className="p-10 text-center text-gray-400 font-bold">
-                    {search ? `Không tìm thấy xe nào với "${search}"` : 'Chưa có xe nào'}
+                    {search ? `No vehicles found for "${search}"` : 'No vehicles yet'}
                   </td>
                 </tr>
               )}
@@ -228,7 +228,7 @@ export default function AdminVehiclesPage() {
                         <button
                           onClick={() => openEdit(car)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                          title="Sửa"
+                          title="Edit"
                         >
                           <Edit size={18} />
                         </button>
@@ -236,7 +236,7 @@ export default function AdminVehiclesPage() {
                           onClick={() => handleDelete(car)}
                           disabled={busy}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
-                          title="Xóa"
+                          title="Delete"
                         >
                           {busy ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                         </button>
@@ -252,9 +252,9 @@ export default function AdminVehiclesPage() {
         {/* Pagination */}
         <div className="px-6 py-4 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 bg-[#f8f9fa]/50">
           <p className="text-xs font-black text-gray-500">
-            Hiển thị <span className="text-gray-900">{Math.min((currentPage - 1) * pageSize + 1, filtered.length)}</span>–
+            Showing <span className="text-gray-900">{Math.min((currentPage - 1) * pageSize + 1, filtered.length)}</span>–
             <span className="text-gray-900">{Math.min(currentPage * pageSize, filtered.length)}</span> /
-            <span className="text-gray-900"> {filtered.length}</span> xe
+            <span className="text-gray-900"> {filtered.length}</span> vehicles
           </p>
           {totalPages > 1 && (
             <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
@@ -263,7 +263,7 @@ export default function AdminVehiclesPage() {
                 onClick={() => setCurrentPage((p) => p - 1)}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-40"
               >
-                Trước
+                Previous
               </button>
               {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => (
                 <button

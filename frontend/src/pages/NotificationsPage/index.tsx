@@ -50,7 +50,7 @@ export default function NotificationsPage() {
       setNotifications(data);
     } catch {
       setNotifications([]);
-      setErrorMessage('Không tải được thông báo. Vui lòng thử lại sau.');
+      setErrorMessage('Could not load notifications. Please try again later.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -68,7 +68,7 @@ export default function NotificationsPage() {
       } catch {
         if (!cancelled) {
           setNotifications([]);
-          setErrorMessage('Không tải được thông báo. Vui lòng thử lại sau.');
+          setErrorMessage('Could not load notifications. Please try again later.');
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -132,7 +132,7 @@ export default function NotificationsPage() {
           <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 min-h-full">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-black text-gray-900">Thông báo</h2>
+                <h2 className="text-2xl font-black text-gray-900">Notifications</h2>
                 {unreadCount > 0 && (
                   <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-6 h-6 px-2 flex items-center justify-center">
                     {unreadCount}
@@ -146,14 +146,14 @@ export default function NotificationsPage() {
                   className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-[#78ad44] transition-colors disabled:opacity-50"
                 >
                   {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                  Làm mới
+                  Refresh
                 </button>
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllRead}
                     className="flex items-center gap-2 text-sm font-bold text-[#78ad44] hover:text-[#689938] transition-colors"
                   >
-                    <CheckCheck size={16} /> Đánh dấu đã đọc
+                    <CheckCheck size={16} /> Mark as read
                   </button>
                 )}
               </div>
@@ -214,7 +214,7 @@ export default function NotificationsPage() {
                           handleDelete(notification.id);
                         }}
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 shrink-0"
-                        aria-label="Xóa thông báo"
+                        aria-label="Delete notification"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -227,8 +227,8 @@ export default function NotificationsPage() {
                     <div className="w-20 h-20 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
                       <Bell size={40} />
                     </div>
-                    <h3 className="text-xl font-black text-gray-900 mb-2">Chưa có thông báo</h3>
-                    <p className="text-gray-500 font-medium">Các cập nhật về booking và thanh toán sẽ xuất hiện tại đây.</p>
+                    <h3 className="text-xl font-black text-gray-900 mb-2">No notifications yet</h3>
+                    <p className="text-gray-500 font-medium">Booking and payment updates will appear here.</p>
                   </div>
                 )}
               </div>

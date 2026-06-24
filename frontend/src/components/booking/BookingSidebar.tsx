@@ -39,7 +39,7 @@ export default function BookingSidebar({
   return (
     <aside className="w-full lg:w-[400px] shrink-0">
       <div className="sticky top-24 bg-white rounded-[2.5rem] p-6 shadow-xl border border-gray-100 flex flex-col gap-6">
-        <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2">Tóm tắt đơn</h3>
+        <h3 className="text-xl font-black text-gray-900 border-b border-gray-100 pb-4 px-2">Order Summary</h3>
 
         <div className="flex gap-4 items-center bg-[#f4f8f7] p-3 rounded-2xl">
           <img src={vehicle.image} alt={vehicle.name} className="w-24 h-16 object-cover rounded-xl shadow-sm" />
@@ -55,7 +55,7 @@ export default function BookingSidebar({
               <MapPin size={14} className="text-[#78ad44]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-400">Nhận xe</p>
+              <p className="text-xs font-bold text-gray-400">Pick-up</p>
               <p className="text-sm font-bold text-gray-900">{pickupLocation}</p>
               <p className="text-xs text-gray-500 mt-0.5">{formatDateTime(startDate)}</p>
             </div>
@@ -65,7 +65,7 @@ export default function BookingSidebar({
               <Calendar size={14} className="text-[#78ad44]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-400">Trả xe</p>
+              <p className="text-xs font-bold text-gray-400">Return</p>
               <p className="text-sm font-bold text-gray-900">{returnLocation}</p>
               <p className="text-xs text-gray-500 mt-0.5">{formatDateTime(endDate)}</p>
             </div>
@@ -74,7 +74,7 @@ export default function BookingSidebar({
 
         <div className="border-t border-gray-100 pt-5 px-2">
           <div className="flex justify-between items-center text-sm font-bold text-gray-600 mb-3">
-            <span>Thời lượng thuê</span>
+            <span>Rental Duration</span>
             <span>{durationLabel}</span>
           </div>
 
@@ -86,12 +86,12 @@ export default function BookingSidebar({
           ))}
 
           <div className="flex justify-between items-center text-lg font-black text-gray-900 mt-6 bg-[#212529] text-white p-4 rounded-xl">
-            <span>Tổng cộng</span>
+            <span>Total</span>
             <span className="text-[#78ad44]">{formatVND(totalAmount)}</span>
           </div>
 
           <div className="flex justify-between items-center text-sm font-black text-gray-900 mt-3 bg-[#f4f8f7] p-4 rounded-xl border border-gray-100">
-            <span>Phí giữ chỗ cần thanh toán (30%)</span>
+            <span>Reservation fee due (30%)</span>
             <span className="text-[#78ad44]">{formatVND(depositAmount)}</span>
           </div>
         </div>

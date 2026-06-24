@@ -33,7 +33,7 @@ export default function PaymentHoldCountdown({
           <p className={`text-xs font-black uppercase tracking-[0.16em] ${
             expired ? 'text-red-600' : 'text-orange-600'
           }`}>
-            {expired ? 'Đã hết thời gian thanh toán' : 'Thời gian giữ booking còn lại'}
+            {expired ? 'Payment time has expired' : 'Remaining booking hold time'}
           </p>
           <p className={`mt-1 font-mono text-4xl font-black tabular-nums ${
             expired ? 'text-red-700' : 'text-gray-900'
@@ -42,8 +42,8 @@ export default function PaymentHoldCountdown({
           </p>
           <p className="mt-1 text-sm font-semibold text-gray-600">
             {expired
-              ? 'Booking đang được hệ thống tự động hủy.'
-              : 'Vui lòng hoàn tất tiền cọc trong 15 phút, nếu không booking sẽ tự động bị hủy.'}
+              ? 'The booking is being automatically cancelled by the system.'
+              : 'Please complete the deposit within 15 minutes, otherwise the booking will be automatically cancelled.'}
           </p>
         </div>
       </div>

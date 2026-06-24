@@ -2,7 +2,7 @@ import type { MockVehicle } from './mockVehicles';
 import { MOCK_VEHICLES } from './mockVehicles';
 
 // ============================================================
-// Mock Bookings — Đơn đặt xe tiếng Việt
+// Mock Bookings - English booking data
 // ============================================================
 
 export type MockBookingStatus = 'upcoming' | 'active' | 'completed' | 'cancelled';
@@ -40,9 +40,9 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     vehicleId: '1',
     vehicle: v('1'),
     pickupLocationId: 'loc-02',
-    pickupLocationName: 'CN Hoàn Kiếm',
+    pickupLocationName: 'Hoan Kiem Branch',
     returnLocationId: 'loc-02',
-    returnLocationName: 'CN Hoàn Kiếm',
+    returnLocationName: 'Hoan Kiem Branch',
     startDate: '2026-04-28T10:00:00',
     endDate: '2026-05-01T10:00:00',
     totalDays: 3,
@@ -53,7 +53,7 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     depositAmount: 810000,
     status: 'upcoming',
     paymentStatus: 'paid',
-    extras: ['Bảo hiểm toàn diện'],
+    extras: ['Comprehensive insurance'],
     customerNote: '',
     createdAt: '2026-04-25T14:30:00',
   },
@@ -63,9 +63,9 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     vehicleId: '3',
     vehicle: v('3'),
     pickupLocationId: 'loc-01',
-    pickupLocationName: 'CN Nội Bài',
+    pickupLocationName: 'Noi Bai Branch',
     returnLocationId: 'loc-03',
-    returnLocationName: 'CN Cầu Giấy',
+    returnLocationName: 'Cau Giay Branch',
     startDate: '2026-04-20T08:00:00',
     endDate: '2026-04-23T08:00:00',
     totalDays: 3,
@@ -76,8 +76,8 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     depositAmount: 1071000,
     status: 'completed',
     paymentStatus: 'paid',
-    extras: ['Bảo hiểm toàn diện'],
-    customerNote: 'Nhận xe tại sảnh đến nội địa',
+    extras: ['Comprehensive insurance'],
+    customerNote: 'Pick up at the domestic arrivals hall',
     createdAt: '2026-04-18T09:00:00',
   },
   {
@@ -86,9 +86,9 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     vehicleId: '5',
     vehicle: v('5'),
     pickupLocationId: 'loc-02',
-    pickupLocationName: 'CN Hoàn Kiếm',
+    pickupLocationName: 'Hoan Kiem Branch',
     returnLocationId: 'loc-02',
-    returnLocationName: 'CN Hoàn Kiếm',
+    returnLocationName: 'Hoan Kiem Branch',
     startDate: '2026-04-10T09:00:00',
     endDate: '2026-04-12T09:00:00',
     totalDays: 2,
@@ -99,7 +99,7 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     depositAmount: 1020000,
     status: 'completed',
     paymentStatus: 'paid',
-    extras: ['Bảo hiểm toàn diện'],
+    extras: ['Comprehensive insurance'],
     customerNote: '',
     createdAt: '2026-04-08T11:00:00',
   },
@@ -109,9 +109,9 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     vehicleId: '9',
     vehicle: v('9'),
     pickupLocationId: 'loc-02',
-    pickupLocationName: 'CN Hoàn Kiếm',
+    pickupLocationName: 'Hoan Kiem Branch',
     returnLocationId: 'loc-04',
-    returnLocationName: 'CN Long Biên',
+    returnLocationName: 'Long Bien Branch',
     startDate: '2026-04-05T10:00:00',
     endDate: '2026-04-06T10:00:00',
     totalDays: 1,
@@ -123,7 +123,7 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     status: 'cancelled',
     paymentStatus: 'refunded',
     extras: [],
-    customerNote: 'Hủy do thay đổi lịch trình',
+    customerNote: 'Cancelled due to schedule change',
     createdAt: '2026-04-03T16:00:00',
   },
   {
@@ -132,9 +132,9 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     vehicleId: '7',
     vehicle: v('7'),
     pickupLocationId: 'loc-04',
-    pickupLocationName: 'CN Long Biên',
+    pickupLocationName: 'Long Bien Branch',
     returnLocationId: 'loc-04',
-    returnLocationName: 'CN Long Biên',
+    returnLocationName: 'Long Bien Branch',
     startDate: '2026-05-01T07:00:00',
     endDate: '2026-05-04T17:00:00',
     totalDays: 4,
@@ -145,21 +145,21 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     depositAmount: 1704000,
     status: 'upcoming',
     paymentStatus: 'paid',
-    extras: ['Bảo hiểm toàn diện', 'GPS'],
-    customerNote: 'Đi Sapa, cần xe gầm cao',
+    extras: ['Comprehensive insurance', 'GPS'],
+    customerNote: 'Going to Sapa, high-clearance vehicle needed',
     createdAt: '2026-04-26T08:00:00',
   },
 ];
 
 export const BOOKING_STATUS_LABEL: Record<MockBookingStatus, { label: string; color: string; bg: string }> = {
-  upcoming:  { label: 'Sắp tới',    color: 'text-[#78ad44]', bg: 'bg-[#78ad44]' },
-  active:    { label: 'Đang thuê',  color: 'text-blue-600',  bg: 'bg-blue-600' },
-  completed: { label: 'Hoàn thành', color: 'text-gray-500',  bg: 'bg-gray-700' },
-  cancelled: { label: 'Đã hủy',    color: 'text-red-500',   bg: 'bg-red-500' },
+  upcoming:  { label: 'Upcoming',    color: 'text-[#78ad44]', bg: 'bg-[#78ad44]' },
+  active:    { label: 'Ongoing',  color: 'text-blue-600',  bg: 'bg-blue-600' },
+  completed: { label: 'Completed', color: 'text-gray-500',  bg: 'bg-gray-700' },
+  cancelled: { label: 'Cancelled',    color: 'text-red-500',   bg: 'bg-red-500' },
 };
 
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  paid: 'Đã thanh toán',
-  pending: 'Chờ thanh toán',
-  refunded: 'Đã hoàn tiền',
+  paid: 'Paid',
+  pending: 'Pending Payment',
+  refunded: 'Refunded',
 };

@@ -2,16 +2,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 @theme {
-  /* Legacy dark tokens (giữ để không hỏng code cũ) */
+  /* Legacy dark tokens kept for older code */
   --color-deepBlack: #0a0a0a;
   --color-graphite: #1e1e1e;
   --color-gold: #d4af37;
   --color-electricBlue: #0ba8e6;
 
   /* New light design tokens */
-  --color-brand:       #5a9e3b;   /* xanh lá chủ đạo */
-  --color-brand-light: #dff0d5;   /* xanh lá nhạt background */
-  --color-brand-dark:  #3d7a24;   /* xanh lá đậm hover */
+  --color-brand:       #5a9e3b;   /* primary green */
+  --color-brand-light: #dff0d5;   /* light green background */
+  --color-brand-dark:  #3d7a24;   /* dark green hover */
   --color-surface:     #f8f9fa;   /* background sections */
   --color-card:        #ffffff;
   --color-border:      #e5e7eb;
@@ -31,7 +31,7 @@
 }
 
 @layer utilities {
-  /* Legacy dark glassmorphism (giữ để không hỏng nếu còn dùng) */
+  /* Legacy dark glassmorphism kept for old usage */
   .glassmorphism {
     @apply bg-white/5 border border-white/10 backdrop-blur-md;
   }
@@ -62,7 +62,7 @@
   .card-light {
     @apply bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow;
   }
-  /* Scrollbar ẩn */
+  /* Hidden scrollbar */
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

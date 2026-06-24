@@ -6,18 +6,18 @@ export type VehicleStatus = 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'RETIRED';
 export type FuelType = 'GASOLINE' | 'DIESEL' | 'ELECTRIC' | 'HYBRID';
 export type Transmission = 'MANUAL' | 'AUTOMATIC';
 
-// Bảng vehicle_categories
+// vehicle_categories table
 export interface VehicleCategory {
   id: string;
   name: string;               // Mini | Sedan | SUV | Luxury | Van
   description?: string;
-  basePriceDay: number;       // giá/ngày cơ bản
+  basePriceDay: number;       // base price per day
   basePriceHour?: number;
-  depositRate: number;        // tỉ lệ cọc (0.30 = 30%)
+  depositRate: number;        // deposit rate (0.30 = 30%)
   isActive: boolean;
 }
 
-// Bảng locations (chi nhánh)
+// locations table (branches)
 export interface Location {
   id: string;
   name: string;
@@ -31,7 +31,7 @@ export interface Location {
   isActive: boolean;
 }
 
-// Bảng vehicle_images
+// vehicle_images table
 export interface VehicleImage {
   id: string;
   vehicleId: string;
@@ -41,11 +41,11 @@ export interface VehicleImage {
   createdAt: string;
 }
 
-// Bảng vehicles
+// vehicles table
 export interface Vehicle {
   id: string;
   categoryId: string;
-  category?: VehicleCategory;       // joined khi cần
+  category?: VehicleCategory;       // joined when needed
   licensePlate: string;
   brand: string;
   model: string;
@@ -56,7 +56,7 @@ export interface Vehicle {
   transmission: Transmission;
   currentOdometer: number;
   locationId: string;
-  location?: Location;              // joined khi cần
+  location?: Location;              // joined when needed
   status: VehicleStatus;
   description?: string;
   avgRating: number;
@@ -65,24 +65,24 @@ export interface Vehicle {
   createdAt: string;
 }
 
-// Label tiếng Việt
+// Display labels
 export const FUEL_TYPE_LABEL: Record<FuelType, string> = {
-  GASOLINE: 'Xăng',
-  DIESEL:   'Dầu diesel',
-  ELECTRIC: 'Điện',
+  GASOLINE: 'Gasoline',
+  DIESEL:   'Diesel',
+  ELECTRIC: 'Electric',
   HYBRID:   'Hybrid',
 };
 
 export const TRANSMISSION_LABEL: Record<Transmission, string> = {
-  MANUAL:    'Số sàn',
-  AUTOMATIC: 'Số tự động',
+  MANUAL:    'Manual',
+  AUTOMATIC: 'Automatic',
 };
 
 export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, { label: string; color: string }> = {
-  AVAILABLE:   { label: 'Sẵn sàng',    color: 'green' },
-  RENTED:      { label: 'Đang thuê',   color: 'blue' },
-  MAINTENANCE: { label: 'Bảo dưỡng',   color: 'yellow' },
-  RETIRED:     { label: 'Ngừng hoạt động', color: 'gray' },
+  AVAILABLE:   { label: 'Available',    color: 'green' },
+  RENTED:      { label: 'Ongoing',   color: 'blue' },
+  MAINTENANCE: { label: 'Maintenance',   color: 'yellow' },
+  RETIRED:     { label: 'Retired', color: 'gray' },
 };
 
 // ---- Request types ----

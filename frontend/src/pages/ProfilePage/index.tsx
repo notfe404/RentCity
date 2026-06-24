@@ -244,7 +244,7 @@ const [backId, setBackId] = useState<{
               }`}
             >
               <Edit3 size={18} />
-              Hồ sơ
+              Profile
             </button>
             <button
               onClick={() => setActiveTab('transactions')}
@@ -255,7 +255,7 @@ const [backId, setBackId] = useState<{
               }`}
             >
               <CreditCard size={18} />
-              Giao dịch
+              Transactions
             </button>
           </div>
 
@@ -500,9 +500,9 @@ const [backId, setBackId] = useState<{
             <div className="mb-8">
               <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
                 <CreditCard size={24} />
-                Lịch sử thanh toán
+                Payment History
               </h2>
-              <p className="text-sm text-gray-500 mt-1 font-medium">Xem và quản lý tất cả giao dịch thanh toán của bạn</p>
+              <p className="text-sm text-gray-500 mt-1 font-medium">View and manage all your payment transactions</p>
             </div>
             <TransactionsTab />
           </div>

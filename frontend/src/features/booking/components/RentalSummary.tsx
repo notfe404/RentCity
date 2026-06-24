@@ -20,40 +20,40 @@ export const RentalSummary: React.FC<Props> = ({
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-        <h3 className="font-bold text-gray-800">Tóm tắt chi phí</h3>
+        <h3 className="font-bold text-gray-800">Cost Summary</h3>
       </div>
       <div className="p-4 space-y-3">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Tổng thời gian</span>
-          <span className="font-medium text-gray-900">{totalHours} giờ</span>
+          <span className="text-gray-600">Total Time</span>
+          <span className="font-medium text-gray-900">{totalHours} hours</span>
         </div>
         
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Đơn giá áp dụng</span>
+          <span className="text-gray-600">Applied unit price</span>
           <span className="font-medium text-gray-900">{pricingOption.label}</span>
         </div>
 
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Chi tiết</span>
+          <span className="text-gray-600">Details</span>
           <span className="font-medium text-gray-900">{pricingOption.breakdown.detail}</span>
         </div>
 
         {pricingOption.surcharge > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Phụ phí (Cuối tuần/Lễ)</span>
+            <span className="text-gray-600">Surcharge (Weekend/Holiday)</span>
             <span className="font-medium text-amber-600">+{formatVND(pricingOption.surcharge)}</span>
           </div>
         )}
 
         {pricingOption.discount > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Giảm giá dài hạn</span>
+            <span className="text-gray-600">Long-term Discount</span>
             <span className="font-medium text-green-600">-{formatVND(pricingOption.discount)}</span>
           </div>
         )}
 
         <div className="border-t border-gray-100 pt-3 mt-3 flex justify-between items-center">
-          <span className="font-bold text-gray-800">Tổng cộng</span>
+          <span className="font-bold text-gray-800">Total</span>
           <span className="text-2xl font-bold text-[#49B096]">{formatVND(pricingOption.finalAmount)}</span>
         </div>
 
@@ -62,7 +62,7 @@ export const RentalSummary: React.FC<Props> = ({
           disabled={isLoading}
           className="w-full mt-4 bg-[#49B096] hover:bg-[#3d947e] disabled:bg-gray-300 text-white font-bold rounded-lg px-4 py-3 transition-colors shadow-sm"
         >
-          {isLoading ? 'Đang xử lý...' : 'Tiến hành thanh toán'}
+          {isLoading ? 'Processing...' : 'Proceed to Payment'}
         </button>
       </div>
     </div>

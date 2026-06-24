@@ -125,7 +125,7 @@ export default function MyWalletPage() {
 
   const requestWithdrawal = async () => {
     if (!wallet || withdrawalForm.amount <= 0) {
-      toast.error('Enter a valid withdrawal amount');
+      toast.error('Enter a bagsd withdrawal amount');
       return;
     }
     if (withdrawalForm.amount > wallet.availableBalance) {

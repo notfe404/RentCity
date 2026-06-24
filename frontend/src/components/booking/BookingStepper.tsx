@@ -6,9 +6,9 @@ interface BookingStepperProps {
 }
 
 const STEPS = [
-  { label: 'Chi tiết' },
-  { label: 'Xác nhận' },
-  { label: 'Thanh toán' },
+  { label: 'Details' },
+  { label: 'Confirm' },
+  { label: 'Payment' },
 ];
 
 export default function BookingStepper({ currentStep }: BookingStepperProps) {

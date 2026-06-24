@@ -18,7 +18,7 @@ export function parsePaymentError(error: unknown): PaymentError {
     return {
       type: 'network',
       message: 'Network error',
-      userMessage: 'Lỗi kết nối. Vui lòng kiểm tra internet và thử lại.',
+      userMessage: 'Connection error. Please check your internet and try again.',
       recoverable: true,
     };
   }
@@ -28,7 +28,7 @@ export function parsePaymentError(error: unknown): PaymentError {
     return {
       type: 'timeout',
       message: 'Request timeout',
-      userMessage: 'Yêu cầu hết thời gian chờ. Vui lòng thử lại.',
+      userMessage: 'The request timed out. Please try again.',
       recoverable: true,
     };
   }
@@ -51,7 +51,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'validation',
         message: errorMessage,
-        userMessage: errorMessage || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.',
+        userMessage: errorMessage || 'Invalid data. Please check again.',
         recoverable: true,
       };
     }
@@ -61,7 +61,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'validation',
         message: 'Unauthorized',
-        userMessage: 'Phiên làm việc hết hạn. Vui lòng đăng nhập lại.',
+        userMessage: 'Your session has expired. Please log in again.',
         recoverable: false,
       };
     }
@@ -71,7 +71,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'validation',
         message: 'Forbidden',
-        userMessage: 'Bạn không có quyền thực hiện hành động này.',
+        userMessage: 'You do not have permission to perform this action.',
         recoverable: false,
       };
     }
@@ -81,7 +81,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'validation',
         message: 'Not found',
-        userMessage: 'Booking không tồn tại. Vui lòng kiểm tra lại.',
+        userMessage: 'Booking does not exist. Please check again.',
         recoverable: false,
       };
     }
@@ -91,7 +91,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'validation',
         message: 'Conflict',
-        userMessage: 'Booking này đã được xử lý. Vui lòng quay lại và kiểm tra.',
+        userMessage: 'This booking has already been processed. Please go back and check.',
         recoverable: false,
       };
     }
@@ -101,7 +101,7 @@ export function parsePaymentError(error: unknown): PaymentError {
       return {
         type: 'server',
         message: 'Server error',
-        userMessage: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+        userMessage: 'Server error. Please try again later.',
         recoverable: true,
       };
     }
@@ -112,7 +112,7 @@ export function parsePaymentError(error: unknown): PaymentError {
     return {
       type: 'unknown',
       message: error.message,
-      userMessage: error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.',
+      userMessage: error.message || 'An error occurred. Please try again.',
       recoverable: true,
     };
   }
@@ -121,7 +121,7 @@ export function parsePaymentError(error: unknown): PaymentError {
   return {
     type: 'unknown',
     message: 'Unknown error',
-    userMessage: 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.',
+    userMessage: 'An unknown error occurred. Please try again.',
     recoverable: true,
   };
 }

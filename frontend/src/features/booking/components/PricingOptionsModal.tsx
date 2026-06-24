@@ -36,9 +36,9 @@ export const PricingOptionsModal: React.FC<Props> = ({
           </svg>
         </button>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Chọn phương án giá</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-4">Choose Pricing Option</h3>
         <p className="text-sm text-gray-500 mb-6">
-          Hệ thống đã chọn phương án tiết kiệm nhất cho bạn. Tuy nhiên, bạn có thể chọn các gói khác phù hợp với nhu cầu.
+          The system selected the best-saving option for you. You can still choose another package if it fits your needs better.
         </p>
 
         <div className="space-y-3">

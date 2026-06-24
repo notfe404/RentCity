@@ -31,27 +31,27 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
   const generatedAt = formatDateTime(new Date().toISOString());
 
   const rows = [
-    ['Mã booking', booking.bookingCode],
-    ['Trạng thái booking', bookingStatus.label],
-    ['Trạng thái phí giữ chỗ', depositStatus.label],
-    ['Khách hàng', customer.fullName ?? 'Khách'],
+    ['Booking Code', booking.bookingCode],
+    ['Booking Status', bookingStatus.label],
+    ['Reservation Fee Status', depositStatus.label],
+    ['Customer', customer.fullName ?? 'Guest'],
     ['Email', customer.email ?? '-'],
-    ['Số điện thoại', customer.phone ?? '-'],
-    ['Xe', vehicleName],
-    ['Biển số', booking.vehicleLicensePlate ?? '-'],
-    ['Nhận xe', formatDateTime(booking.startTime)],
-    ['Trả xe', formatDateTime(booking.endTime)],
-    ['Thời lượng thuê', durationLabel],
-    ['Hình thức tính giá', booking.pricingMode],
-    ['Hủy miễn phí đến', formatDateTime(booking.freeCancelUntil)],
-    ['Giá thuê', formatVND(booking.baseAmount)],
-    ['Dịch vụ bổ sung', `${getBookingExtraServiceSummary(booking)} - ${formatVND(booking.extraServicesAmount)}`],
-    ['Phí giao xe tận nơi', formatVND(booking.deliveryFeeAmount)],
-    ['Phí giữ chỗ (30%)', formatVND(booking.reservationFeeAmount)],
-    ['Tiền cọc thuê xe', formatVND(booking.securityDepositAmount)],
-    ['Trạng thái cọc thuê xe', booking.securityDepositStatus.replaceAll('_', ' ')],
-    ['Tiền thuê thanh toán khi trả xe', formatVND(booking.finalRentalAmount)],
-    ['Tổng booking', formatVND(booking.totalAmount)],
+    ['Phone Number', customer.phone ?? '-'],
+    ['Vehicle', vehicleName],
+    ['License Plate', booking.vehicleLicensePlate ?? '-'],
+    ['Pick-up', formatDateTime(booking.startTime)],
+    ['Return', formatDateTime(booking.endTime)],
+    ['Rental Duration', durationLabel],
+    ['Pricing Mode', booking.pricingMode],
+    ['Free Cancellation Until', formatDateTime(booking.freeCancelUntil)],
+    ['Rental Price', formatVND(booking.baseAmount)],
+    ['Extra services', `${getBookingExtraServiceSummary(booking)} - ${formatVND(booking.extraServicesAmount)}`],
+    ['Delivery Fee', formatVND(booking.deliveryFeeAmount)],
+    ['Reservation Fee (30%)', formatVND(booking.reservationFeeAmount)],
+    ['Vehicle deposit', formatVND(booking.securityDepositAmount)],
+    ['Vehicle deposit status', booking.securityDepositStatus.replaceAll('_', ' ')],
+    ['Rental payment due on return', formatVND(booking.finalRentalAmount)],
+    ['Booking Total', formatVND(booking.totalAmount)],
   ];
 
   const tableRows = rows
@@ -69,7 +69,7 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hóa đơn ${escapeHtml(booking.bookingCode)}</title>
+    <title>Invoice ${escapeHtml(booking.bookingCode)}</title>
     <style>
       :root {
         --brand: #78ad44;
@@ -289,26 +289,26 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
       <section class="header">
         <div>
           <p class="brand">RentCity</p>
-          <h1 class="title">Hóa đơn booking</h1>
-          <p class="muted">Thông tin hóa đơn được tạo trực tiếp từ booking hiện tại trên hệ thống RentCity.</p>
+          <h1 class="title">Booking Invoice</h1>
+          <p class="muted">Invoice information is generated directly from the current booking in RentCity.</p>
         </div>
         <div class="header-meta muted">
-          <div><strong>Ngày tạo hóa đơn:</strong> ${escapeHtml(generatedAt)}</div>
-          <div><strong>Mã booking:</strong> ${escapeHtml(booking.bookingCode)}</div>
+          <div><strong>Invoice created date:</strong> ${escapeHtml(generatedAt)}</div>
+          <div><strong>Booking Code:</strong> ${escapeHtml(booking.bookingCode)}</div>
         </div>
       </section>
 
       <section class="summary">
         <div class="card">
-          <div class="card-label">Trạng thái booking</div>
+          <div class="card-label">Booking Status</div>
           <div class="card-value">${escapeHtml(bookingStatus.label)}</div>
         </div>
         <div class="card">
-          <div class="card-label">Phí giữ chỗ (30%)</div>
+          <div class="card-label">Reservation Fee (30%)</div>
           <div class="card-value brand">${escapeHtml(formatVND(booking.reservationFeeAmount))}</div>
         </div>
         <div class="card">
-          <div class="card-label">Tổng booking</div>
+          <div class="card-label">Booking Total</div>
           <div class="card-value brand">${escapeHtml(formatVND(booking.totalAmount))}</div>
         </div>
       </section>
@@ -323,7 +323,7 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
 
       <section class="footer">
         <div class="footer-note muted">
-          Vui lòng giữ lại hóa đơn này để đối chiếu khi cần hỗ trợ booking hoặc làm việc với bộ phận chăm sóc khách hàng.
+          Please keep this invoice for reference when you need booking support or customer service assistance.
         </div>
       </section>
     </main>

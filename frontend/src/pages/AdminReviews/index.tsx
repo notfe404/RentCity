@@ -44,7 +44,7 @@ export default function AdminReviewsPage() {
           setReplyDrafts(Object.fromEntries(data.map((review) => [String(review.id), review.staffReply ?? ''])));
         }
       } catch {
-        if (!cancelled) toast.error('Không tải được danh sách review');
+        if (!cancelled) toast.error('Could not load review list');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -72,9 +72,9 @@ export default function AdminReviewsPage() {
     try {
       const { data } = await adminUpdateReviewVisibility(review.id, !review.isVisible);
       setReviews((current) => current.map((item) => item.id === review.id ? data : item));
-      toast.success(data.isVisible ? 'Đã hiển thị review' : 'Đã ẩn review');
+      toast.success(data.isVisible ? 'Review is now visible' : 'Review is now hidden');
     } catch {
-      toast.error('Không thể cập nhật trạng thái review');
+      toast.error('Could not update review status');
     } finally {
       setActiveId(null);
     }
@@ -86,22 +86,22 @@ export default function AdminReviewsPage() {
       const { data } = await adminReplyToReview(review.id, replyDrafts[String(review.id)] ?? '');
       setReviews((current) => current.map((item) => item.id === review.id ? data : item));
       setReplyDrafts((current) => ({ ...current, [String(review.id)]: data.staffReply ?? '' }));
-      toast.success(data.staffReply ? 'Đã gửi phản hồi' : 'Đã xóa phản hồi');
+      toast.success(data.staffReply ? 'Reply sent' : 'Reply deleted');
     } catch {
-      toast.error('Không thể gửi phản hồi');
+      toast.error('Could not send reply');
     } finally {
       setActiveId(null);
     }
   };
 
   return (
-    <AdminLayout title="Quản lý review">
+    <AdminLayout title="Review Management">
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Tổng review', value: reviews.length, icon: MessageSquare, color: 'text-blue-600' },
-            { label: 'Đang hiển thị', value: reviews.filter((review) => review.isVisible).length, icon: Eye, color: 'text-[#78ad44]' },
-            { label: 'Điểm trung bình', value: averageRating.toFixed(1), icon: Star, color: 'text-orange-500' },
+            { label: 'Total Reviews', value: reviews.length, icon: MessageSquare, color: 'text-blue-600' },
+            { label: 'Visible', value: reviews.filter((review) => review.isVisible).length, icon: Eye, color: 'text-[#78ad44]' },
+            { label: 'Average Rating', value: averageRating.toFixed(1), icon: Star, color: 'text-orange-500' },
           ].map((item) => (
             <div key={item.label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
               <item.icon size={20} className={`mb-3 ${item.color}`} />
@@ -122,12 +122,12 @@ export default function AdminReviewsPage() {
               }`}
             >
               {mode === 'ALL'
-                ? 'Tất cả'
+                ? 'All'
                 : mode === 'LOW_RATING'
-                  ? `Ít sao (${reviews.filter((review) => review.overallRating <= 3).length})`
+                  ? `Low Rating (${reviews.filter((review) => review.overallRating <= 3).length})`
                   : mode === 'VISIBLE'
-                    ? 'Đang hiển thị'
-                    : 'Đã ẩn'}
+                    ? 'Visible'
+                    : 'Hidden'}
             </button>
           ))}
         </div>
@@ -142,8 +142,8 @@ export default function AdminReviewsPage() {
           {!isLoading && filteredReviews.length === 0 && (
             <div className="py-20 text-center">
               <MessageSquare size={40} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-xl font-black text-gray-900">Chưa có review</h3>
-              <p className="text-sm font-bold text-gray-500 mt-2">Review từ các booking hoàn thành sẽ xuất hiện tại đây.</p>
+              <h3 className="text-xl font-black text-gray-900">No reviews yet</h3>
+              <p className="text-sm font-bold text-gray-500 mt-2">Reviews from completed bookings will appear here.</p>
             </div>
           )}
 
@@ -160,23 +160,23 @@ export default function AdminReviewsPage() {
                           <span className={`px-2.5 py-1 text-[11px] font-black rounded-lg ${
                             review.isVisible ? 'bg-[#e9f2eb] text-[#78ad44]' : 'bg-gray-200 text-gray-500'
                           }`}>
-                            {review.isVisible ? 'Đang hiển thị' : 'Đã ẩn'}
+                            {review.isVisible ? 'Visible' : 'Hidden'}
                           </span>
                           <span className="text-xs font-bold text-gray-400">{formatDateTime(review.createdAt)}</span>
                         </div>
 
                         <h3 className="text-base font-black text-gray-900">
-                          {review.customerName || review.customerEmail || 'Khách hàng'}
+                          {review.customerName || review.customerEmail || 'Customer'}
                         </h3>
                         <p className="text-xs font-bold text-gray-400 mt-1">
-                          {review.vehicleName || `Xe #${review.vehicleId}`} · {review.bookingCode || `Booking #${review.bookingId}`}
+                          {review.vehicleName || `Vehicle #${review.vehicleId}`} · {review.bookingCode || `Booking #${review.bookingId}`}
                         </p>
 
                         <div className="grid grid-cols-3 gap-3 my-4 max-w-lg">
                           {[
-                            ['Tổng thể', review.overallRating],
-                            ['Xe', review.vehicleRating],
-                            ['Dịch vụ', review.serviceRating],
+                            ['Overall', review.overallRating],
+                            ['Vehicle', review.vehicleRating],
+                            ['Service', review.serviceRating],
                           ].map(([label, value]) => (
                             <div key={label} className="bg-[#f4f8f7] rounded-xl p-3">
                               <p className="text-[11px] font-bold text-gray-400">{label}</p>
@@ -186,7 +186,7 @@ export default function AdminReviewsPage() {
                         </div>
 
                         <p className="text-sm font-medium text-gray-600 leading-relaxed">
-                          {review.comment || 'Khách hàng không để lại nhận xét.'}
+                          {review.comment || 'The customer did not leave a comment.'}
                         </p>
                       </div>
 
@@ -199,7 +199,7 @@ export default function AdminReviewsPage() {
                             ...current,
                             [String(review.id)]: event.target.value,
                           }))}
-                          placeholder="Phản hồi review..."
+                          placeholder="Reply to review..."
                           className="w-full p-4 rounded-xl bg-[#f4f8f7] border border-transparent text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-[#78ad44]/20 focus:border-[#78ad44]"
                         />
                         <div className="flex gap-2">
@@ -210,7 +210,7 @@ export default function AdminReviewsPage() {
                             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs font-black disabled:opacity-50"
                           >
                             {review.isVisible ? <EyeOff size={15} /> : <Eye size={15} />}
-                            {review.isVisible ? 'Ẩn review' : 'Hiện review'}
+                            {review.isVisible ? 'Hide Review' : 'Show Review'}
                           </button>
                           <button
                             type="button"
@@ -219,7 +219,7 @@ export default function AdminReviewsPage() {
                             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#78ad44] text-white hover:bg-[#689938] text-xs font-black disabled:opacity-50"
                           >
                             {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                            Phản hồi
+                            Reply
                           </button>
                         </div>
                       </div>

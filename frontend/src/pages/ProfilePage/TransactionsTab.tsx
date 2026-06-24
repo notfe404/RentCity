@@ -8,11 +8,11 @@ import { formatDateTime, formatVND } from '@/utils/formatters';
 import type { ApiPaymentResponse, PaymentStatus } from '@/types';
 
 const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: string }> = {
-  PENDING: { label: 'Chờ thanh toán', color: 'text-orange-600', icon: '⏱️' },
-  PAID: { label: 'Đã thanh toán', color: 'text-green-600', icon: '✓' },
-  FAILED: { label: 'Thất bại', color: 'text-red-600', icon: '✗' },
-  REFUNDED: { label: 'Đã hoàn tiền', color: 'text-blue-600', icon: '↶' },
-  EXPIRED: { label: 'Hết hạn', color: 'text-gray-600', icon: '⌛' },
+  PENDING: { label: 'Pending Payment', color: 'text-orange-600', icon: '⏱️' },
+  PAID: { label: 'Paid', color: 'text-green-600', icon: '✓' },
+  FAILED: { label: 'Failed', color: 'text-red-600', icon: '✗' },
+  REFUNDED: { label: 'Refunded', color: 'text-blue-600', icon: '↶' },
+  EXPIRED: { label: 'Expired', color: 'text-gray-600', icon: '⌛' },
 };
 
 const GATEWAY_COLORS: Record<string, string> = {
@@ -33,7 +33,7 @@ export default function TransactionsTab() {
         const { data } = await getMyPayments();
         setPayments(data);
       } catch (error) {
-        toast.error('Không tải được lịch sử thanh toán');
+        toast.error('Could not load payment history');
       } finally {
         setIsLoading(false);
       }
@@ -67,9 +67,9 @@ export default function TransactionsTab() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast.success('Tải hoá đơn thành công');
+      toast.success('Invoice downloaded successfully');
     } catch (error) {
-      toast.error('Lỗi khi tải hoá đơn');
+      toast.error('Error downloading invoice');
     } finally {
       setIsDownloading(null);
     }
@@ -88,11 +88,11 @@ export default function TransactionsTab() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-          <p className="text-sm font-bold text-green-600 mb-1">Tổng đã thanh toán</p>
+          <p className="text-sm font-bold text-green-600 mb-1">Total Paid</p>
           <p className="text-3xl font-black text-green-700">{formatVND(totalPaid)}</p>
         </div>
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-          <p className="text-sm font-bold text-blue-600 mb-1">Tổng giao dịch</p>
+          <p className="text-sm font-bold text-blue-600 mb-1">Total Transactions</p>
           <p className="text-3xl font-black text-blue-700">{payments.length}</p>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function TransactionsTab() {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          Tất cả
+          All
         </button>
         {Object.entries(STATUS_META).map(([status, meta]) => (
           <button
@@ -128,7 +128,7 @@ export default function TransactionsTab() {
       {filteredPayments.length === 0 ? (
         <div className="text-center py-12">
           <CreditCard size={40} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 font-bold">Không có giao dịch nào</p>
+          <p className="text-gray-500 font-bold">No transactions found</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -175,7 +175,7 @@ export default function TransactionsTab() {
                       onClick={() => handleDownloadInvoice(payment.bookingId!, payment.bookingCode ?? String(payment.bookingId))}
                       disabled={isDownloading === payment.bookingId}
                       className="p-2 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
-                      title="Tải hoá đơn"
+                      title="Download invoice"
                     >
                       {isDownloading === payment.bookingId ? (
                         <Loader2 size={18} className="animate-spin text-gray-600" />
@@ -199,7 +199,7 @@ export default function TransactionsTab() {
             state={{ from: '/profile' }}
             className="text-[#78ad44] font-bold hover:text-[#689938] transition-colors inline-flex items-center gap-2"
           >
-            Xem tất cả giao dịch
+            View all transactions
             <Eye size={16} />
           </Link>
         </div>

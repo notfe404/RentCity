@@ -2,12 +2,12 @@ import { formatVND } from '@/utils/formatters';
 
 interface PriceTagProps {
   amount: number;
-  suffix?: string;       // "/ngày", "/giờ"
+  suffix?: string;       // "/day", "/hours"
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
-export default function PriceTag({ amount, suffix = '/ngày', size = 'md', className = '' }: PriceTagProps) {
+export default function PriceTag({ amount, suffix = '/day', size = 'md', className = '' }: PriceTagProps) {
   const sizeClasses = {
     sm: 'text-sm',
     md: 'text-lg',

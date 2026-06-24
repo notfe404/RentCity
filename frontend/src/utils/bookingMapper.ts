@@ -3,20 +3,20 @@ import type { ApiBookingResponse, ApiBookingStatus, ApiDepositStatus } from '@/t
 import { getRentalDurationParts } from '@/utils/bookingDateTime';
 
 export const BOOKING_STATUS_META: Record<ApiBookingStatus, { label: string; bg: string; color: string }> = {
-  PENDING: { label: 'Chờ xác nhận', bg: 'bg-orange-500', color: 'text-orange-600' },
-  CONFIRMED: { label: 'Đã xác nhận', bg: 'bg-[#78ad44]', color: 'text-[#78ad44]' },
-  PAID: { label: 'Đã thu cọc xe', bg: 'bg-emerald-600', color: 'text-emerald-600' },
-  ONGOING: { label: 'Đang thuê', bg: 'bg-blue-600', color: 'text-blue-600' },
-  COMPLETED: { label: 'Hoàn thành', bg: 'bg-gray-700', color: 'text-gray-500' },
-  CANCELLED: { label: 'Đã hủy', bg: 'bg-red-500', color: 'text-red-500' },
+  PENDING: { label: 'Pending Confirmation', bg: 'bg-orange-500', color: 'text-orange-600' },
+  CONFIRMED: { label: 'Confirmed', bg: 'bg-[#78ad44]', color: 'text-[#78ad44]' },
+  PAID: { label: 'Vehicle Deposit Collected', bg: 'bg-emerald-600', color: 'text-emerald-600' },
+  ONGOING: { label: 'Ongoing', bg: 'bg-blue-600', color: 'text-blue-600' },
+  COMPLETED: { label: 'Completed', bg: 'bg-gray-700', color: 'text-gray-500' },
+  CANCELLED: { label: 'Cancelled', bg: 'bg-red-500', color: 'text-red-500' },
 };
 
 export const DEPOSIT_STATUS_META: Record<ApiDepositStatus, { label: string; color: string }> = {
-  UNPAID: { label: 'Chưa thanh toán phí giữ chỗ', color: 'text-yellow-500' },
-  PAID: { label: 'Đã thanh toán phí giữ chỗ', color: 'text-[#78ad44]' },
-  FORFEITED: { label: 'Phí giữ chỗ không hoàn lại', color: 'text-red-500' },
-  REFUNDED: { label: 'Đã hoàn phí giữ chỗ', color: 'text-gray-500' },
-  NOT_REQUIRED: { label: 'Không yêu cầu phí giữ chỗ', color: 'text-gray-500' },
+  UNPAID: { label: 'Reservation fee unpaid', color: 'text-yellow-500' },
+  PAID: { label: 'Reservation fee paid', color: 'text-[#78ad44]' },
+  FORFEITED: { label: 'Reservation fee forfeited', color: 'text-red-500' },
+  REFUNDED: { label: 'Reservation fee refunded', color: 'text-gray-500' },
+  NOT_REQUIRED: { label: 'Reservation fee not required', color: 'text-gray-500' },
 };
 
 export function getBookingTotalDays(booking: ApiBookingResponse): number {
@@ -33,16 +33,16 @@ export function getBookingTotalHours(booking: ApiBookingResponse): number {
 
 export function getBookingDurationLabel(booking: ApiBookingResponse): string {
   if (booking.pricingMode === 'HOURLY') {
-    return `${getBookingTotalHours(booking)} giờ`;
+    return `${getBookingTotalHours(booking)} hours`;
   }
 
   const { fullDays, remainingHours } = getRentalDurationParts(booking.startTime, booking.endTime);
   const parts = [];
   if (fullDays > 0) {
-    parts.push(`${fullDays} ngày`);
+    parts.push(`${fullDays} days`);
   }
   if (remainingHours > 0) {
-    parts.push(`${remainingHours} giờ`);
+    parts.push(`${remainingHours} hours`);
   }
   return parts.join(' ');
 }
@@ -52,7 +52,7 @@ export function getBookingVehicleFallback(booking: ApiBookingResponse) {
 }
 
 export function getBookingVehicleName(booking: ApiBookingResponse): string {
-  return booking.vehicleName ?? getBookingVehicleFallback(booking)?.name ?? `Xe #${booking.vehicleId}`;
+  return booking.vehicleName ?? getBookingVehicleFallback(booking)?.name ?? `Vehicle #${booking.vehicleId}`;
 }
 
 export function getBookingVehicleImage(booking: ApiBookingResponse): string | undefined {
@@ -68,15 +68,15 @@ export function getBookingBookedSubtotal(booking: ApiBookingResponse): number {
 export function getBookingExtraServiceSummary(booking: ApiBookingResponse): string {
   const services = [];
   if (booking.insuranceSelected) {
-    services.push('Bảo hiểm');
+    services.push('Insurance');
   }
   if ((booking.childSeatQuantity ?? 0) > 0) {
-    services.push(`Ghế trẻ em x ${booking.childSeatQuantity}`);
+    services.push(`Child seat x ${booking.childSeatQuantity}`);
   }
   if (booking.gpsSelected) {
     services.push('GPS');
   }
-  return services.length > 0 ? services.join(', ') : 'Không chọn';
+  return services.length > 0 ? services.join(', ') : 'None';
 }
 
 export function isBookingCancellable(booking: ApiBookingResponse): boolean {

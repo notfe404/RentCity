@@ -25,5 +25,5 @@ export interface PricingResult {
     comparedTo: PricingMode;
   };
   totalHours: number;
-  validUntil: string;
+  bagsdUntil: string;
 }

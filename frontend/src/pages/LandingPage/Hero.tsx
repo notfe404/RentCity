@@ -16,8 +16,8 @@ export default function Hero() {
   const currentHour = now.getHours();
   const defaultTime = `${(currentHour + 1) % 12 || 12}:00 ${currentHour + 1 >= 12 ? 'PM' : 'AM'}`;
 
-  const [pickup, setPickup] = useState('Chi nhánh Cầu Giấy');
-  const [dropoff, setDropoff] = useState('Chi nhánh Cầu Giấy');
+  const [pickup, setPickup] = useState('Cau Giay Branch');
+  const [dropoff, setDropoff] = useState('Cau Giay Branch');
   const [pickupDate, setPickupDate] = useState(todayStr);
   const [pickupTime, setPickupTime] = useState(defaultTime);
   const [returnDate, setReturnDate] = useState(futureStr);

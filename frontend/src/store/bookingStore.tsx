@@ -11,22 +11,22 @@ import {
 } from '@/utils/bookingDateTime';
 
 // ============================================================
-// Booking Context — Quản lý luồng đặt xe
+// Booking Context - manages the booking flow
 // ============================================================
 
 type ToggleableExtra = 'insurance' | 'childSeat' | 'gps';
 
 interface BookingExtras {
-  insurance: boolean;    // Bảo hiểm toàn diện
-  childSeat: boolean;    // Ghế trẻ em
+  insurance: boolean;    // Comprehensive insurance
+  childSeat: boolean;    // Child seat
   childSeatQuantity: number;
-  gps: boolean;          // Bộ định vị GPS
+  gps: boolean;          // GPS Navigation Device
 }
 
 const EXTRAS_PRICE: Record<ToggleableExtra, number> = {
-  insurance: 200000,   // 200K/ngày
-  childSeat: 100000,   // 100K/ngày
-  gps: 50000,          // 50K/ngày
+  insurance: 200000,   // 200K/day
+  childSeat: 100000,   // 100K/day
+  gps: 50000,          // 50K/day
 };
 const ADDRESS_DELIVERY_FEE = 200000;
 
@@ -94,7 +94,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const totalHours = getDurationHours(state.startDate, state.endDate);
   const totalDays = getDurationDays(state.startDate, state.endDate);
   const durationLabel = getDurationLabel(state.startDate, state.endDate, pricingMode);
-  const billingUnitLabel = pricingMode === 'HOURLY' ? 'giờ' : 'ngày';
+  const billingUnitLabel = pricingMode === 'HOURLY' ? 'hours' : 'days';
   const unitRateAmount = pricingMode === 'HOURLY'
     ? Math.round((state.vehicle?.price ?? 0) / 24)
     : (state.vehicle?.price ?? 0);
@@ -155,7 +155,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const setPromotionCode = useCallback((code: string) => setState(s => ({ ...s, promotionCode: code })), []);
 
   const applyPromotion = useCallback(() => {
-    // Mock: mã "RENTCITY10" giảm 10%
+    // Mock: code "RENTCITY10" gives 10% off
     if (state.promotionCode.toUpperCase() === 'RENTCITY10') {
       setState(s => ({ ...s, discountAmount: Math.round(baseAmount * 0.1) }));
     } else {

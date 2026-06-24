@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { AuthContext } from '@/store/authStore';
 
 /**
- * Hook để dùng Auth trong bất kỳ component nào.
+ * Hook for using Auth in any component.
  *
  * @example
  * const { user, isLoggedIn, login, logout } = useAuth();
@@ -11,7 +11,7 @@ import { AuthContext } from '@/store/authStore';
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuth phải được dùng bên trong <AuthProvider>');
+    throw new Error('useAuth must be used inside <AuthProvider>');
   }
   return ctx;
 }

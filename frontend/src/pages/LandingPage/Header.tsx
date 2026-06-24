@@ -221,7 +221,7 @@ export default function Header() {
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                 >
-                  <LogOut size={16} /> Đăng xuất
+                  <LogOut size={16} /> Logout
                 </button>
               </div>
             ) : (

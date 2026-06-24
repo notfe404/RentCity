@@ -118,16 +118,16 @@ export function inferPricingMode(startValue: string, endValue: string): ApiPrici
 export function getDurationLabel(startValue: string, endValue: string, pricingMode?: ApiPricingMode): string {
   const mode = pricingMode ?? inferPricingMode(startValue, endValue);
   if (mode === 'HOURLY') {
-    return `${getDurationHours(startValue, endValue)} giờ`;
+    return `${getDurationHours(startValue, endValue)} hours`;
   }
 
   const { fullDays, remainingHours } = getRentalDurationParts(startValue, endValue);
   const parts = [];
   if (fullDays > 0) {
-    parts.push(`${fullDays} ngày`);
+    parts.push(`${fullDays} days`);
   }
   if (remainingHours > 0) {
-    parts.push(`${remainingHours} giờ`);
+    parts.push(`${remainingHours} hours`);
   }
   return parts.join(' ');
 }

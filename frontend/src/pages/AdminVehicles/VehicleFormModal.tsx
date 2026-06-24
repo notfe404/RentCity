@@ -83,7 +83,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim() || !form.categoryId || !form.branchId) {
-      toast.error('Vui lòng điền đầy đủ các trường bắt buộc (Danh mục, Chi nhánh, Hãng, Dòng, Biển số)');
+      toast.error('Please fill in all required fields (Category, Branch, Brand, Model, License Plate)');
       return;
     }
     setIsSaving(true);
@@ -111,7 +111,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-[#f8f9fa] shrink-0 rounded-t-2xl">
-          <h2 className="font-black text-gray-900 text-lg">{initialData ? 'Sửa thông tin xe' : 'Thêm xe mới'}</h2>
+          <h2 className="font-black text-gray-900 text-lg">{initialData ? 'Edit Vehicle Information' : 'Add New Vehicle'}</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-xl transition-colors">
             <X size={20} />
           </button>
@@ -119,78 +119,78 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
 
         <form id="car-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-5 space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            {field('Hãng xe *', 'brand', 'text', 'Toyota, Honda, BMW...')}
-            {field('Dòng xe *', 'model', 'text', 'Camry, CR-V, X5...')}
-            {field('Biển số *', 'licensePlate', 'text', '30A-12345')}
-            {field('Năm sản xuất', 'year', 'number', '2024')}
-            {field('Số chỗ', 'seats', 'number', '5')}
-            {field('Giá / ngày (VND) *', 'pricePerDay', 'number', '500000')}
-            {field('Tiền cọc thuê xe (VND) *', 'deposit', 'number', '5000000')}
+            {field('Brand *', 'brand', 'text', 'Toyota, Honda, BMW...')}
+            {field('Model *', 'model', 'text', 'Camry, CR-V, X5...')}
+            {field('License Plate *', 'licensePlate', 'text', '30A-12345')}
+            {field('Year', 'year', 'number', '2024')}
+            {field('Seats', 'seats', 'number', '5')}
+            {field('Price / day (VND) *', 'pricePerDay', 'number', '500000')}
+            {field('Vehicle deposit (VND) *', 'deposit', 'number', '5000000')}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Hộp số</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Transmission</label>
               <select
                 value={form.transmission}
                 onChange={(e) => setForm({ ...form, transmission: e.target.value as 'AUTO' | 'MANUAL' })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
               >
-                <option value="AUTO">Số tự động</option>
-                <option value="MANUAL">Số sàn</option>
+                <option value="AUTO">Automatic</option>
+                <option value="MANUAL">Manual</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Trạng thái</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Status</label>
               <select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value as AdminCarPayload['status'] })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
               >
-                <option value="AVAILABLE">Sẵn sàng</option>
-                <option value="MAINTENANCE">Bảo dưỡng</option>
-                <option value="RETIRED">Ngừng dùng</option>
+                <option value="AVAILABLE">Available</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="RETIRED">Retired</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Danh mục</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Category</label>
               <select
                 value={form.categoryId ?? ''}
                 onChange={(e) => setForm({ ...form, categoryId: e.target.value ? Number(e.target.value) : undefined })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
               >
-                <option value="">— Không chọn —</option>
+                <option value="">— None —</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Chi nhánh</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Branch</label>
               <select
                 value={form.branchId ?? ''}
                 onChange={(e) => setForm({ ...form, branchId: e.target.value ? Number(e.target.value) : undefined })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
               >
-                <option value="">— Không chọn —</option>
+                <option value="">— None —</option>
                 {branches.filter((b) => b.isActive !== false).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1.5">Mô tả</label>
+            <label className="block text-xs font-bold text-gray-500 mb-1.5">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={3}
-              placeholder="Mô tả ngắn về xe..."
+              placeholder="Short vehicle description..."
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] focus:ring-2 focus:ring-[#78ad44]/20 resize-none"
             />
           </div>
 
           <div className="border border-gray-200 rounded-2xl p-5 space-y-4 bg-white">
             <div>
-              <h3 className="font-black text-gray-900">Ảnh xe</h3>
-              <p className="text-xs text-gray-500 mt-1">Tải lên các hình ảnh của xe để hiển thị cho khách hàng</p>
+              <h3 className="font-black text-gray-900">Vehicle Images</h3>
+              <p className="text-xs text-gray-500 mt-1">Upload vehicle images to show customers</p>
             </div>
             
             {existingImages.length > 0 && (
@@ -206,12 +206,12 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
                           try {
                             await deleteCarImage(initialData.id, img.id);
                             setExistingImages(cur => cur.filter(i => i.id !== img.id));
-                            toast.success('Đã xóa ảnh');
+                            toast.success('Image deleted');
                           } catch {
-                            toast.error('Lỗi khi xóa ảnh');
+                            toast.error('Error deleting image');
                           }
                         }}
-                        className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Xóa ảnh"
+                        className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Delete image"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -223,12 +223,12 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
                             try {
                               await setPrimaryCarImage(initialData.id, img.id);
                               setExistingImages(cur => cur.map(i => ({ ...i, primary: i.id === img.id })));
-                              toast.success('Đã đặt làm ảnh chính');
+                              toast.success('Set as primary image');
                             } catch {
-                              toast.error('Lỗi khi đặt ảnh chính');
+                              toast.error('Error setting primary image');
                             }
                           }}
-                          className="p-1.5 bg-[#78ad44] text-white rounded-lg hover:bg-[#689938] transition-colors" title="Đặt làm ảnh chính"
+                          className="p-1.5 bg-[#78ad44] text-white rounded-lg hover:bg-[#689938] transition-colors" title="Set as primary image"
                         >
                           <Star size={16} />
                         </button>
@@ -236,7 +236,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
                     </div>
                     {img.primary && (
                       <div className="absolute top-2 left-2 bg-[#78ad44] text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                        <Star size={10} fill="currentColor" /> CHÍNH
+                        <Star size={10} fill="currentColor" /> PRIMARY
                       </div>
                     )}
                   </div>
@@ -253,7 +253,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
                 className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-bold file:text-blue-600 hover:file:bg-blue-100"
               />
               {carFiles.length > 0 && (
-                <p className="text-xs font-bold text-gray-500 mt-2">{carFiles.length} ảnh mới được chọn</p>
+                <p className="text-xs font-bold text-gray-500 mt-2">{carFiles.length} new images selected</p>
               )}
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
 
         <div className="p-5 border-t border-gray-100 flex gap-3 shrink-0 bg-white rounded-b-2xl">
           <button onClick={onClose} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors">
-            Hủy
+            Cancel
           </button>
           <button
             type="submit"
@@ -352,7 +352,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
             className="flex-1 py-3 bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-xl transition-colors shadow-md disabled:bg-gray-300 flex items-center justify-center gap-2"
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
-            {initialData ? 'Lưu thay đổi' : 'Thêm xe'}
+            {initialData ? 'Save Changes' : 'Add Vehicle'}
           </button>
         </div>
       </div>

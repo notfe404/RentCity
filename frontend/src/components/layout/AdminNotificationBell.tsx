@@ -120,7 +120,7 @@ export default function AdminNotificationBell() {
         type="button"
         onClick={handleToggle}
         className="relative text-gray-400 hover:text-[#78ad44] transition-colors p-2"
-        aria-label="Thông báo"
+        aria-label="Notifications"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -134,8 +134,8 @@ export default function AdminNotificationBell() {
         <div className="absolute right-0 top-12 w-[min(22rem,calc(100vw-2rem))] bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-black text-gray-900">Thông báo</p>
-              <p className="text-xs font-bold text-gray-400">{unreadCount} chưa đọc</p>
+              <p className="text-sm font-black text-gray-900">Notifications</p>
+              <p className="text-xs font-bold text-gray-400">{unreadCount} unread</p>
             </div>
             {unreadCount > 0 && (
               <button
@@ -143,7 +143,7 @@ export default function AdminNotificationBell() {
                 onClick={handleMarkAllRead}
                 className="inline-flex items-center gap-1.5 text-xs font-black text-[#78ad44] hover:text-[#689938]"
               >
-                <CheckCheck size={14} /> Đọc hết
+                <CheckCheck size={14} /> Mark all read
               </button>
             )}
           </div>
@@ -158,8 +158,8 @@ export default function AdminNotificationBell() {
             {!loading && recentNotifications.length === 0 && (
               <div className="py-10 px-5 text-center">
                 <Bell size={30} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-sm font-black text-gray-900">Chưa có thông báo</p>
-                <p className="text-xs font-bold text-gray-400 mt-1">Các việc cần xử lý sẽ hiện ở đây.</p>
+                <p className="text-sm font-black text-gray-900">No notifications yet</p>
+                <p className="text-xs font-bold text-gray-400 mt-1">Items that need attention will appear here.</p>
               </div>
             )}
 
@@ -194,7 +194,7 @@ export default function AdminNotificationBell() {
             }}
             className="w-full p-4 text-sm font-black text-[#78ad44] hover:bg-[#f4f8f7] transition-colors"
           >
-            Xem tất cả thông báo
+            View all notifications
           </button>
         </div>
       )}

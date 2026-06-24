@@ -1,5 +1,5 @@
 // ============================================================
-// Formatters — Định dạng tiền VND, ngày tháng
+// Formatters - VND money and dates
 // ============================================================
 
 const vndFormatter = new Intl.NumberFormat('vi-VN', {
@@ -57,7 +57,7 @@ export function formatDateTime(date: string | Date): string {
 }
 
 /**
- * Format ISO date → "Thứ Bảy, 26 tháng 4, 2026"
+ * Format ISO date → "Saturday, April 26, 2026"
  */
 export function formatDateLong(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date;

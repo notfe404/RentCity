@@ -32,9 +32,9 @@ import { useBooking } from '@/store/bookingStore';
 import type { CarReviewsResponse, PublicReview } from '@/types';
 
 const STATUS_META = {
-  AVAILABLE: { label: 'Sẵn sàng cho thuê', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-  MAINTENANCE: { label: 'Đang bảo dưỡng', color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
-  RETIRED: { label: 'Ngừng hoạt động', color: 'bg-gray-100 text-gray-500', dot: 'bg-gray-400' },
+  AVAILABLE: { label: 'Available for Rent', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  MAINTENANCE: { label: 'Under Maintenance', color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
+  RETIRED: { label: 'Retired', color: 'bg-gray-100 text-gray-500', dot: 'bg-gray-400' },
 };
 
 export default function VehicleDetailPage() {
@@ -68,7 +68,7 @@ export default function VehicleDetailPage() {
         if (!cancelled) setVehicleData(mapApiCarToDisplayVehicle(data));
       } catch {
         if (!cancelled) {
-          toast.error('Không tải được chi tiết xe từ backend');
+          toast.error('Could not load vehicle details from backend');
           setVehicleData(null);
         }
       } finally {
@@ -170,7 +170,7 @@ export default function VehicleDetailPage() {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
         <Header />
-        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Đang tải chi tiết xe...</div>
+        <div className="flex-1 flex items-center justify-center text-gray-500 font-bold">Loading vehicle details...</div>
         <Footer />
       </div>
     );
@@ -185,10 +185,10 @@ export default function VehicleDetailPage() {
             <div className="w-24 h-24 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
               <Car size={48} />
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">Không tìm thấy xe</h2>
-            <p className="text-gray-500 mb-8">Xe bạn đang tìm không tồn tại hoặc đã bị xóa.</p>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">Vehicle Not Found</h2>
+            <p className="text-gray-500 mb-8">The vehicle you are looking for does not exist or has been deleted.</p>
             <button onClick={() => navigate('/search')} className="bg-[#78ad44] text-white px-8 py-3 rounded-full font-bold shadow-lg">
-              Quay lại tìm xe
+              Back to Search
             </button>
           </div>
         </div>
@@ -209,9 +209,9 @@ export default function VehicleDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-6 font-medium">
-            <a href="/" className="hover:text-white transition-colors">Trang chủ</a>
+            <a href="/" className="hover:text-white transition-colors">Home</a>
             <ChevronRight size={14} />
-            <a href="/search" className="hover:text-white transition-colors">Danh sách xe</a>
+            <a href="/search" className="hover:text-white transition-colors">Vehicle List</a>
             <ChevronRight size={14} />
             <span className="text-[#78ad44]">{vehicle.name}</span>
           </div>
@@ -241,10 +241,10 @@ export default function VehicleDetailPage() {
                 <div className="flex items-center text-[#f99200]">
                   <Star size={16} className="fill-current" />
                   <span className="ml-1 font-bold text-white">{vehicle.avgRating}</span>
-                  <span className="ml-1 text-gray-400 text-sm">({vehicle.totalTrips} đánh giá)</span>
+                  <span className="ml-1 text-gray-400 text-sm">({vehicle.totalTrips} reviews)</span>
                 </div>
                 <div className="flex items-center text-[#78ad44] text-sm font-semibold">
-                  <ShieldCheck size={16} className="mr-1" /> Có bảo hiểm
+                  <ShieldCheck size={16} className="mr-1" /> Insurance Included
                 </div>
                 {vehicle.branchName && (
                   <div className="flex items-center gap-1 text-gray-400 text-sm font-medium">
@@ -256,14 +256,14 @@ export default function VehicleDetailPage() {
             </div>
 
             <div className="text-left md:text-right shrink-0">
-              <p className="text-gray-400 text-sm font-medium mb-1">Giá thuê</p>
+              <p className="text-gray-400 text-sm font-medium mb-1">Rental Price</p>
               <div className="text-4xl font-black text-[#78ad44]">
                 {formatVND(vehicle.price)}
-                <span className="text-lg text-white font-medium">/ngày</span>
+                <span className="text-lg text-white font-medium">/day</span>
               </div>
               {vehicle.deposit != null && vehicle.deposit > 0 && (
                 <p className="text-gray-400 text-sm font-medium mt-1">
-                  Cọc: <span className="text-white font-bold">{formatVND(vehicle.deposit)}</span>
+                  Deposit: <span className="text-white font-bold">{formatVND(vehicle.deposit)}</span>
                 </p>
               )}
             </div>
@@ -326,19 +326,19 @@ export default function VehicleDetailPage() {
           {/* Vehicle Info Cards */}
           <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-2">
-              <Info size={20} className="text-[#78ad44]" /> Thông tin xe
+              <Info size={20} className="text-[#78ad44]" /> Vehicle Information
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <InfoCard icon={<Hash size={18} />} label="Biển số xe" value={vehicle.licensePlate ?? 'Chưa cập nhật'} highlight />
-              <InfoCard icon={<CalendarDays size={18} />} label="Năm sản xuất" value={vehicle.year ? `${vehicle.year}` : 'Chưa cập nhật'} />
-              <InfoCard icon={<Gauge size={18} />} label="Loại xe" value={vehicle.type} />
-              <InfoCard icon={<Users size={18} />} label="Số chỗ ngồi" value={`${vehicle.passengers} chỗ`} />
-              <InfoCard icon={<Settings size={18} />} label="Hộp số" value={vehicle.transmission} />
-              <InfoCard icon={<Fuel size={18} />} label="Nhiên liệu" value={vehicle.fuelType} />
-              <InfoCard icon={<Car size={18} />} label="Số cửa" value={`${vehicle.doors} cửa`} />
-              <InfoCard icon={<Briefcase size={18} />} label="Hành lý" value={`${vehicle.luggage} vali`} />
+              <InfoCard icon={<Hash size={18} />} label="License Plate" value={vehicle.licensePlate ?? 'Not updated'} highlight />
+              <InfoCard icon={<CalendarDays size={18} />} label="Year" value={vehicle.year ? `${vehicle.year}` : 'Not updated'} />
+              <InfoCard icon={<Gauge size={18} />} label="Category" value={vehicle.type} />
+              <InfoCard icon={<Users size={18} />} label="Seats" value={`${vehicle.passengers} seats`} />
+              <InfoCard icon={<Settings size={18} />} label="Transmission" value={vehicle.transmission} />
+              <InfoCard icon={<Fuel size={18} />} label="Fuel" value={vehicle.fuelType} />
+              <InfoCard icon={<Car size={18} />} label="Doors" value={`${vehicle.doors} doors`} />
+              <InfoCard icon={<Briefcase size={18} />} label="Luggage" value={`${vehicle.luggage} bags`} />
               {vehicle.branchName && (
-                <InfoCard icon={<Building2 size={18} />} label="Chi nhánh" value={vehicle.branchName} />
+                <InfoCard icon={<Building2 size={18} />} label="Branch" value={vehicle.branchName} />
               )}
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function VehicleDetailPage() {
           {/* Pricing Detail */}
           <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
             <h3 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-2">
-              <CreditCard size={20} className="text-[#78ad44]" /> Chi phí thuê xe
+              <CreditCard size={20} className="text-[#78ad44]" /> Rental Cost
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-[#f4f8f7] rounded-2xl p-5 flex items-center gap-4">
@@ -404,7 +404,7 @@ export default function VehicleDetailPage() {
                   <Calendar size={22} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium mb-0.5">Giá thuê / ngày</p>
+                  <p className="text-xs text-gray-500 font-medium mb-0.5">Rental Price / day</p>
                   <p className="text-2xl font-black text-gray-900">{formatVND(vehicle.price)}</p>
                 </div>
               </div>
@@ -414,27 +414,27 @@ export default function VehicleDetailPage() {
                     <ShieldCheck size={22} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium mb-0.5">Tiền đặt cọc</p>
+                    <p className="text-xs text-gray-500 font-medium mb-0.5">Security Deposit</p>
                     <p className="text-2xl font-black text-gray-900">{formatVND(vehicle.deposit)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Hoàn lại sau khi trả xe</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Refunded after vehicle return</p>
                   </div>
                 </div>
               )}
             </div>
             <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100 text-sm text-gray-500 font-medium flex items-start gap-2">
               <Info size={15} className="shrink-0 mt-0.5 text-gray-400" />
-              Giá đã bao gồm bảo hiểm cơ bản. Tiền cọc được hoàn trả đầy đủ sau khi trả xe đúng hạn và không có hư hỏng.
+              Price includes basic insurance. The deposit is fully refunded after on-time return with no damage.
             </div>
           </div>
 
           {/* Description & Features */}
           <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
             <div className="mb-10">
-              <h3 className="text-2xl font-black text-gray-900 mb-4">Mô tả xe</h3>
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Vehicle Description</h3>
               <p className="text-gray-600 leading-relaxed font-medium">{vehicle.description}</p>
             </div>
             <div>
-              <h3 className="text-2xl font-black text-gray-900 mb-5">Trang bị & tiện nghi</h3>
+              <h3 className="text-2xl font-black text-gray-900 mb-5">Features & Amenities</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
                 {vehicle.features.map(f => (
                   <div key={f} className="flex items-center gap-3">
@@ -452,7 +452,7 @@ export default function VehicleDetailPage() {
           {vehicle.branchName && (
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h3 className="text-2xl font-black text-gray-900 mb-5 flex items-center gap-2">
-                <MapPin size={20} className="text-[#78ad44]" /> Vị trí xe
+                <MapPin size={20} className="text-[#78ad44]" /> Vehicle Location
               </h3>
               <div className="flex items-center gap-4 bg-[#f4f8f7] rounded-2xl p-5">
                 <div className="w-12 h-12 bg-[#78ad44] rounded-xl flex items-center justify-center shrink-0">
@@ -460,7 +460,7 @@ export default function VehicleDetailPage() {
                 </div>
                 <div>
                   <p className="font-black text-gray-900">{vehicle.branchName}</p>
-                  <p className="text-sm text-gray-500 font-medium mt-0.5">Nhận xe trực tiếp tại chi nhánh</p>
+                  <p className="text-sm text-gray-500 font-medium mt-0.5">Pick up directly at the branch</p>
                 </div>
               </div>
             </div>
@@ -470,10 +470,10 @@ export default function VehicleDetailPage() {
           <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-black text-gray-900 flex items-center gap-3">
-                <MessageSquare size={22} className="text-[#78ad44]" /> Đánh giá
+                <MessageSquare size={22} className="text-[#78ad44]" /> Reviews
               </h3>
               <span className="text-sm font-bold text-gray-500">
-                {reviewSummary?.reviewCount ?? vehicle.totalTrips} đánh giá
+                {reviewSummary?.reviewCount ?? vehicle.totalTrips} reviews
               </span>
             </div>
 
@@ -484,7 +484,7 @@ export default function VehicleDetailPage() {
                 </div>
                 <RatingStars rating={reviewSummary?.averageRating ?? vehicle.avgRating} size={18} showValue={false} className="mt-2" />
                 <p className="text-xs text-gray-500 mt-2 font-medium">
-                  {reviewSummary?.reviewCount ?? vehicle.totalTrips} đánh giá
+                  {reviewSummary?.reviewCount ?? vehicle.totalTrips} reviews
                 </p>
               </div>
               <div className="flex-1 space-y-2">
@@ -502,10 +502,10 @@ export default function VehicleDetailPage() {
 
             <div className="space-y-6">
               {isReviewsLoading && (
-                <p className="text-center text-gray-400 py-8 font-medium">Đang tải đánh giá...</p>
+                <p className="text-center text-gray-400 py-8 font-medium">Loading reviews...</p>
               )}
               {!isReviewsLoading && reviews.length === 0 && (
-                <p className="text-center text-gray-400 py-8 font-medium">Chưa có đánh giá nào cho xe này.</p>
+                <p className="text-center text-gray-400 py-8 font-medium">No reviews for this vehicle yet.</p>
               )}
               {!isReviewsLoading && reviews.map(review => (
                 <div key={review.id} className="border-b border-gray-100 pb-6 last:border-none last:pb-0">
@@ -517,7 +517,7 @@ export default function VehicleDetailPage() {
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-bold text-gray-900">{review.customerName || 'Khách hàng RentCity'}</h4>
+                        <h4 className="font-bold text-gray-900">{review.customerName || 'RentCity Customer'}</h4>
                         <span className="text-xs text-gray-400 font-medium">{formatDate(review.createdAt)}</span>
                       </div>
                       <RatingStars rating={review.overallRating} size={14} showValue={false} className="mb-2" />
@@ -526,12 +526,12 @@ export default function VehicleDetailPage() {
                       )}
                       {review.staffReply && (
                         <div className="mt-4 bg-[#f4f8f7] rounded-xl p-4">
-                          <p className="text-xs font-black text-[#78ad44] mb-1">Phản hồi từ RentCity</p>
+                          <p className="text-xs font-black text-[#78ad44] mb-1">Reply from RentCity</p>
                           <p className="text-sm text-gray-600 font-medium leading-relaxed">{review.staffReply}</p>
                         </div>
                       )}
                       <button className="flex items-center gap-1.5 mt-3 text-xs font-bold text-gray-400 hover:text-[#78ad44] transition-colors">
-                        <ThumbsUp size={13} /> Hữu ích
+                        <ThumbsUp size={13} /> Helpful
                       </button>
                     </div>
                   </div>
@@ -546,7 +546,7 @@ export default function VehicleDetailPage() {
                   onClick={() => setReviewPage((page) => Math.max(0, page - 1))}
                   disabled={reviewSummary.first}
                   className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#78ad44] hover:text-[#78ad44] disabled:opacity-40 disabled:pointer-events-none transition-colors"
-                  aria-label="Trang đánh giá trước"
+                  aria-label="Previous reviews page"
                 >
                   <ChevronLeft size={18} />
                 </button>
@@ -558,7 +558,7 @@ export default function VehicleDetailPage() {
                   onClick={() => setReviewPage((page) => page + 1)}
                   disabled={reviewSummary.last}
                   className="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#78ad44] hover:text-[#78ad44] disabled:opacity-40 disabled:pointer-events-none transition-colors"
-                  aria-label="Trang đánh giá tiếp theo"
+                  aria-label="Next reviews page"
                 >
                   <ChevronRight size={18} />
                 </button>
@@ -571,17 +571,17 @@ export default function VehicleDetailPage() {
         <aside className="order-1 lg:order-2 w-full lg:w-[400px] shrink-0">
           <div className="sticky top-24 bg-white rounded-[2.5rem] p-8 shadow-2xl border border-gray-100 flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h3 className="text-2xl font-black text-gray-900">Đặt xe</h3>
+              <h3 className="text-2xl font-black text-gray-900">Book Vehicle</h3>
               {!canBook && (
                 <span className="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
-                  Không khả dụng
+                  Unavailable
                 </span>
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Nhận xe tại</label>
+                <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Pick-up at</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <select
@@ -596,7 +596,7 @@ export default function VehicleDetailPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Trả xe tại</label>
+                <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">Return at</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <select
@@ -619,7 +619,7 @@ export default function VehicleDetailPage() {
                 return (
                   <div key={type}>
                     <label className="text-xs font-bold text-gray-700 ml-2 mb-1.5 block">
-                      {isStart ? 'Ngày nhận xe' : 'Ngày trả xe'}
+                      {isStart ? 'Pick-up date' : 'Return date'}
                     </label>
                     <div className="relative bg-[#f4f8f7] rounded-2xl pl-12 pr-3 py-2.5 flex items-center gap-3">
                       <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
@@ -653,21 +653,21 @@ export default function VehicleDetailPage() {
             {/* Price Summary */}
             <div className="border-t border-gray-100 pt-5 space-y-3">
               <div className="flex justify-between text-sm font-bold text-gray-600">
-                <span>Đơn giá</span>
-                <span>{formatVND(unitRateAmount)}/{pricingMode === 'HOURLY' ? 'giờ' : 'ngày'}</span>
+                <span>Unit price</span>
+                <span>{formatVND(unitRateAmount)}/{pricingMode === 'HOURLY' ? 'hours' : 'days'}</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-600">
-                <span>Thời lượng</span>
+                <span>Duration</span>
                 <span>{durationLabel}</span>
               </div>
               {vehicle.deposit != null && vehicle.deposit > 0 && (
                 <div className="flex justify-between text-sm font-bold text-gray-600">
-                  <span>Tiền cọc</span>
+                  <span>Deposit</span>
                   <span className="text-orange-500">{formatVND(vehicle.deposit)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-lg font-black text-gray-900 bg-[#f4f8f7] px-4 py-3 rounded-xl mt-2">
-                <span>Tạm tính</span>
+                <span>Subtotal</span>
                 <span className="text-[#78ad44]">{formatVND(estimatedTotal)}</span>
               </div>
             </div>
@@ -685,12 +685,12 @@ export default function VehicleDetailPage() {
               className="w-full bg-[#212529] hover:bg-[#111] text-white font-bold rounded-2xl py-4 transition-colors shadow-lg flex justify-center items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {canBook ? (
-                <><span>Tiếp tục đặt xe</span><ChevronRight size={18} /></>
+                <><span>Continue Booking</span><ChevronRight size={18} /></>
               ) : (
-                <span>Xe hiện không khả dụng</span>
+                <span>Vehicle is currently unavailable</span>
               )}
             </button>
-            <p className="text-xs text-center text-gray-400 font-medium">Bạn chưa bị tính phí ở bước này</p>
+            <p className="text-xs text-center text-gray-400 font-medium">You will not be charged at this step</p>
           </div>
         </aside>
       </div>

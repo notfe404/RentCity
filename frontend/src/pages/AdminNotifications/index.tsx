@@ -43,7 +43,7 @@ export default function AdminNotificationsPage() {
       setNotifications(data);
     } catch {
       setNotifications([]);
-      setErrorMessage('Không tải được thông báo.');
+      setErrorMessage('Could not load notifications.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,7 +61,7 @@ export default function AdminNotificationsPage() {
       } catch {
         if (!cancelled) {
           setNotifications([]);
-          setErrorMessage('Không tải được thông báo.');
+          setErrorMessage('Could not load notifications.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -124,13 +124,13 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <AdminLayout title="Thông báo">
+    <AdminLayout title="Notifications">
       <div className="space-y-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <p className="text-sm font-black text-gray-400 uppercase">Notification Center</p>
-            <h2 className="text-2xl font-black text-gray-900 mt-1">Việc cần theo dõi</h2>
-            <p className="text-sm font-bold text-gray-500 mt-1">{unreadCount} thông báo chưa đọc trong danh sách hiện tại</p>
+            <h2 className="text-2xl font-black text-gray-900 mt-1">Items to Monitor</h2>
+            <p className="text-sm font-bold text-gray-500 mt-1">{unreadCount} unread notifications in the current list</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -144,7 +144,7 @@ export default function AdminNotificationsPage() {
                     filter === mode ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
-                  {mode === 'ALL' ? 'Tất cả' : 'Chưa đọc'}
+                  {mode === 'ALL' ? 'All' : 'Unread'}
                 </button>
               ))}
             </div>
@@ -156,7 +156,7 @@ export default function AdminNotificationsPage() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-black text-gray-600 hover:text-[#78ad44] hover:bg-[#f4f8f7] disabled:opacity-50"
             >
               {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              Làm mới
+              Refresh
             </button>
 
             {unreadCount > 0 && (
@@ -165,7 +165,7 @@ export default function AdminNotificationsPage() {
                 onClick={handleMarkAllRead}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#78ad44] text-white text-sm font-black hover:bg-[#689938]"
               >
-                <CheckCheck size={16} /> Đọc hết
+                <CheckCheck size={16} /> Mark all read
               </button>
             )}
           </div>
@@ -189,8 +189,8 @@ export default function AdminNotificationsPage() {
               <div className="w-20 h-20 bg-[#f4f8f7] rounded-full flex items-center justify-center mx-auto mb-5 text-gray-300">
                 <Bell size={40} />
               </div>
-              <h3 className="text-xl font-black text-gray-900">Chưa có thông báo</h3>
-              <p className="text-sm font-bold text-gray-500 mt-2">Booking, payment và KYC cần xử lý sẽ xuất hiện ở đây.</p>
+              <h3 className="text-xl font-black text-gray-900">No notifications yet</h3>
+              <p className="text-sm font-bold text-gray-500 mt-2">Bookings, payments, and KYC items that need attention will appear here.</p>
             </div>
           )}
 
@@ -229,7 +229,7 @@ export default function AdminNotificationsPage() {
                     type="button"
                     onClick={() => handleDelete(notification.id)}
                     className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                    aria-label="Xóa thông báo"
+                    aria-label="Delete notification"
                   >
                     <Trash2 size={16} />
                   </button>
