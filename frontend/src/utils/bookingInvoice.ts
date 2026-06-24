@@ -1,5 +1,11 @@
 import type { ApiBookingResponse } from '@/types';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleName } from '@/utils/bookingMapper';
+import {
+  BOOKING_STATUS_META,
+  DEPOSIT_STATUS_META,
+  getBookingDurationLabel,
+  getBookingExtraServiceSummary,
+  getBookingVehicleName,
+} from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 
 interface InvoiceCustomer {
@@ -39,6 +45,8 @@ function buildInvoiceHtml(booking: ApiBookingResponse, customer: InvoiceCustomer
     ['Hình thức tính giá', booking.pricingMode],
     ['Hủy miễn phí đến', formatDateTime(booking.freeCancelUntil)],
     ['Giá thuê', formatVND(booking.baseAmount)],
+    ['Dịch vụ bổ sung', `${getBookingExtraServiceSummary(booking)} - ${formatVND(booking.extraServicesAmount)}`],
+    ['Phí giao xe tận nơi', formatVND(booking.deliveryFeeAmount)],
     ['Phí giữ chỗ (30%)', formatVND(booking.reservationFeeAmount)],
     ['Tiền cọc thuê xe', formatVND(booking.securityDepositAmount)],
     ['Trạng thái cọc thuê xe', booking.securityDepositStatus.replaceAll('_', ' ')],

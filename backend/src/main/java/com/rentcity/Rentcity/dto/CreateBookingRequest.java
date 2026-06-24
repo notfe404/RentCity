@@ -4,6 +4,7 @@ import com.rentcity.Rentcity.entity.PricingMode;
 import com.rentcity.Rentcity.entity.VehiclePickupMethod;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,4 +38,14 @@ public class CreateBookingRequest {
 
     @Size(max = 500, message = "Delivery address must not exceed 500 characters")
     private String deliveryAddress;
+
+    @Builder.Default
+    private Boolean insuranceSelected = false;
+
+    @Builder.Default
+    @PositiveOrZero(message = "Child seat quantity must be zero or greater")
+    private Integer childSeatQuantity = 0;
+
+    @Builder.Default
+    private Boolean gpsSelected = false;
 }

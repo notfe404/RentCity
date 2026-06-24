@@ -59,6 +59,26 @@ export function getBookingVehicleImage(booking: ApiBookingResponse): string | un
   return booking.vehiclePrimaryImageUrl ?? getBookingVehicleFallback(booking)?.image;
 }
 
+export function getBookingBookedSubtotal(booking: ApiBookingResponse): number {
+  return (booking.baseAmount ?? 0)
+    + (booking.extraServicesAmount ?? 0)
+    + (booking.deliveryFeeAmount ?? 0);
+}
+
+export function getBookingExtraServiceSummary(booking: ApiBookingResponse): string {
+  const services = [];
+  if (booking.insuranceSelected) {
+    services.push('Bảo hiểm');
+  }
+  if ((booking.childSeatQuantity ?? 0) > 0) {
+    services.push(`Ghế trẻ em x ${booking.childSeatQuantity}`);
+  }
+  if (booking.gpsSelected) {
+    services.push('GPS');
+  }
+  return services.length > 0 ? services.join(', ') : 'Không chọn';
+}
+
 export function isBookingCancellable(booking: ApiBookingResponse): boolean {
   return booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'PAID';
 }

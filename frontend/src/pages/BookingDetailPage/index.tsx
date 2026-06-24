@@ -8,7 +8,15 @@ import { toast } from 'sonner';
 import { cancelMyBooking, downloadRentalContractPdf, getMyBooking, getRentalContract } from '@/services/bookingApi';
 import { downloadBookingInvoicePdf } from '@/services/paymentApi';
 import { getMyBookingReview } from '@/services/reviewApi';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingDurationLabel, getBookingVehicleImage, getBookingVehicleName, isBookingCancellable } from '@/utils/bookingMapper';
+import {
+  BOOKING_STATUS_META,
+  DEPOSIT_STATUS_META,
+  getBookingDurationLabel,
+  getBookingExtraServiceSummary,
+  getBookingVehicleImage,
+  getBookingVehicleName,
+  isBookingCancellable,
+} from '@/utils/bookingMapper';
 import { formatVND, formatDate, formatDateTime } from '@/utils/formatters';
 import { useAuth } from '@/hooks/useAuth';
 import type { ApiBookingResponse, RentalContractResponse, Review } from '@/types';
@@ -416,6 +424,18 @@ export default function BookingDetailPage() {
                         <span>Thuê xe ({durationLabel})</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.baseAmount)}</span>
                       </div>
+                      {booking.extraServicesAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span>Dịch vụ bổ sung ({getBookingExtraServiceSummary(booking)})</span>
+                          <span className="font-bold text-gray-900">{formatVND(booking.extraServicesAmount)}</span>
+                        </div>
+                      )}
+                      {booking.deliveryFeeAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span>Phí giao xe tận nơi</span>
+                          <span className="font-bold text-gray-900">{formatVND(booking.deliveryFeeAmount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span>Phí giữ chỗ (30%)</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.reservationFeeAmount)}</span>

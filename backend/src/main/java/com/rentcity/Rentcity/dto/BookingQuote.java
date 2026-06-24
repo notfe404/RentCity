@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 public class BookingQuote {
 
     private BigDecimal baseAmount;
+    private BigDecimal extraServicesAmount;
+    private BigDecimal deliveryFeeAmount;
     private BigDecimal depositAmount;
     private BigDecimal totalAmount;
     private LocalDateTime freeCancelUntil;

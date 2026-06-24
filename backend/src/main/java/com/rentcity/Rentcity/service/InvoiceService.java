@@ -94,6 +94,8 @@ public class InvoiceService {
 
                 y = writeSection(content, "Payment", y - 12);
                 y = writeRow(content, "Base amount", formatMoney(booking.getBaseAmount()), y);
+                y = writeRow(content, "Extra services", formatMoney(booking.getExtraServicesAmount()), y);
+                y = writeRow(content, "Delivery fee", formatMoney(booking.getDeliveryFeeAmount()), y);
                 y = writeRow(content, "Deposit amount", formatMoney(booking.getDepositAmount()), y);
                 y = writeRow(content, "Total booking", formatMoney(booking.getTotalAmount()), y);
                 y = writeRow(content, "Payment gateway", paidPayment != null ? paidPayment.getGateway().name() : "-", y);

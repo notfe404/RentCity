@@ -64,6 +64,26 @@ public class Booking {
     @Column(name = "base_amount", nullable = false, precision = 12, scale = 0)
     private BigDecimal baseAmount;
 
+    @Builder.Default
+    @Column(name = "insurance_selected", nullable = false)
+    private boolean insuranceSelected = false;
+
+    @Builder.Default
+    @Column(name = "child_seat_quantity", nullable = false)
+    private int childSeatQuantity = 0;
+
+    @Builder.Default
+    @Column(name = "gps_selected", nullable = false)
+    private boolean gpsSelected = false;
+
+    @Builder.Default
+    @Column(name = "extra_services_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal extraServicesAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "delivery_fee_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal deliveryFeeAmount = BigDecimal.ZERO;
+
     @Column(name = "deposit_amount", nullable = false, precision = 12, scale = 0)
     private BigDecimal depositAmount;
 

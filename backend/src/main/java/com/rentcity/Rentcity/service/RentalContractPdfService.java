@@ -74,6 +74,8 @@ public class RentalContractPdfService {
                 writer.row("Địa chỉ giao xe", booking.getDeliveryAddress());
             }
             writer.row("Tiền thuê cơ bản", money(booking.getBaseAmount()));
+            writer.row("Dịch vụ bổ sung", money(booking.getExtraServicesAmount()));
+            writer.row("Phí giao xe", money(booking.getDeliveryFeeAmount()));
             writer.row("Phí giữ chỗ (30%)", money(booking.getDepositAmount()));
             writer.row("Tiền cọc thuê xe", money(booking.getSecurityDepositAmount()));
             writer.row("Tổng hiện tại", money(booking.getTotalAmount()));
@@ -111,7 +113,7 @@ public class RentalContractPdfService {
                 writer.row("Số chìa khóa", String.valueOf(contract.getReturnKeyCount()));
                 writer.row("Phụ kiện", contract.getReturnAccessories());
                 writer.row("Phí quá hạn", money(booking.getTotalOverdueFee()));
-                writer.row("Tiền thuê còn lại sau phí giữ chỗ", money(booking.getBaseAmount().subtract(booking.getDepositAmount())));
+                writer.row("Tiền còn lại sau phí giữ chỗ", money(bookedSubtotal(booking).subtract(booking.getDepositAmount())));
                 writer.row("Tổng thanh toán khi trả xe", money(contract.getFinalRentalAmount()));
                 writer.row("Hình thức thanh toán", enumText(contract.getFinalPaymentMethod()));
                 writer.row("Trạng thái thanh toán", enumText(contract.getFinalPaymentStatus()));
@@ -165,6 +167,16 @@ public class RentalContractPdfService {
     private String money(BigDecimal value) {
         if (value == null) return "-";
         return NumberFormat.getIntegerInstance(new Locale("vi", "VN")).format(value) + " VND";
+    }
+
+    private BigDecimal bookedSubtotal(Booking booking) {
+        return nonNull(booking.getBaseAmount())
+                .add(nonNull(booking.getExtraServicesAmount()))
+                .add(nonNull(booking.getDeliveryFeeAmount()));
+    }
+
+    private BigDecimal nonNull(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private String enumText(Enum<?> value) {

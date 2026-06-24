@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { Shield, Baby, Navigation, Tag, Car, Building2, Truck } from 'lucide-react';
+import { Shield, Baby, Navigation, Tag, Car, Building2, Truck, Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import BookingStepper from '@/components/booking/BookingStepper';
@@ -59,12 +59,14 @@ export default function BookingPage() {
     durationLabel,
     totalDays,
     baseAmount,
+    deliveryFeeAmount,
     depositAmount,
     totalAmount,
     setVehicle,
     setPickupMethod,
     setDeliveryAddress,
     toggleExtra,
+    setChildSeatQuantity,
     setCustomerNote,
     setPromotionCode,
     applyPromotion,
@@ -124,7 +126,13 @@ export default function BookingPage() {
 
   const lineItems = [
     { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
-    ...EXTRAS.filter((e) => extras[e.key]).map((e) => ({ label: e.label, amount: e.pricePerDay * totalDays })),
+    ...(extras.insurance ? [{ label: EXTRAS[0].label, amount: EXTRAS[0].pricePerDay * totalDays }] : []),
+    ...(extras.childSeat ? [{
+      label: `${EXTRAS[1].label} x ${Math.max(1, extras.childSeatQuantity)}`,
+      amount: EXTRAS[1].pricePerDay * Math.max(1, extras.childSeatQuantity) * totalDays,
+    }] : []),
+    ...(extras.gps ? [{ label: EXTRAS[2].label, amount: EXTRAS[2].pricePerDay * totalDays }] : []),
+    ...(deliveryFeeAmount > 0 ? [{ label: 'Phí giao xe tận nơi', amount: deliveryFeeAmount }] : []),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
 
@@ -227,6 +235,7 @@ export default function BookingPage() {
                   <span>
                     <span className="flex items-center gap-2 font-black text-gray-900"><Truck size={18} className="text-[#78ad44]" /> Giao xe tận địa chỉ</span>
                     <span className="mt-2 block text-sm font-medium leading-6 text-gray-500">RentCity giao xe đến địa chỉ bạn cung cấp.</span>
+                    <span className="mt-1 block text-xs font-bold text-[#78ad44]">Phí giao xe mặc định {formatVND(200000)}.</span>
                   </span>
                 </label>
               </div>
@@ -257,30 +266,73 @@ export default function BookingPage() {
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">Dịch vụ bổ sung</h2>
               <div className="space-y-4">
-                {EXTRAS.map((ext) => (
-                  <label
-                    key={ext.key}
-                    className={`flex items-start p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                      extras[ext.key] ? 'border-[#78ad44] bg-[#f4f8f7]' : 'border-gray-100 hover:border-gray-200'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={extras[ext.key]}
-                      onChange={() => toggleExtra(ext.key)}
-                      className="mt-1 w-5 h-5 rounded border-gray-300 text-[#78ad44] focus:ring-[#78ad44] accent-[#78ad44] cursor-pointer"
-                    />
-                    <div className="ml-4 flex-1">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-bold text-gray-900 flex items-center gap-2">
-                          <ext.icon size={18} className="text-[#78ad44]" /> {ext.label}
-                        </span>
-                        <span className="font-black text-[#78ad44]">{formatVND(ext.pricePerDay)} / ngày</span>
+                {EXTRAS.map((ext) => {
+                  const isChildSeat = ext.key === 'childSeat';
+                  const selected = extras[ext.key];
+                  const quantity = Math.max(1, extras.childSeatQuantity);
+
+                  return (
+                    <div
+                      key={ext.key}
+                      className={`flex items-start p-5 rounded-2xl border-2 transition-all ${
+                        selected ? 'border-[#78ad44] bg-[#f4f8f7]' : 'border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleExtra(ext.key)}
+                        className="mt-1 w-5 h-5 rounded border-gray-300 text-[#78ad44] focus:ring-[#78ad44] accent-[#78ad44] cursor-pointer"
+                      />
+                      <div className="ml-4 flex-1">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="font-bold text-gray-900 flex items-center gap-2">
+                            <ext.icon size={18} className="text-[#78ad44]" /> {ext.label}
+                          </span>
+                          <span className="font-black text-[#78ad44]">
+                            {formatVND(ext.pricePerDay)} / ngày{isChildSeat ? ' / ghế' : ''}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500 font-medium">{ext.desc}</p>
+
+                        {isChildSeat && selected && (
+                          <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <span className="text-sm font-bold text-gray-700">Số lượng</span>
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white p-1">
+                              <button
+                                type="button"
+                                onClick={() => setChildSeatQuantity(quantity - 1)}
+                                className="grid h-9 w-9 place-items-center rounded-lg text-gray-600 hover:bg-gray-100"
+                                aria-label="Giảm số ghế trẻ em"
+                              >
+                                <Minus size={16} />
+                              </button>
+                              <input
+                                type="number"
+                                min={0}
+                                max={8}
+                                value={extras.childSeatQuantity}
+                                onChange={(event) => setChildSeatQuantity(Number(event.target.value))}
+                                className="h-9 w-14 border-0 bg-transparent text-center text-sm font-black text-gray-900 outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setChildSeatQuantity(quantity + 1)}
+                                className="grid h-9 w-9 place-items-center rounded-lg text-gray-600 hover:bg-gray-100"
+                                aria-label="Tăng số ghế trẻ em"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
+                            <span className="text-sm font-black text-[#78ad44]">
+                              {formatVND(ext.pricePerDay * quantity * totalDays)}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-500 font-medium">{ext.desc}</p>
                     </div>
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

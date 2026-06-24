@@ -144,6 +144,11 @@ export interface ApiBookingResponse {
   status: ApiBookingStatus;
   depositStatus: ApiDepositStatus;
   baseAmount: number;
+  insuranceSelected: boolean;
+  childSeatQuantity: number;
+  gpsSelected: boolean;
+  extraServicesAmount: number;
+  deliveryFeeAmount: number;
   depositAmount: number;
   reservationFeeStatus: ApiDepositStatus;
   reservationFeeAmount: number;
@@ -225,6 +230,9 @@ export interface BackendCreateBookingRequest {
   pricingMode: ApiPricingMode;
   pickupMethod: ApiVehiclePickupMethod;
   deliveryAddress?: string;
+  insuranceSelected?: boolean;
+  childSeatQuantity?: number;
+  gpsSelected?: boolean;
 }
 
 export interface AdminBookingTransitionPayload {

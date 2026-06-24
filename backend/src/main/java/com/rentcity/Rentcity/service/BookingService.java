@@ -74,11 +74,19 @@ public class BookingService {
 
         bookingAvailabilityService.ensureNoOverlap(car.getId(), request.getStartTime(), request.getEndTime());
 
+        boolean insuranceSelected = Boolean.TRUE.equals(request.getInsuranceSelected());
+        int childSeatQuantity = normalizeChildSeatQuantity(request.getChildSeatQuantity());
+        boolean gpsSelected = Boolean.TRUE.equals(request.getGpsSelected());
+
         BookingQuote quote = bookingPricingService.calculateQuote(
                 car,
                 request.getStartTime(),
                 request.getEndTime(),
-                request.getPricingMode()
+                request.getPricingMode(),
+                request.getPickupMethod(),
+                insuranceSelected,
+                childSeatQuantity,
+                gpsSelected
         );
 
         Booking booking = Booking.builder()
@@ -93,6 +101,11 @@ public class BookingService {
                 .status(BookingStatus.PENDING)
                 .depositStatus(DepositStatus.UNPAID)
                 .baseAmount(quote.getBaseAmount())
+                .insuranceSelected(insuranceSelected)
+                .childSeatQuantity(childSeatQuantity)
+                .gpsSelected(gpsSelected)
+                .extraServicesAmount(quote.getExtraServicesAmount())
+                .deliveryFeeAmount(quote.getDeliveryFeeAmount())
                 .depositAmount(quote.getDepositAmount())
                 .securityDepositAmount(car.getDeposit())
                 .securityDepositStatus(SecurityDepositStatus.UNPAID)
@@ -400,11 +413,12 @@ public class BookingService {
         );
 
         LocalDateTime actualReturnAt = request.getActualReturnAt();
+        BigDecimal bookedSubtotal = bookedSubtotal(booking);
         OverdueFeeService.OverdueCharge overdueCharge = overdueFeeService.calculate(
                 booking.getEndTime(),
                 actualReturnAt,
                 car.getPricePerDay(),
-                booking.getBaseAmount()
+                bookedSubtotal
         );
 
         bookingStateMachineService.transition(
@@ -420,7 +434,7 @@ public class BookingService {
         booking.setOverdueFee(overdueCharge.fee());
         booking.setPenaltyOverdueFee(overdueCharge.penaltyFee());
         booking.setTotalOverdueFee(overdueCharge.totalFee());
-        booking.setTotalAmount(booking.getTotalAmount().add(overdueCharge.totalFee()));
+        booking.setTotalAmount(bookedSubtotal.add(overdueCharge.totalFee()));
 
         walletService.settleBooking(
                 booking.getUserId(),
@@ -542,6 +556,11 @@ public class BookingService {
                 .status(booking.getStatus())
                 .depositStatus(booking.getDepositStatus())
                 .baseAmount(booking.getBaseAmount())
+                .insuranceSelected(booking.isInsuranceSelected())
+                .childSeatQuantity(booking.getChildSeatQuantity())
+                .gpsSelected(booking.isGpsSelected())
+                .extraServicesAmount(nonNull(booking.getExtraServicesAmount()))
+                .deliveryFeeAmount(nonNull(booking.getDeliveryFeeAmount()))
                 .depositAmount(booking.getDepositAmount())
                 .reservationFeeStatus(booking.getDepositStatus())
                 .reservationFeeAmount(booking.getDepositAmount())
@@ -591,6 +610,16 @@ public class BookingService {
             return null;
         }
         return request.getDeliveryAddress().trim().replaceAll("\\s+", " ");
+    }
+
+    private int normalizeChildSeatQuantity(Integer quantity) {
+        return quantity != null ? Math.max(0, quantity) : 0;
+    }
+
+    private BigDecimal bookedSubtotal(Booking booking) {
+        return nonNull(booking.getBaseAmount())
+                .add(nonNull(booking.getExtraServicesAmount()))
+                .add(nonNull(booking.getDeliveryFeeAmount()));
     }
 
     private String buildVehicleName(Car car) {

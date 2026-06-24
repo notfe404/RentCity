@@ -39,6 +39,11 @@ public class BookingResponse {
     private BookingStatus status;
     private DepositStatus depositStatus;
     private BigDecimal baseAmount;
+    private boolean insuranceSelected;
+    private int childSeatQuantity;
+    private boolean gpsSelected;
+    private BigDecimal extraServicesAmount;
+    private BigDecimal deliveryFeeAmount;
     private BigDecimal depositAmount;
     private DepositStatus reservationFeeStatus;
     private BigDecimal reservationFeeAmount;

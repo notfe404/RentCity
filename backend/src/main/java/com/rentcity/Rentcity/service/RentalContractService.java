@@ -191,23 +191,24 @@ public class RentalContractService {
                 car.getId(), bookingId, conditionRequest, actor.getId(), actor.getRole(), photos
         );
 
+        BigDecimal bookedSubtotal = bookedSubtotal(booking);
         OverdueFeeService.OverdueCharge overdueCharge = overdueFeeService.calculate(
                 booking.getStartTime(),
                 contract.getHandoverAt(),
                 booking.getEndTime(),
                 request.getActualReturnAt(),
                 car.getPricePerDay(),
-                booking.getBaseAmount()
+                bookedSubtotal
         );
         booking.setActualReturnAt(request.getActualReturnAt());
         booking.setOverdueMinutes(overdueCharge.overdueMinutes());
         booking.setOverdueFee(overdueCharge.fee());
         booking.setPenaltyOverdueFee(overdueCharge.penaltyFee());
         booking.setTotalOverdueFee(overdueCharge.totalFee());
-        booking.setTotalAmount(booking.getBaseAmount().add(overdueCharge.totalFee()));
+        booking.setTotalAmount(bookedSubtotal.add(overdueCharge.totalFee()));
         booking.setDamageFee(BigDecimal.ZERO);
 
-        BigDecimal finalRentalAmount = booking.getBaseAmount()
+        BigDecimal finalRentalAmount = bookedSubtotal
                 .subtract(booking.getDepositAmount())
                 .max(BigDecimal.ZERO)
                 .add(overdueCharge.totalFee());
@@ -392,6 +393,16 @@ public class RentalContractService {
             booking.setFinalPaymentStatus(FinalPaymentStatus.PAYMENT_REQUESTED);
             booking.setOutstandingAmount(amount);
         }
+    }
+
+    private BigDecimal bookedSubtotal(Booking booking) {
+        return nonNull(booking.getBaseAmount())
+                .add(nonNull(booking.getExtraServicesAmount()))
+                .add(nonNull(booking.getDeliveryFeeAmount()));
+    }
+
+    private BigDecimal nonNull(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private void resolveSecurityDeposit(Booking booking, ReturnContractRequest request, Long actorId) {

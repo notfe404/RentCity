@@ -14,17 +14,21 @@ import {
 // Booking Context — Quản lý luồng đặt xe
 // ============================================================
 
+type ToggleableExtra = 'insurance' | 'childSeat' | 'gps';
+
 interface BookingExtras {
   insurance: boolean;    // Bảo hiểm toàn diện
   childSeat: boolean;    // Ghế trẻ em
+  childSeatQuantity: number;
   gps: boolean;          // Bộ định vị GPS
 }
 
-const EXTRAS_PRICE: Record<keyof BookingExtras, number> = {
+const EXTRAS_PRICE: Record<ToggleableExtra, number> = {
   insurance: 200000,   // 200K/ngày
   childSeat: 100000,   // 100K/ngày
   gps: 50000,          // 50K/ngày
 };
+const ADDRESS_DELIVERY_FEE = 200000;
 
 interface BookingState {
   vehicle: MockVehicle | null;
@@ -49,6 +53,7 @@ interface BookingContextValue extends BookingState {
   unitRateAmount: number;
   baseAmount: number;
   extrasAmount: number;
+  deliveryFeeAmount: number;
   totalAmount: number;
   depositAmount: number;
 
@@ -59,7 +64,8 @@ interface BookingContextValue extends BookingState {
   setDeliveryAddress: (address: string) => void;
   setStartDate: (d: string) => void;
   setEndDate: (d: string) => void;
-  toggleExtra: (key: keyof BookingExtras) => void;
+  toggleExtra: (key: ToggleableExtra) => void;
+  setChildSeatQuantity: (quantity: number) => void;
   setCustomerNote: (note: string) => void;
   setPromotionCode: (code: string) => void;
   applyPromotion: () => void;
@@ -75,7 +81,7 @@ const INITIAL: BookingState = {
   pickupMethod: 'BRANCH_PICKUP',
   deliveryAddress: '',
   ...getDefaultBookingRange(),
-  extras: { insurance: true, childSeat: false, gps: false },
+  extras: { insurance: true, childSeat: false, childSeatQuantity: 0, gps: false },
   customerNote: '',
   promotionCode: '',
   discountAmount: 0,
@@ -95,10 +101,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const baseAmount = pricingMode === 'HOURLY'
     ? unitRateAmount * totalHours
     : getDailyRentalAmount(state.startDate, state.endDate, state.vehicle?.price ?? 0);
-  const extrasAmount = Object.entries(state.extras).reduce(
-    (sum, [key, on]) => sum + (on ? EXTRAS_PRICE[key as keyof BookingExtras] * totalDays : 0), 0
-  );
-  const totalAmount = Math.max(0, baseAmount + extrasAmount - state.discountAmount);
+  const childSeatQuantity = state.extras.childSeat
+    ? Math.max(1, state.extras.childSeatQuantity)
+    : 0;
+  const extrasAmount =
+    (state.extras.insurance ? EXTRAS_PRICE.insurance * totalDays : 0)
+    + (childSeatQuantity > 0 ? EXTRAS_PRICE.childSeat * childSeatQuantity * totalDays : 0)
+    + (state.extras.gps ? EXTRAS_PRICE.gps * totalDays : 0);
+  const deliveryFeeAmount = state.pickupMethod === 'ADDRESS_DELIVERY' ? ADDRESS_DELIVERY_FEE : 0;
+  const totalAmount = Math.max(0, baseAmount + extrasAmount + deliveryFeeAmount - state.discountAmount);
   const depositAmount = Math.round(totalAmount * 0.3);
 
   const setVehicle = useCallback((v: MockVehicle) => setState(s => ({ ...s, vehicle: v })), []);
@@ -112,8 +123,34 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const setDeliveryAddress = useCallback((address: string) => setState(s => ({ ...s, deliveryAddress: address })), []);
   const setStartDate = useCallback((d: string) => setState(s => ({ ...s, startDate: d })), []);
   const setEndDate = useCallback((d: string) => setState(s => ({ ...s, endDate: d })), []);
-  const toggleExtra = useCallback((key: keyof BookingExtras) =>
-    setState(s => ({ ...s, extras: { ...s.extras, [key]: !s.extras[key] } })), []);
+  const toggleExtra = useCallback((key: ToggleableExtra) =>
+    setState(s => {
+      if (key !== 'childSeat') {
+        return { ...s, extras: { ...s.extras, [key]: !s.extras[key] } };
+      }
+
+      const enabled = !s.extras.childSeat;
+      return {
+        ...s,
+        extras: {
+          ...s.extras,
+          childSeat: enabled,
+          childSeatQuantity: enabled ? Math.max(1, s.extras.childSeatQuantity) : 0,
+        },
+      };
+    }), []);
+  const setChildSeatQuantity = useCallback((quantity: number) =>
+    setState(s => {
+      const safeQuantity = Math.max(0, Math.min(8, Math.round(quantity) || 0));
+      return {
+        ...s,
+        extras: {
+          ...s.extras,
+          childSeat: safeQuantity > 0,
+          childSeatQuantity: safeQuantity,
+        },
+      };
+    }), []);
   const setCustomerNote = useCallback((note: string) => setState(s => ({ ...s, customerNote: note })), []);
   const setPromotionCode = useCallback((code: string) => setState(s => ({ ...s, promotionCode: code })), []);
 
@@ -134,10 +171,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   return (
     <BookingContext.Provider value={{
       ...state, pricingMode, totalHours, totalDays, durationLabel, billingUnitLabel, unitRateAmount,
-      baseAmount, extrasAmount, totalAmount, depositAmount,
+      baseAmount, extrasAmount, deliveryFeeAmount, totalAmount, depositAmount,
       setVehicle, setPickupLocation, setReturnLocation, setStartDate, setEndDate,
       setPickupMethod, setDeliveryAddress,
-      toggleExtra, setCustomerNote, setPromotionCode, applyPromotion, reset,
+      toggleExtra, setChildSeatQuantity, setCustomerNote, setPromotionCode, applyPromotion, reset,
     }}>
       {children}
     </BookingContext.Provider>

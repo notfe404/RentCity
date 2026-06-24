@@ -44,6 +44,7 @@ export default function BookingConfirmPage() {
     durationLabel,
     totalDays,
     baseAmount,
+    deliveryFeeAmount,
     depositAmount,
     totalAmount,
     vehicle: bookingVehicle,
@@ -88,10 +89,13 @@ export default function BookingConfirmPage() {
 
   const lineItems = [
     { label: `Thuê xe (${durationLabel})`, amount: baseAmount },
-    ...EXTRAS_CONFIG.filter((e) => extras[e.key]).map((e) => ({
-      label: e.label,
-      amount: e.pricePerDay * totalDays,
-    })),
+    ...(extras.insurance ? [{ label: EXTRAS_CONFIG[0].label, amount: EXTRAS_CONFIG[0].pricePerDay * totalDays }] : []),
+    ...(extras.childSeat ? [{
+      label: `${EXTRAS_CONFIG[1].label} x ${Math.max(1, extras.childSeatQuantity)}`,
+      amount: EXTRAS_CONFIG[1].pricePerDay * Math.max(1, extras.childSeatQuantity) * totalDays,
+    }] : []),
+    ...(extras.gps ? [{ label: EXTRAS_CONFIG[2].label, amount: EXTRAS_CONFIG[2].pricePerDay * totalDays }] : []),
+    ...(deliveryFeeAmount > 0 ? [{ label: 'Phí giao xe tận nơi', amount: deliveryFeeAmount }] : []),
     ...(discountAmount > 0 ? [{ label: 'Giảm giá', amount: -discountAmount }] : []),
   ];
 
@@ -150,6 +154,9 @@ export default function BookingConfirmPage() {
         pricingMode,
         pickupMethod,
         deliveryAddress: pickupMethod === 'ADDRESS_DELIVERY' ? deliveryAddress.trim() : undefined,
+        insuranceSelected: extras.insurance,
+        childSeatQuantity: extras.childSeat ? Math.max(1, extras.childSeatQuantity) : 0,
+        gpsSelected: extras.gps,
       });
 
       toast.success('Đã tạo booking thành công');
@@ -208,17 +215,25 @@ export default function BookingConfirmPage() {
                 <div className="p-5 border border-gray-100 rounded-2xl bg-[#f4f8f7]">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Dịch vụ đã chọn</h3>
                   <ul className="space-y-2 text-sm font-medium text-gray-700">
-                    {EXTRAS_CONFIG.map((e) =>
-                      extras[e.key] ? (
+                    {EXTRAS_CONFIG.map((e) => {
+                      const quantity = e.key === 'childSeat' ? Math.max(1, extras.childSeatQuantity) : 1;
+                      const selected = extras[e.key];
+                      return selected ? (
                         <li key={e.key} className="flex items-center gap-2">
                           <Check size={16} className="text-[#78ad44]" />
-                          {e.label} — {formatVND(e.pricePerDay * totalDays)}
+                          {e.label}{e.key === 'childSeat' ? ` x ${quantity}` : ''} — {formatVND(e.pricePerDay * quantity * totalDays)}
                         </li>
                       ) : (
                         <li key={e.key} className="flex items-center gap-2 text-gray-400">
                           <XIcon /> {e.label} (Chưa chọn)
                         </li>
-                      ),
+                      );
+                    })}
+                    {deliveryFeeAmount > 0 && (
+                      <li className="flex items-center gap-2">
+                        <Check size={16} className="text-[#78ad44]" />
+                        Phí giao xe tận nơi — {formatVND(deliveryFeeAmount)}
+                      </li>
                     )}
                   </ul>
                 </div>
