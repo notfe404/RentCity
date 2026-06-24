@@ -53,7 +53,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
         year: initialData.year ?? new Date().getFullYear(),
         transmission: initialData.transmission,
         pricePerDay: initialData.pricePerDay,
-        deposit: initialData.deposit ?? 0,
+        deposit: initialData.deposit ?? 5_000_000,
         status: initialData.status,
         description: initialData.description ?? '',
         categoryId: initialData.categoryId ?? undefined,
@@ -82,8 +82,9 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim() || !form.categoryId || !form.branchId) {
-      toast.error('Please fill in all required fields (Category, Branch, Brand, Model, License Plate)');
+    if (!form.brand.trim() || !form.model.trim() || !form.licensePlate.trim() || !form.categoryId || !form.branchId
+      || form.pricePerDay <= 0 || form.deposit <= 0) {
+      toast.error('Complete all required fields and enter positive rental and security-deposit amounts');
       return;
     }
     setIsSaving(true);
@@ -125,7 +126,22 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
             {field('Year', 'year', 'number', '2024')}
             {field('Seats', 'seats', 'number', '5')}
             {field('Price / day (VND) *', 'pricePerDay', 'number', '500000')}
-            {field('Vehicle deposit (VND) *', 'deposit', 'number', '5000000')}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Security deposit (VND) *</label>
+              <input
+                type="number"
+                min={1000}
+                step={1000}
+                required
+                value={form.deposit}
+                onChange={(event) => setForm({ ...form, deposit: Number(event.target.value) })}
+                placeholder="5000000"
+                className="w-full px-4 py-2.5 border border-amber-300 bg-amber-50 rounded-xl text-sm font-black text-amber-900 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+              />
+              <p className="mt-1.5 text-[11px] font-bold leading-4 text-amber-700">
+                Required at handover and refunded after a good return.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

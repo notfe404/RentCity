@@ -36,7 +36,7 @@ export interface AdminCarPayload {
   year?: number;
   transmission: 'AUTO' | 'MANUAL';
   pricePerDay: number;
-  deposit?: number;
+  deposit: number;
   status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED';
   description?: string;
   categoryId?: number;

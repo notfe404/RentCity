@@ -343,6 +343,44 @@ Recent reservation, security-deposit, and return-settlement update:
 - Axios now removes the JSON content type for `FormData` requests so condition-image uploads receive a valid browser-generated multipart boundary.
 - Flyway `V9__separate_reservation_and_security_deposit.sql` adds the separate money lifecycles and contract snapshots; `V10__require_vehicle_security_deposit.sql` enforces a positive deposit for every vehicle and reconciles payment types.
 
+Latest security-deposit visibility and payment-gateway update (2026-06-24):
+
+- Both customer booking steps now show the vehicle's fixed refundable security deposit separately from the 30% reservation fee. The summary explicitly says the security deposit is not charged while booking and is only collected when staff hands over the vehicle.
+- Admin Vehicles now shows each car's security deposit in the table. The add/edit modal requires a positive deposit, gives new vehicles a `5,000,000 VND` starting value, and sends the value as a required car payload field; the backend already persists `CarRequest.deposit` per vehicle.
+- A completed security-deposit payment now records the actual `PaymentGateway` (`PAYPAL`, `VNPAY`, `WALLET`, or `CASH`) on the booking. Handover snapshots it onto the rental contract, so later contract reads remain historically accurate.
+- Staff handover and booking-contract views, plus the downloadable PDF, no longer render the internal collection instruction `PAYMENT_REQUEST` as the payment method. They render `Online payment - PayPal`, `Online payment - VNPay`, `Online payment - My Wallet`, or `Cash`.
+- Flyway `V12__record_security_deposit_gateway.sql` adds the booking and rental-contract gateway columns, backfills gateway data from completed security-deposit/legacy balance payments, and carries the booking gateway into existing contract snapshots.
+- Verification: the complete backend suite passes 39 tests with PostgreSQL/Flyway validated at `V13`, including exact-gateway, admin-refund-route, overdue-penalty, and retained-deposit refund regression tests. Targeted frontend ESLint and the production TypeScript/Vite build pass. Repository-wide frontend lint still reports 22 pre-existing errors in unrelated legacy payment, wallet, profile, search, and vehicle-modal files. A live browser smoke check confirmed the admin deposit table/add form and both customer booking summaries without submitting a booking or modifying vehicle data.
+
+Follow-up admin fixes (2026-06-24):
+
+- The vehicle security-deposit number field now uses `min=1000` with `step=1000`. Previously, `min=1` made the browser accept only values ending in `001`, so normal VND amounts such as `7,000,000` failed native validation.
+- `AdminPaymentController` now exposes the secured `POST /admin/payments/{id}/refund` route used by Admin Payments. Previously, the frontend called this path but only the customer-facing `/payments/{id}/refund` mapping existed, producing `403 Forbidden` before the refund service ran.
+- The admin refund route delegates to the existing refund policy: only paid booking payments for bookings cancelled within the free-cancellation window can be refunded. A live authenticated request against a nonexistent payment now reaches the controller and returns `404`, confirming the former route-level `403` is removed without changing data.
+
+Overdue-penalty correction (2026-06-24):
+
+- The 15% overdue penalty is now calculated from the additional usage fee only. Previously, both backend and staff preview calculated `15% * (original rental subtotal + additional usage fee)`, which made a few minutes of extra use trigger a disproportionate charge against the whole rental.
+- Staff return preview, Staff Bookings, and customer booking detail now label the line explicitly as `Penalty (15% of additional usage fee)`.
+- Overdue billing is activated only when `actualReturnAt` is later than the scheduled return. Returning on time or early produces zero overdue minutes, usage fee, penalty, and total, even if staff handed over the vehicle early.
+- Once a return is genuinely late, early-handover time and late-return time are combined before rounding into billable hours, and the 15% penalty applies to that additional-usage fee.
+- Regression coverage includes the reported scenario: handover 7 minutes early and return 6 minutes before the scheduled time now produces `0 VND` overdue instead of charging one hour.
+
+Return-settlement preview correction (2026-06-24):
+
+- The Staff return modal now calculates the outstanding booking balance from `baseAmount + extraServicesAmount + deliveryFeeAmount - reservationFeeAmount`, matching the authoritative backend `RentalContractService` formula.
+- Previously, the preview subtracted the reservation fee from `baseAmount` alone. Because the 30% reservation fee is calculated from the complete booking total, bookings with services or address delivery could display a nearly zero balance even though backend settlement would charge the correct amount.
+- For booking `RC-20260624-4E0F43`, the corrected preview is `216,668 + 300,000 + 200,000 - 215,000 = 501,668 VND`, replacing the incorrect `1,668 VND` shown in the reported screenshot.
+- The label now says `Booking balance after reservation fee` and identifies the included rental, services, and delivery components.
+
+Post-repair retained-deposit resolution (2026-06-24):
+
+- Completed damaged/maintenance bookings with an unresolved `RETAINED` security deposit now expose an Admin-only action in Staff Bookings. Staff users can view bookings but cannot invoke this action.
+- Admin enters the final repair or maintenance cost. The refundable remainder is `max(securityDepositAmount - actualRepairCost, 0)`; a zero repair cost refunds the full deposit, while a cost at or above the deposit records no refund or automatic extra charge.
+- Admin chooses electronic refund (credited to customer My Wallet) or cash refund. Both paths create an idempotent wallet ledger entry and a `SECURITY_DEPOSIT_REFUND` payment record with the actual method and Admin actor.
+- Booking and rental contract now preserve `securityDepositRepairCost` and `securityDepositRefundedAmount`; Admin/customer details and the contract PDF expose the final values. The action disappears after one successful resolution.
+- Flyway `V13__resolve_retained_security_deposit.sql` adds the repair-cost/refunded-amount snapshots and nonnegative/database bounds. Live checks confirmed Admin routing, Staff `403`, and no mutation of existing retained deposits during verification.
+
 Implemented behavior:
 
 - `POST /bookings` creates a booking for the authenticated customer.

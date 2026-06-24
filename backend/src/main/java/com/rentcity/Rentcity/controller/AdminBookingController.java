@@ -10,6 +10,7 @@ import com.rentcity.Rentcity.dto.HandoverContractRequest;
 import com.rentcity.Rentcity.dto.ReturnContractRequest;
 import com.rentcity.Rentcity.dto.RentalContractResponse;
 import com.rentcity.Rentcity.dto.SecurityDepositCollectionRequest;
+import com.rentcity.Rentcity.dto.ResolveRetainedSecurityDepositRequest;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.service.BookingService;
 import com.rentcity.Rentcity.service.CarConditionService;
@@ -142,6 +143,18 @@ public class AdminBookingController {
     public ResponseEntity<DamageAssessmentResponse> getDamageAssessment(@PathVariable Long id) {
         bookingService.getAdminBooking(id);
         return ResponseEntity.ok(damageAssessmentService.getByBooking(id));
+    }
+
+    @PostMapping("/{id}/security-deposit/resolve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RentalContractResponse> resolveRetainedSecurityDeposit(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody ResolveRetainedSecurityDepositRequest request
+    ) {
+        return ResponseEntity.ok(
+                rentalContractService.resolveRetainedSecurityDeposit(authentication.getName(), id, request)
+        );
     }
 
     @PostMapping("/{id}/damage-assessment/finalize")

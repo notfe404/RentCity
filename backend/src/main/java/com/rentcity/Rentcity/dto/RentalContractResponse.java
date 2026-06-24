@@ -4,6 +4,7 @@ import com.rentcity.Rentcity.entity.RentalContractStatus;
 import com.rentcity.Rentcity.entity.FinalPaymentStatus;
 import com.rentcity.Rentcity.entity.SecurityDepositStatus;
 import com.rentcity.Rentcity.entity.SettlementMethod;
+import com.rentcity.Rentcity.entity.PaymentGateway;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ public class RentalContractResponse {
     private LocalDateTime handoverStaffSignedAt;
     private BigDecimal securityDepositAmount;
     private SettlementMethod securityDepositCollectionMethod;
+    private PaymentGateway securityDepositGateway;
     private LocalDateTime securityDepositPaidAt;
     private CarConditionResponse handoverCondition;
     private Integer returnKeyCount;
@@ -43,6 +45,8 @@ public class RentalContractResponse {
     private SecurityDepositStatus securityDepositStatus;
     private SettlementMethod securityDepositRefundMethod;
     private LocalDateTime securityDepositResolvedAt;
+    private BigDecimal securityDepositRepairCost;
+    private BigDecimal securityDepositRefundedAmount;
     private BigDecimal finalRentalAmount;
     private SettlementMethod finalPaymentMethod;
     private FinalPaymentStatus finalPaymentStatus;

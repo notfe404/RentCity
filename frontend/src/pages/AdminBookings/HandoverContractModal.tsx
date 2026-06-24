@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Loader2, X } from 'lucide-react';
 import type { ApiBookingResponse } from '@/types';
 import type { HandoverContractPayload } from '@/services/bookingApi';
 import SignaturePad from '@/components/contract/SignaturePad';
+import { getSecurityDepositPaymentLabel } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 
 interface Props {
@@ -82,7 +83,7 @@ export default function HandoverContractModal({ booking, isSaving, onClose, onSu
           <div className="grid gap-3 rounded-xl bg-[#f4f8f7] p-4 text-sm md:grid-cols-3">
             <div><p className="text-xs font-bold text-gray-400">Vehicle</p><p className="font-black">{booking.vehicleName}</p><p className="text-xs font-bold text-gray-500">{booking.vehicleLicensePlate}</p></div>
             <div><p className="text-xs font-bold text-gray-400">Rental period</p><p className="font-black">{formatDateTime(booking.startTime)}</p><p className="text-xs font-bold text-gray-500">to {formatDateTime(booking.endTime)}</p></div>
-            <div><p className="text-xs font-bold text-gray-400">Security deposit paid</p><p className="font-black">{formatVND(booking.securityDepositPaidAmount)}</p><p className="text-xs font-bold text-gray-500">Via {booking.securityDepositCollectionMethod?.replace('_', ' ')}</p></div>
+            <div><p className="text-xs font-bold text-gray-400">Security deposit paid</p><p className="font-black">{formatVND(booking.securityDepositPaidAmount)}</p><p className="text-xs font-bold text-gray-500">Via {getSecurityDepositPaymentLabel(booking.securityDepositGateway)}</p></div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">

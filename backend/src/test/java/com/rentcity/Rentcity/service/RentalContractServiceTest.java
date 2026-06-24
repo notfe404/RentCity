@@ -3,6 +3,7 @@ package com.rentcity.Rentcity.service;
 import com.rentcity.Rentcity.dto.HandoverContractRequest;
 import com.rentcity.Rentcity.dto.CarConditionResponse;
 import com.rentcity.Rentcity.dto.ReturnContractRequest;
+import com.rentcity.Rentcity.dto.ResolveRetainedSecurityDepositRequest;
 import com.rentcity.Rentcity.entity.*;
 import com.rentcity.Rentcity.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +64,7 @@ class RentalContractServiceTest {
                 .securityDepositPaidAmount(BigDecimal.valueOf(5_000_000))
                 .securityDepositStatus(SecurityDepositStatus.PAID)
                 .securityDepositCollectionMethod(SettlementMethod.PAYMENT_REQUEST)
+                .securityDepositGateway(PaymentGateway.VNPAY)
                 .securityDepositPaidAt(LocalDateTime.now().minusMinutes(10))
                 .baseAmount(BigDecimal.valueOf(1_000_000))
                 .depositAmount(BigDecimal.valueOf(300_000))
@@ -106,6 +108,8 @@ class RentalContractServiceTest {
         assertEquals(40L, contractCaptor.getValue().getHandoverConditionReportId());
         assertEquals("private:contracts/customer.png", contractCaptor.getValue().getHandoverCustomerSignature());
         assertEquals(RentalContractService.POLICY_VERSION, contractCaptor.getValue().getPolicyVersion());
+        assertEquals(PaymentGateway.VNPAY, contractCaptor.getValue().getSecurityDepositGateway());
+        assertEquals(PaymentGateway.VNPAY, result.getSecurityDepositGateway());
         verify(bookingStateMachineService).transition(
                 eq(booking), eq(BookingStatus.ONGOING), eq(staff.getId()), eq(Role.STAFF), eq("SIGNED_HANDOVER"), anyString()
         );
@@ -181,7 +185,7 @@ class RentalContractServiceTest {
         when(carRepository.findByIdForUpdate(car.getId())).thenReturn(Optional.of(car));
         when(carConditionService.createReturn(eq(car.getId()), eq(booking.getId()), any(), eq(staff.getId()), eq(Role.STAFF), anyList()))
                 .thenReturn(CarConditionReport.builder().id(41L).build());
-        when(overdueFeeService.calculate(any(), any(), any(), any(), any(), any()))
+        when(overdueFeeService.calculate(any(), any(), any(), any(), any()))
                 .thenReturn(new OverdueFeeService.OverdueCharge(0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
         when(fileStorageService.storePrivate(customerSignature, "contracts/signatures")).thenReturn("private:contracts/return-customer.png");
         when(fileStorageService.storePrivate(staffSignature, "contracts/signatures")).thenReturn("private:contracts/return-staff.png");
@@ -245,7 +249,7 @@ class RentalContractServiceTest {
         when(carRepository.findByIdForUpdate(car.getId())).thenReturn(Optional.of(car));
         when(carConditionService.createReturn(eq(car.getId()), eq(booking.getId()), any(), eq(staff.getId()), eq(Role.STAFF), anyList()))
                 .thenReturn(CarConditionReport.builder().id(42L).build());
-        when(overdueFeeService.calculate(any(), any(), any(), any(), any(), any()))
+        when(overdueFeeService.calculate(any(), any(), any(), any(), any()))
                 .thenReturn(new OverdueFeeService.OverdueCharge(0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
         when(fileStorageService.storePrivate(customerSignature, "contracts/signatures")).thenReturn("private:contracts/damage-customer.png");
         when(fileStorageService.storePrivate(staffSignature, "contracts/signatures")).thenReturn("private:contracts/damage-staff.png");
@@ -261,6 +265,53 @@ class RentalContractServiceTest {
         assertEquals(FinalPaymentStatus.PAYMENT_REQUESTED, booking.getFinalPaymentStatus());
         verify(walletService).retainSecurityDeposit(eq(booking.getUserId()), eq(booking.getId()), anyString(), eq(staff.getId()));
         verifyNoInteractions(damageAssessmentService);
+    }
+
+    @Test
+    void adminRefundsRemainingRetainedDepositAfterRepair() {
+        User admin = User.builder().id(8L).email("admin@rentcity.test").role(Role.ADMIN).build();
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setSecurityDepositStatus(SecurityDepositStatus.RETAINED);
+        booking.setSecurityDepositRepairCost(null);
+        booking.setSecurityDepositRefundedAmount(BigDecimal.ZERO);
+        RentalContract contract = RentalContract.builder()
+                .id(52L)
+                .bookingId(booking.getId())
+                .contractNumber("RC-CON-RESOLVE")
+                .policyVersion("1.0")
+                .policyText("Policy")
+                .handoverConditionReportId(40L)
+                .status(RentalContractStatus.COMPLETED)
+                .securityDepositAmount(booking.getSecurityDepositAmount())
+                .securityDepositStatus(SecurityDepositStatus.RETAINED)
+                .build();
+        ResolveRetainedSecurityDepositRequest request = new ResolveRetainedSecurityDepositRequest();
+        request.setActualRepairCost(BigDecimal.valueOf(2_000_000));
+        request.setRefundMethod(SettlementMethod.PAYMENT_REQUEST);
+
+        when(userRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(bookingRepository.findByIdForUpdate(booking.getId())).thenReturn(Optional.of(booking));
+        when(contractRepository.findByBookingId(booking.getId())).thenReturn(Optional.of(contract));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+        when(contractRepository.save(contract)).thenReturn(contract);
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.resolveRetainedSecurityDeposit(admin.getEmail(), booking.getId(), request);
+
+        assertEquals(SecurityDepositStatus.REFUNDED, booking.getSecurityDepositStatus());
+        assertEquals(BigDecimal.valueOf(2_000_000), booking.getSecurityDepositRepairCost());
+        assertEquals(BigDecimal.valueOf(3_000_000), booking.getSecurityDepositRefundedAmount());
+        assertEquals(BigDecimal.valueOf(3_000_000), result.getSecurityDepositRefundedAmount());
+        verify(walletService).refundRetainedSecurityDepositToWallet(
+                booking.getUserId(), booking.getId(), BigDecimal.valueOf(3_000_000),
+                "booking:" + booking.getId() + ":retained-deposit-wallet-refund", admin.getId()
+        );
+        ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
+        verify(paymentRepository).save(paymentCaptor.capture());
+        assertEquals(PaymentType.SECURITY_DEPOSIT_REFUND, paymentCaptor.getValue().getType());
+        assertEquals(PaymentGateway.WALLET, paymentCaptor.getValue().getGateway());
+        assertEquals(PaymentStatus.REFUNDED, paymentCaptor.getValue().getStatus());
+        assertEquals(BigDecimal.valueOf(3_000_000), paymentCaptor.getValue().getAmount());
     }
 
     private HandoverContractRequest validRequest() {

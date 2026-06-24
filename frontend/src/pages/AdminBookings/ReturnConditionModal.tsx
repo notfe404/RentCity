@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Loader2, Wrench, X } from 'lucide-
 import type { ApiBookingResponse } from '@/types';
 import type { ReturnConditionPayload } from '@/services/bookingApi';
 import { formatDateTime, formatVND } from '@/utils/formatters';
+import { getBookingBookedSubtotal } from '@/utils/bookingMapper';
 import SignaturePad from '@/components/contract/SignaturePad';
 
 interface Props {
@@ -62,7 +63,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
     const lateReturnMs = !selectedReturnTime
       ? 0
       : Math.max(0, selectedReturnTime.getTime() - scheduledReturn.getTime());
-    const additionalUsageMs = earlyHandoverMs + lateReturnMs;
+    const additionalUsageMs = lateReturnMs > 0 ? earlyHandoverMs + lateReturnMs : 0;
     const minutes = Math.ceil(additionalUsageMs / 60_000);
     const billableHours = Math.ceil(additionalUsageMs / 3_600_000);
     const hasPrice = booking.vehiclePricePerDay != null && booking.vehiclePricePerDay > 0;
@@ -70,7 +71,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
     const estimatedFee = hourlyRate == null ? null : billableHours * hourlyRate;
     const estimatedPenaltyFee = estimatedFee == null
       ? null
-      : Math.ceil((booking.baseAmount + estimatedFee) * 0.15);
+      : Math.ceil(estimatedFee * 0.15);
     return {
       minutes,
       earlyHandoverMinutes: Math.ceil(earlyHandoverMs / 60_000),
@@ -82,7 +83,11 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
         ? null
         : estimatedFee + estimatedPenaltyFee,
     };
-  }, [actualHandoverTime, booking.baseAmount, booking.endTime, booking.startTime, booking.vehiclePricePerDay, selectedReturnTime]);
+  }, [actualHandoverTime, booking.endTime, booking.startTime, booking.vehiclePricePerDay, selectedReturnTime]);
+  const rentalBalanceAfterReservation = Math.max(
+    0,
+    getBookingBookedSubtotal(booking) - booking.reservationFeeAmount,
+  );
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -237,7 +242,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold">
-                        Penalty overdue fee (15%)
+                        Penalty (15% of additional usage fee)
                       </span>
                       <span className="font-black">+{formatVND(overdue.estimatedPenaltyFee ?? 0)}</span>
                     </div>
@@ -376,12 +381,13 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Return settlement</p>
               <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-white p-3">
-                  <p className="text-xs font-bold text-slate-500">Rental after reservation fee</p>
-                  <p className="mt-1 font-black text-slate-900">{formatVND(Math.max(0, booking.baseAmount - booking.reservationFeeAmount))}</p>
+                  <p className="text-xs font-bold text-slate-500">Booking balance after reservation fee</p>
+                  <p className="mt-1 font-black text-slate-900">{formatVND(rentalBalanceAfterReservation)}</p>
+                  <p className="mt-1 text-[10px] font-bold text-slate-400">Rental + services + delivery - reservation fee</p>
                 </div>
                 <div className="rounded-xl bg-white p-3">
                   <p className="text-xs font-bold text-slate-500">Estimated total due now</p>
-                  <p className="mt-1 font-black text-[#56832d]">{formatVND(Math.max(0, booking.baseAmount - booking.reservationFeeAmount) + (overdue.estimatedTotalFee ?? 0))}</p>
+                  <p className="mt-1 font-black text-[#56832d]">{formatVND(rentalBalanceAfterReservation + (overdue.estimatedTotalFee ?? 0))}</p>
                 </div>
               </div>
             </div>

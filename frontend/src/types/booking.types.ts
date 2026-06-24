@@ -156,9 +156,12 @@ export interface ApiBookingResponse {
   securityDepositStatus: ApiSecurityDepositStatus;
   securityDepositPaidAmount: number;
   securityDepositCollectionMethod?: SettlementMethod | null;
+  securityDepositGateway?: 'PAYPAL' | 'VNPAY' | 'WALLET' | 'CASH' | null;
   securityDepositPaidAt?: string | null;
   securityDepositRefundMethod?: SettlementMethod | null;
   securityDepositResolvedAt?: string | null;
+  securityDepositRepairCost?: number | null;
+  securityDepositRefundedAmount: number;
   finalRentalAmount: number;
   finalPaymentStatus: ApiFinalPaymentStatus;
   finalPaymentMethod?: SettlementMethod | null;
@@ -204,6 +207,7 @@ export interface RentalContractResponse {
   handoverCondition: ApiCarConditionResponse;
   securityDepositAmount: number;
   securityDepositCollectionMethod: SettlementMethod;
+  securityDepositGateway?: 'PAYPAL' | 'VNPAY' | 'WALLET' | 'CASH' | null;
   securityDepositPaidAt: string;
   returnKeyCount?: number | null;
   returnAccessories?: string | null;
@@ -216,6 +220,8 @@ export interface RentalContractResponse {
   securityDepositStatus?: ApiSecurityDepositStatus | null;
   securityDepositRefundMethod?: SettlementMethod | null;
   securityDepositResolvedAt?: string | null;
+  securityDepositRepairCost?: number | null;
+  securityDepositRefundedAmount: number;
   finalRentalAmount?: number | null;
   finalPaymentMethod?: SettlementMethod | null;
   finalPaymentStatus?: ApiFinalPaymentStatus | null;

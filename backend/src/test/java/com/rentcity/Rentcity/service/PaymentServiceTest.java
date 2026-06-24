@@ -158,4 +158,51 @@ class PaymentServiceTest {
         assertThat(savedPayment.getIdempotencyKey()).isEqualTo("new-damage-key");
         verify(bookingService).applyCustomerWalletBalance(eq(booking.getId()), eq(customer.getId()));
     }
+
+    @Test
+    void completedSecurityDepositForwardsExactGatewayToBooking() {
+        User customer = User.builder()
+                .id(7L)
+                .email("customer@example.com")
+                .role(Role.CUSTOMER)
+                .build();
+        Booking booking = Booking.builder()
+                .id(42L)
+                .bookingCode("RC-DEPOSIT")
+                .userId(customer.getId())
+                .carId(3L)
+                .depositStatus(DepositStatus.PAID)
+                .status(BookingStatus.CONFIRMED)
+                .build();
+        Payment payment = Payment.builder()
+                .id(102L)
+                .bookingId(booking.getId())
+                .userId(customer.getId())
+                .type(PaymentType.SECURITY_DEPOSIT)
+                .gateway(PaymentGateway.PAYPAL)
+                .status(PaymentStatus.PENDING)
+                .amount(new BigDecimal("5000000"))
+                .currency("VND")
+                .gatewayReference("paypal-security-deposit")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(userRepository.findByEmail(customer.getEmail())).thenReturn(Optional.of(customer));
+        when(userRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
+        when(paymentRepository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+        when(bookingRepository.findByIdForUpdate(booking.getId())).thenReturn(Optional.of(booking));
+        when(paymentRepository.save(payment)).thenReturn(payment);
+
+        PaymentResponse response = service.mockPaymentSuccess(customer.getEmail(), payment.getId());
+
+        assertThat(response.getStatus()).isEqualTo(PaymentStatus.PAID);
+        verify(bookingService).applyCustomerPayment(
+                booking.getId(),
+                payment.getAmount(),
+                customer.getId(),
+                payment.getId(),
+                PaymentType.SECURITY_DEPOSIT,
+                PaymentGateway.PAYPAL
+        );
+    }
 }

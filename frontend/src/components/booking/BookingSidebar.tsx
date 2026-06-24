@@ -1,4 +1,4 @@
-import { MapPin, Calendar, ChevronRight } from 'lucide-react';
+import { MapPin, Calendar, ChevronRight, ShieldCheck } from 'lucide-react';
 import { formatVND, formatDateTime } from '@/utils/formatters';
 import type { MockVehicle } from '@/data/mockVehicles';
 
@@ -16,6 +16,7 @@ interface BookingSidebarProps {
   durationLabel: string;
   lineItems: PriceLineItem[];
   depositAmount: number;
+  securityDepositAmount: number;
   totalAmount: number;
   actionLabel: string;
   actionDisabled?: boolean;
@@ -31,6 +32,7 @@ export default function BookingSidebar({
   durationLabel,
   lineItems,
   depositAmount,
+  securityDepositAmount,
   totalAmount,
   actionLabel,
   actionDisabled = false,
@@ -93,6 +95,21 @@ export default function BookingSidebar({
           <div className="flex justify-between items-center text-sm font-black text-gray-900 mt-3 bg-[#f4f8f7] p-4 rounded-xl border border-gray-100">
             <span>Reservation fee due (30%)</span>
             <span className="text-[#78ad44]">{formatVND(depositAmount)}</span>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <ShieldCheck size={18} className="mt-0.5 shrink-0 text-amber-700" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3 text-sm font-black text-gray-900">
+                  <span>Refundable security deposit</span>
+                  <span className="shrink-0 text-amber-700">{formatVND(securityDepositAmount)}</span>
+                </div>
+                <p className="mt-1.5 text-xs font-bold leading-5 text-amber-800">
+                  Not charged now. You only pay this deposit when staff hands over the vehicle. It is refunded after a good return without damage or maintenance issues.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

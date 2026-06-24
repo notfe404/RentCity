@@ -377,6 +377,7 @@ export default function BookingPage() {
             durationLabel={durationLabel}
             lineItems={lineItems}
             depositAmount={depositAmount}
+            securityDepositAmount={vehicle.deposit ?? 0}
             totalAmount={totalAmount}
             actionLabel="Continue to Confirmation"
             actionDisabled={pickupMethod === 'ADDRESS_DELIVERY' && !deliveryAddress.trim()}

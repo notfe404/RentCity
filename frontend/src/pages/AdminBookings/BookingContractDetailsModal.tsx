@@ -5,7 +5,12 @@ import { toast } from 'sonner';
 import { downloadRentalContractPdf } from '@/services/bookingApi';
 import type { ApiBookingResponse, RentalContractResponse } from '@/types';
 import type { ApiCarConditionResponse } from '@/types/vehicle.types';
-import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
+import {
+  BOOKING_STATUS_META,
+  DEPOSIT_STATUS_META,
+  getBookingVehicleName,
+  getSecurityDepositPaymentLabel,
+} from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 
 interface Props {
@@ -216,8 +221,14 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                   <Detail label="Base amount" value={formatVND(booking.baseAmount)} />
                   <Detail label="Reservation fee (30%)" value={`${formatVND(booking.reservationFeeAmount)} - ${depositMeta.label}`} />
                   <Detail label="Vehicle security deposit" value={`${formatVND(booking.securityDepositAmount)} - ${booking.securityDepositStatus.replaceAll('_', ' ')}`} />
-                  <Detail label="Security deposit collected" value={`${formatVND(booking.securityDepositPaidAmount)} via ${booking.securityDepositCollectionMethod?.replaceAll('_', ' ') ?? '-'}`} />
+                  <Detail label="Security deposit collected" value={`${formatVND(booking.securityDepositPaidAmount)} via ${getSecurityDepositPaymentLabel(booking.securityDepositGateway)}`} />
                   <Detail label="Security deposit resolution" value={`${booking.securityDepositStatus.replaceAll('_', ' ')} via ${booking.securityDepositRefundMethod?.replaceAll('_', ' ') ?? '-'}`} />
+                  {booking.securityDepositRepairCost != null && (
+                    <Detail label="Actual repair cost" value={formatVND(booking.securityDepositRepairCost)} />
+                  )}
+                  {booking.securityDepositRepairCost != null && (
+                    <Detail label="Security deposit refunded" value={formatVND(booking.securityDepositRefundedAmount)} />
+                  )}
                   <Detail label="Final rental amount" value={`${formatVND(booking.finalRentalAmount)} - ${booking.finalPaymentStatus.replaceAll('_', ' ')}`} />
                   <Detail label="Final payment method" value={booking.finalPaymentMethod?.replaceAll('_', ' ') ?? '-'} />
                   <Detail label="Total amount" value={formatVND(booking.totalAmount)} />
@@ -288,9 +299,15 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                   />
                   <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 sm:grid-cols-2">
                     <Detail label="Contract security deposit" value={formatVND(contract.securityDepositAmount)} />
-                    <Detail label="Collected by" value={contract.securityDepositCollectionMethod?.replaceAll('_', ' ') ?? '-'} />
+                    <Detail label="Collected by" value={getSecurityDepositPaymentLabel(contract.securityDepositGateway)} />
                     <Detail label="Deposit result" value={contract.securityDepositStatus?.replaceAll('_', ' ') ?? 'Pending return'} />
                     <Detail label="Refund method" value={contract.securityDepositRefundMethod?.replaceAll('_', ' ') ?? '-'} />
+                    {contract.securityDepositRepairCost != null && (
+                      <Detail label="Actual repair cost" value={formatVND(contract.securityDepositRepairCost)} />
+                    )}
+                    {contract.securityDepositRepairCost != null && (
+                      <Detail label="Deposit refunded" value={formatVND(contract.securityDepositRefundedAmount)} />
+                    )}
                     <Detail label="Final rental settlement" value={formatVND(contract.finalRentalAmount ?? 0)} />
                     <Detail label="Final payment" value={`${contract.finalPaymentStatus?.replaceAll('_', ' ') ?? '-'} via ${contract.finalPaymentMethod?.replaceAll('_', ' ') ?? '-'}`} />
                   </div>

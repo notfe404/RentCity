@@ -22,4 +22,12 @@ public class AdminPaymentController {
     public ResponseEntity<List<PaymentResponse>> getPayments() {
         return ResponseEntity.ok(paymentService.getAdminPayments());
     }
+
+    @PostMapping("/{id}/refund")
+    public ResponseEntity<PaymentResponse> refundPayment(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(paymentService.refundPayment(authentication.getName(), id));
+    }
 }

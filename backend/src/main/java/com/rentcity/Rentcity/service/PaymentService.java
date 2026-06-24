@@ -388,7 +388,8 @@ public class PaymentService {
                     payment.getAmount(),
                     customer.getId(),
                     payment.getId(),
-                    payment.getType()
+                    payment.getType(),
+                    payment.getGateway()
             );
         }
 

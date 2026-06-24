@@ -21,6 +21,9 @@ public class PaymentSchemaReconciler implements CommandLineRunner {
                 "ALTER TABLE IF EXISTS payments ALTER COLUMN booking_id DROP NOT NULL"
         );
         jdbcTemplate.execute(
+                "ALTER TABLE IF EXISTS payments ALTER COLUMN type TYPE character varying(30)"
+        );
+        jdbcTemplate.execute(
                 "ALTER TABLE IF EXISTS payments DROP CONSTRAINT IF EXISTS payments_type_check"
         );
         jdbcTemplate.execute(

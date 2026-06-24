@@ -79,6 +79,23 @@ export function getBookingExtraServiceSummary(booking: ApiBookingResponse): stri
   return services.length > 0 ? services.join(', ') : 'None';
 }
 
+export function getSecurityDepositPaymentLabel(
+  gateway?: ApiBookingResponse['securityDepositGateway'],
+): string {
+  switch (gateway) {
+    case 'PAYPAL':
+      return 'Online payment - PayPal';
+    case 'VNPAY':
+      return 'Online payment - VNPay';
+    case 'WALLET':
+      return 'Online payment - My Wallet';
+    case 'CASH':
+      return 'Cash';
+    default:
+      return 'Online payment';
+  }
+}
+
 export function isBookingCancellable(booking: ApiBookingResponse): boolean {
   return booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'PAID';
 }

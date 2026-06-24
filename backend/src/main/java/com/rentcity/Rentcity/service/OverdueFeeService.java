@@ -16,10 +16,9 @@ public class OverdueFeeService {
     public OverdueCharge calculate(
             LocalDateTime scheduledReturn,
             LocalDateTime actualReturn,
-            BigDecimal pricePerDay,
-            BigDecimal originalRentalFee
+            BigDecimal pricePerDay
     ) {
-        return calculate(null, null, scheduledReturn, actualReturn, pricePerDay, originalRentalFee);
+        return calculate(null, null, scheduledReturn, actualReturn, pricePerDay);
     }
 
     public OverdueCharge calculate(
@@ -27,23 +26,22 @@ public class OverdueFeeService {
             LocalDateTime actualHandover,
             LocalDateTime scheduledReturn,
             LocalDateTime actualReturn,
-            BigDecimal pricePerDay,
-            BigDecimal originalRentalFee
+            BigDecimal pricePerDay
     ) {
-        long earlyHandoverSeconds = secondsBefore(actualHandover, scheduledStart);
         long lateReturnSeconds = secondsBefore(scheduledReturn, actualReturn);
-        long additionalUsageSeconds = earlyHandoverSeconds + lateReturnSeconds;
-        if (additionalUsageSeconds <= 0) {
+        if (lateReturnSeconds <= 0) {
             return new OverdueCharge(0L, 0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
+
+        long earlyHandoverSeconds = secondsBefore(actualHandover, scheduledStart);
+        long additionalUsageSeconds = earlyHandoverSeconds + lateReturnSeconds;
 
         long overdueMinutes = divideAndRoundUp(additionalUsageSeconds, 60);
         long billableHours = divideAndRoundUp(additionalUsageSeconds, 3600);
         BigDecimal hourlyRate = pricePerDay
                 .divide(HOURS_PER_DAY, 0, RoundingMode.CEILING);
         BigDecimal fee = hourlyRate.multiply(BigDecimal.valueOf(billableHours));
-        BigDecimal penaltyFee = originalRentalFee
-                .add(fee)
+        BigDecimal penaltyFee = fee
                 .multiply(PENALTY_RATE)
                 .setScale(0, RoundingMode.CEILING);
         BigDecimal totalFee = fee.add(penaltyFee);

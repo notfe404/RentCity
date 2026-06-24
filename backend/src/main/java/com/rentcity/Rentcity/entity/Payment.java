@@ -33,7 +33,7 @@ public class Payment {
     private Long userId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20, columnDefinition = "character varying(20)")
+    @Column(nullable = false, length = 30, columnDefinition = "character varying(30)")
     private PaymentType type;
 
     @Enumerated(EnumType.STRING)

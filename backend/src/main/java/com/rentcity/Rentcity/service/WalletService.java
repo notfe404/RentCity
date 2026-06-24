@@ -179,6 +179,37 @@ public class WalletService {
     }
 
     @Transactional
+    public void refundRetainedSecurityDepositToWallet(
+            Long userId,
+            Long bookingId,
+            BigDecimal amount,
+            String reference,
+            Long actorId
+    ) {
+        requirePositive(amount);
+        if (transactionRepository.existsByReference(reference)) return;
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        apply(wallet, bookingId, WalletTransactionType.REFUND_CREDIT, amount, amount, BigDecimal.ZERO,
+                reference, "Remaining retained security deposit refunded to wallet", actorId);
+    }
+
+    @Transactional
+    public void recordRetainedSecurityDepositCashRefund(
+            Long userId,
+            Long bookingId,
+            BigDecimal amount,
+            String reference,
+            Long actorId
+    ) {
+        requirePositive(amount);
+        if (transactionRepository.existsByReference(reference)) return;
+        Wallet wallet = getOrCreateWalletForUpdate(userId);
+        apply(wallet, bookingId, WalletTransactionType.SECURITY_DEPOSIT_CASH_REFUND,
+                amount, BigDecimal.ZERO, BigDecimal.ZERO, reference,
+                "Remaining retained security deposit refunded in cash", actorId);
+    }
+
+    @Transactional
     public void forfeitBookingHold(Long userId, Long bookingId, String reference) {
         if (transactionRepository.existsByReference(reference)) {
             return;

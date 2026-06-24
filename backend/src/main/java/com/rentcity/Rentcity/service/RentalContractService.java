@@ -130,6 +130,7 @@ public class RentalContractService {
                 .handoverStaffSignedAt(now)
                 .securityDepositAmount(booking.getSecurityDepositAmount())
                 .securityDepositCollectionMethod(booking.getSecurityDepositCollectionMethod())
+                .securityDepositGateway(booking.getSecurityDepositGateway())
                 .securityDepositPaidAt(booking.getSecurityDepositPaidAt())
                 .status(RentalContractStatus.ACTIVE)
                 .build();
@@ -197,8 +198,7 @@ public class RentalContractService {
                 contract.getHandoverAt(),
                 booking.getEndTime(),
                 request.getActualReturnAt(),
-                car.getPricePerDay(),
-                bookedSubtotal
+                car.getPricePerDay()
         );
         booking.setActualReturnAt(request.getActualReturnAt());
         booking.setOverdueMinutes(overdueCharge.overdueMinutes());
@@ -235,6 +235,8 @@ public class RentalContractService {
         contract.setSecurityDepositStatus(booking.getSecurityDepositStatus());
         contract.setSecurityDepositRefundMethod(booking.getSecurityDepositRefundMethod());
         contract.setSecurityDepositResolvedAt(booking.getSecurityDepositResolvedAt());
+        contract.setSecurityDepositRepairCost(booking.getSecurityDepositRepairCost());
+        contract.setSecurityDepositRefundedAmount(booking.getSecurityDepositRefundedAmount());
         contract.setFinalRentalAmount(booking.getFinalRentalAmount());
         contract.setFinalPaymentMethod(booking.getFinalPaymentMethod());
         contract.setFinalPaymentStatus(booking.getFinalPaymentStatus());
@@ -251,6 +253,76 @@ public class RentalContractService {
         RentalContract saved = contractRepository.save(contract);
         notificationService.notifyBookingStatusChanged(booking, BookingStatus.COMPLETED);
         return map(saved);
+    }
+
+    @Transactional
+    public RentalContractResponse resolveRetainedSecurityDeposit(
+            String actorEmail,
+            Long bookingId,
+            ResolveRetainedSecurityDepositRequest request
+    ) {
+        User actor = requireAdmin(actorEmail);
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
+        RentalContract contract = contractRepository.findByBookingId(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("rental contract", bookingId));
+
+        if (booking.getStatus() != BookingStatus.COMPLETED) {
+            throw new IllegalArgumentException("Retained security deposit can only be resolved after return completion");
+        }
+        if (booking.getSecurityDepositStatus() != SecurityDepositStatus.RETAINED) {
+            throw new IllegalArgumentException("This booking does not have a retained security deposit");
+        }
+        if (booking.getSecurityDepositRepairCost() != null) {
+            throw new IllegalArgumentException("The retained security deposit has already been resolved");
+        }
+
+        BigDecimal depositAmount = nonNull(booking.getSecurityDepositAmount());
+        BigDecimal repairCost = request.getActualRepairCost();
+        BigDecimal refundAmount = depositAmount.subtract(repairCost).max(BigDecimal.ZERO);
+        if (refundAmount.signum() > 0 && request.getRefundMethod() == null) {
+            throw new IllegalArgumentException("Choose a refund method for the remaining security deposit");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        booking.setSecurityDepositRepairCost(repairCost);
+        booking.setSecurityDepositRefundedAmount(refundAmount);
+        booking.setSecurityDepositRefundMethod(refundAmount.signum() > 0 ? request.getRefundMethod() : null);
+        booking.setSecurityDepositResolvedAt(now);
+        booking.setSecurityDepositStatus(refundAmount.signum() > 0
+                ? SecurityDepositStatus.REFUNDED
+                : SecurityDepositStatus.RETAINED);
+
+        if (refundAmount.signum() > 0) {
+            PaymentGateway gateway;
+            if (request.getRefundMethod() == SettlementMethod.CASH) {
+                gateway = PaymentGateway.CASH;
+                walletService.recordRetainedSecurityDepositCashRefund(
+                        booking.getUserId(), bookingId, refundAmount,
+                        "booking:" + bookingId + ":retained-deposit-cash-refund", actor.getId()
+                );
+            } else {
+                gateway = PaymentGateway.WALLET;
+                walletService.refundRetainedSecurityDepositToWallet(
+                        booking.getUserId(), bookingId, refundAmount,
+                        "booking:" + bookingId + ":retained-deposit-wallet-refund", actor.getId()
+                );
+            }
+            Payment refundPayment = recordPayment(
+                    booking, PaymentType.SECURITY_DEPOSIT_REFUND, gateway,
+                    PaymentStatus.REFUNDED, refundAmount, actor.getId()
+            );
+            notificationService.notifyPaymentStatusChanged(refundPayment, PaymentStatus.REFUNDED);
+        }
+
+        contract.setSecurityDepositStatus(booking.getSecurityDepositStatus());
+        contract.setSecurityDepositRefundMethod(booking.getSecurityDepositRefundMethod());
+        contract.setSecurityDepositResolvedAt(now);
+        contract.setSecurityDepositRepairCost(repairCost);
+        contract.setSecurityDepositRefundedAmount(refundAmount);
+
+        bookingRepository.save(booking);
+        return map(contractRepository.save(contract));
     }
 
     @Transactional(readOnly = true)
@@ -281,6 +353,7 @@ public class RentalContractService {
                 .handoverStaffSignedAt(contract.getHandoverStaffSignedAt())
                 .securityDepositAmount(contract.getSecurityDepositAmount())
                 .securityDepositCollectionMethod(contract.getSecurityDepositCollectionMethod())
+                .securityDepositGateway(contract.getSecurityDepositGateway())
                 .securityDepositPaidAt(contract.getSecurityDepositPaidAt())
                 .handoverCondition(carConditionService.getById(contract.getHandoverConditionReportId()))
                 .returnKeyCount(contract.getReturnKeyCount())
@@ -294,6 +367,8 @@ public class RentalContractService {
                 .securityDepositStatus(contract.getSecurityDepositStatus())
                 .securityDepositRefundMethod(contract.getSecurityDepositRefundMethod())
                 .securityDepositResolvedAt(contract.getSecurityDepositResolvedAt())
+                .securityDepositRepairCost(contract.getSecurityDepositRepairCost())
+                .securityDepositRefundedAmount(nonNull(contract.getSecurityDepositRefundedAmount()))
                 .finalRentalAmount(contract.getFinalRentalAmount())
                 .finalPaymentMethod(contract.getFinalPaymentMethod())
                 .finalPaymentStatus(contract.getFinalPaymentStatus())
@@ -311,6 +386,14 @@ public class RentalContractService {
         User actor = requireUser(email);
         if (actor.getRole() != Role.ADMIN && actor.getRole() != Role.STAFF) {
             throw new IllegalArgumentException("Only admin or staff can complete rental contracts");
+        }
+        return actor;
+    }
+
+    private User requireAdmin(String email) {
+        User actor = requireUser(email);
+        if (actor.getRole() != Role.ADMIN) {
+            throw new IllegalArgumentException("Only admin can resolve a retained security deposit");
         }
         return actor;
     }
@@ -439,7 +522,7 @@ public class RentalContractService {
         }
     }
 
-    private void recordPayment(
+    private Payment recordPayment(
             Booking booking,
             PaymentType type,
             PaymentGateway gateway,
@@ -448,7 +531,7 @@ public class RentalContractService {
             Long actorId
     ) {
         LocalDateTime now = LocalDateTime.now();
-        paymentRepository.save(Payment.builder()
+        return paymentRepository.save(Payment.builder()
                 .bookingId(booking.getId())
                 .userId(booking.getUserId())
                 .type(type)

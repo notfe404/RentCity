@@ -444,6 +444,18 @@ export default function BookingDetailPage() {
                         <span>Vehicle Deposit ({booking.securityDepositStatus.replaceAll('_', ' ')})</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.securityDepositAmount)}</span>
                       </div>
+                      {booking.securityDepositRepairCost != null && (
+                        <div className="rounded-xl border border-orange-100 bg-orange-50 p-3 text-orange-700 space-y-2">
+                          <div className="flex justify-between">
+                            <span>Actual repair cost</span>
+                            <span className="font-black">{formatVND(booking.securityDepositRepairCost)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Security deposit refunded</span>
+                            <span className="font-black">{formatVND(booking.securityDepositRefundedAmount)}</span>
+                          </div>
+                        </div>
+                      )}
                       {booking.finalPaymentStatus !== 'NOT_DUE' && (
                         <div className="flex justify-between text-[#56832d] font-black">
                           <span>Payment on Return ({booking.finalPaymentStatus.replaceAll('_', ' ')})</span>
@@ -457,7 +469,7 @@ export default function BookingDetailPage() {
                             <span className="font-black">+{formatVND(booking.overdueFee)}</span>
                           </div>
                           <div className="flex justify-between text-orange-600">
-                            <span>Penalty overdue fee (15%)</span>
+                            <span>Penalty (15% of additional usage fee)</span>
                             <span className="font-black">+{formatVND(booking.penaltyOverdueFee)}</span>
                           </div>
                           <div className="flex justify-between text-orange-700 font-black border-t border-orange-200 pt-2">

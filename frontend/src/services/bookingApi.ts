@@ -150,6 +150,16 @@ export const finalizeDamageAssessment = (
   return api.post<ApiBookingResponse>(`/admin/bookings/${id}/damage-assessment/finalize`, payload);
 };
 
+export interface ResolveRetainedSecurityDepositPayload {
+  actualRepairCost: number;
+  refundMethod?: 'PAYMENT_REQUEST' | 'CASH';
+}
+
+export const resolveRetainedSecurityDeposit = (
+  id: number | string,
+  payload: ResolveRetainedSecurityDepositPayload,
+) => api.post<RentalContractResponse>(`/admin/bookings/${id}/security-deposit/resolve`, payload);
+
 export const confirmBookingForTest = (id: number | string) => {
   return api.post<ApiBookingResponse>(`/bookings/${id}/confirm-for-test`);
 };

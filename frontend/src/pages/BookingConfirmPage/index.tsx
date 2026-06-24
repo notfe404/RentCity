@@ -275,6 +275,7 @@ export default function BookingConfirmPage() {
             durationLabel={durationLabel}
             lineItems={lineItems}
             depositAmount={depositAmount}
+            securityDepositAmount={vehicle.deposit ?? 0}
             totalAmount={totalAmount}
             actionLabel={isSubmitting ? 'Creating booking...' : 'Create Booking'}
             actionDisabled={!agreed || isSubmitting}

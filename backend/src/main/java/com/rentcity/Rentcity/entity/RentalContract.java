@@ -65,6 +65,10 @@ public class RentalContract {
     @Column(name = "security_deposit_collection_method", length = 30)
     private SettlementMethod securityDepositCollectionMethod;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "security_deposit_gateway", length = 20)
+    private PaymentGateway securityDepositGateway;
+
     @Column(name = "security_deposit_paid_at")
     private LocalDateTime securityDepositPaidAt;
 
@@ -102,6 +106,13 @@ public class RentalContract {
 
     @Column(name = "security_deposit_resolved_at")
     private LocalDateTime securityDepositResolvedAt;
+
+    @Column(name = "security_deposit_repair_cost", precision = 12, scale = 0)
+    private BigDecimal securityDepositRepairCost;
+
+    @Builder.Default
+    @Column(name = "security_deposit_refunded_amount", nullable = false, precision = 12, scale = 0)
+    private BigDecimal securityDepositRefundedAmount = BigDecimal.ZERO;
 
     @Column(name = "final_rental_amount", precision = 12, scale = 0)
     private BigDecimal finalRentalAmount;

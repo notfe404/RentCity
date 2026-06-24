@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, Eye, Check, X, CarFront, Play, ClipboardCheck, Wrench } from 'lucide-react';
+import { Search, Eye, Check, X, CarFront, Play, ClipboardCheck, RotateCcw, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -13,8 +13,9 @@ import {
   saveReturnCondition,
   transitionAdminBooking,
   prepareSecurityDeposit,
+  resolveRetainedSecurityDeposit,
 } from '@/services/bookingApi';
-import type { HandoverContractPayload, ReturnConditionPayload } from '@/services/bookingApi';
+import type { HandoverContractPayload, ResolveRetainedSecurityDepositPayload, ReturnConditionPayload } from '@/services/bookingApi';
 import { getCarById } from '@/services/carApi';
 import { BOOKING_STATUS_META, DEPOSIT_STATUS_META, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDate, formatDateTime, formatVND } from '@/utils/formatters';
@@ -24,6 +25,8 @@ import HandoverContractModal from './HandoverContractModal';
 import BookingContractDetailsModal from './BookingContractDetailsModal';
 import { FinalizeDamageModal } from './FinalizeDamageModal';
 import SecurityDepositModal from './SecurityDepositModal';
+import ResolveRetainedDepositModal from './ResolveRetainedDepositModal';
+import { useAuth } from '@/hooks/useAuth';
 
 type StatusFilter = 'ALL' | ApiBookingStatus;
 
@@ -38,6 +41,7 @@ const FILTERS: Array<{ key: StatusFilter; label: string }> = [
 ];
 
 export default function AdminBookingsPage() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -47,6 +51,7 @@ export default function AdminBookingsPage() {
   const [depositBooking, setDepositBooking] = useState<ApiBookingResponse | null>(null);
   const [returnBooking, setReturnBooking] = useState<ApiBookingResponse | null>(null);
   const [finalizeBooking, setFinalizeBooking] = useState<ApiBookingResponse | null>(null);
+  const [retainedDepositBooking, setRetainedDepositBooking] = useState<ApiBookingResponse | null>(null);
   const [detailBooking, setDetailBooking] = useState<ApiBookingResponse | null>(null);
   const [detailContract, setDetailContract] = useState<RentalContractResponse | null>(null);
   const [detailContractError, setDetailContractError] = useState<string | null>(null);
@@ -219,6 +224,26 @@ export default function AdminBookingsPage() {
     }
   };
 
+  const submitRetainedDepositResolution = async (payload: ResolveRetainedSecurityDepositPayload) => {
+    if (!retainedDepositBooking) return;
+    setActiveBookingId(retainedDepositBooking.id);
+    try {
+      await resolveRetainedSecurityDeposit(retainedDepositBooking.id, payload);
+      const { data } = await getAdminBooking(retainedDepositBooking.id);
+      setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)));
+      setRetainedDepositBooking(null);
+      toast.success(`Retained security deposit resolved for ${data.bookingCode}`);
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { error?: string; message?: string } } }).response?.data?.error
+        ?? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        ?? 'Could not resolve the retained security deposit';
+      toast.error(message);
+    } finally {
+      setActiveBookingId(null);
+    }
+  };
+
   const openBookingDetails = async (booking: ApiBookingResponse) => {
     setDetailBooking(booking);
     setDetailContract(null);
@@ -333,7 +358,7 @@ export default function AdminBookingsPage() {
                       {booking.overdueFee > 0 && (
                         <div className="mt-1 text-xs font-bold text-orange-600">
                           <p>Overdue fee: {formatVND(booking.overdueFee)}</p>
-                          <p>Penalty (15%): {formatVND(booking.penaltyOverdueFee)}</p>
+                          <p>Penalty (15% of additional usage fee): {formatVND(booking.penaltyOverdueFee)}</p>
                           <p className="font-black">Total overdue: {formatVND(booking.totalOverdueFee)}</p>
                         </div>
                       )}
@@ -420,6 +445,20 @@ export default function AdminBookingsPage() {
                           </button>
                         )}
 
+                        {user?.role === 'ADMIN'
+                          && booking.status === 'COMPLETED'
+                          && booking.securityDepositStatus === 'RETAINED'
+                          && booking.securityDepositRepairCost == null && (
+                          <button
+                            disabled={busy}
+                            onClick={() => setRetainedDepositBooking(booking)}
+                            className="p-2 text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-sm disabled:bg-gray-300"
+                            title="Resolve retained security deposit after repair"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => openBookingDetails(booking)}
@@ -491,6 +530,14 @@ export default function AdminBookingsPage() {
             // refresh page
             window.location.reload();
           }}
+        />
+      )}
+      {retainedDepositBooking && (
+        <ResolveRetainedDepositModal
+          booking={retainedDepositBooking}
+          isSaving={activeBookingId === retainedDepositBooking.id}
+          onClose={() => setRetainedDepositBooking(null)}
+          onSubmit={submitRetainedDepositResolution}
         />
       )}
       {detailBooking && (

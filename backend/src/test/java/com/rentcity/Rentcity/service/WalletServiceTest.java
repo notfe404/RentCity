@@ -126,6 +126,18 @@ class WalletServiceTest {
     }
 
     @Test
+    void retainedDepositRemainderCanBeRefundedAfterHoldWasConsumed() {
+        service.refundRetainedSecurityDepositToWallet(
+                1L, 10L, new BigDecimal("3000000"), "booking:10:retained-refund", 99L
+        );
+
+        assertThat(storedWallet.get().getAvailableBalance()).isEqualByComparingTo("3000000");
+        assertThat(storedWallet.get().getHeldBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(transactions.get(0).getType()).isEqualTo(WalletTransactionType.REFUND_CREDIT);
+        assertThat(transactions.get(0).getCreatedBy()).isEqualTo(99L);
+    }
+
+    @Test
     void withdrawalReservesAvailableBalanceAndRejectionRestoresIt() {
         service.creditTopUp(1L, new BigDecimal("500000"), "payment:20:wallet");
 

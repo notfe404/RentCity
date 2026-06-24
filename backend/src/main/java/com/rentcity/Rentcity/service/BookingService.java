@@ -417,8 +417,7 @@ public class BookingService {
         OverdueFeeService.OverdueCharge overdueCharge = overdueFeeService.calculate(
                 booking.getEndTime(),
                 actualReturnAt,
-                car.getPricePerDay(),
-                bookedSubtotal
+                car.getPricePerDay()
         );
 
         bookingStateMachineService.transition(
@@ -568,9 +567,12 @@ public class BookingService {
                 .securityDepositStatus(booking.getSecurityDepositStatus())
                 .securityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()))
                 .securityDepositCollectionMethod(booking.getSecurityDepositCollectionMethod())
+                .securityDepositGateway(booking.getSecurityDepositGateway())
                 .securityDepositPaidAt(booking.getSecurityDepositPaidAt())
                 .securityDepositRefundMethod(booking.getSecurityDepositRefundMethod())
                 .securityDepositResolvedAt(booking.getSecurityDepositResolvedAt())
+                .securityDepositRepairCost(booking.getSecurityDepositRepairCost())
+                .securityDepositRefundedAmount(nonNull(booking.getSecurityDepositRefundedAmount()))
                 .finalRentalAmount(nonNull(booking.getFinalRentalAmount()))
                 .finalPaymentStatus(booking.getFinalPaymentStatus())
                 .finalPaymentMethod(booking.getFinalPaymentMethod())
@@ -763,6 +765,7 @@ public class BookingService {
                 booking.setSecurityDepositPaidAmount(requiredDeposit);
                 booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
                 booking.setSecurityDepositPaidAt(LocalDateTime.now());
+                booking.setSecurityDepositGateway(PaymentGateway.CASH);
                 booking.setOutstandingAmount(BigDecimal.ZERO);
                 recordCashPayment(booking, PaymentType.SECURITY_DEPOSIT, requiredDeposit, actor.getId());
                 transitionToPaidIfSettled(booking, actor.getId(), actor.getRole());
@@ -822,6 +825,7 @@ public class BookingService {
                 if (booking.getOutstandingAmount().signum() == 0) {
                     booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
                     booking.setSecurityDepositPaidAt(LocalDateTime.now());
+                    booking.setSecurityDepositGateway(PaymentGateway.WALLET);
                 }
                 transitionToPaidIfSettled(booking, customerId, Role.CUSTOMER);
                 bookingRepository.save(booking);
@@ -882,7 +886,8 @@ public class BookingService {
             BigDecimal amount,
             Long customerId,
             Long paymentId,
-            PaymentType paymentType
+            PaymentType paymentType,
+            PaymentGateway paymentGateway
     ) {
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
@@ -908,6 +913,7 @@ public class BookingService {
             if (booking.getOutstandingAmount().signum() == 0) {
                 booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
                 booking.setSecurityDepositPaidAt(LocalDateTime.now());
+                booking.setSecurityDepositGateway(paymentGateway);
             }
             transitionToPaidIfSettled(booking, customerId, Role.CUSTOMER);
             bookingRepository.save(booking);

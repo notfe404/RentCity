@@ -91,7 +91,7 @@ public class RentalContractPdfService {
             writer.section("BIÊN BẢN BÀN GIAO XE");
             writer.row("Thời gian bàn giao", format(contract.getHandoverAt()));
             writer.row("Tiền cọc đã thu", money(contract.getSecurityDepositAmount()));
-            writer.row("Hình thức thu cọc", enumText(contract.getSecurityDepositCollectionMethod()));
+            writer.row("Hình thức thu cọc", paymentMethod(contract.getSecurityDepositGateway()));
             writer.row("Thời gian thu cọc", format(contract.getSecurityDepositPaidAt()));
             writeCondition(writer, carConditionService.getById(contract.getHandoverConditionReportId()));
             writer.row("Số chìa khóa", String.valueOf(contract.getHandoverKeyCount()));
@@ -108,6 +108,10 @@ public class RentalContractPdfService {
             if (contract.getStatus() == RentalContractStatus.COMPLETED) {
                 writer.pageBreak();
                 writer.section("BIÊN BẢN TRẢ XE");
+                if (contract.getSecurityDepositRepairCost() != null) {
+                    writer.row("Chi phí sửa chữa thực tế", money(contract.getSecurityDepositRepairCost()));
+                    writer.row("Tiền cọc hoàn lại", money(contract.getSecurityDepositRefundedAmount()));
+                }
                 writer.row("Thời gian trả thực tế", format(booking.getActualReturnAt()));
                 writeCondition(writer, carConditionService.getById(contract.getReturnConditionReportId()));
                 writer.row("Số chìa khóa", String.valueOf(contract.getReturnKeyCount()));
@@ -181,6 +185,16 @@ public class RentalContractPdfService {
 
     private String enumText(Enum<?> value) {
         return value == null ? "-" : value.name().replace('_', ' ');
+    }
+
+    private String paymentMethod(PaymentGateway gateway) {
+        if (gateway == null) return "Online payment";
+        return switch (gateway) {
+            case PAYPAL -> "Online payment - PayPal";
+            case VNPAY -> "Online payment - VNPay";
+            case WALLET -> "Online payment - My Wallet";
+            case CASH -> "Cash";
+        };
     }
 
     private class PageWriter {
