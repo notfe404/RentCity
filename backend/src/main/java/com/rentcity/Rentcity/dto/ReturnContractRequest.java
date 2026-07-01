@@ -17,11 +17,9 @@ public class ReturnContractRequest {
     @NotNull
     private CarCondition condition;
 
-    @NotNull
     @PositiveOrZero
     private Long odometer;
 
-    @NotNull
     @Min(0)
     @Max(100)
     private Integer fuelLevel;

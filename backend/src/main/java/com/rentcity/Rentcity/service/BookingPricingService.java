@@ -72,7 +72,7 @@ public class BookingPricingService {
                 : BigDecimal.ZERO;
         BigDecimal totalAmount = baseAmount.add(extraServicesAmount).add(deliveryFeeAmount);
 
-        BigDecimal depositAmount = totalAmount.multiply(THIRTY_PERCENT).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal depositAmount = baseAmount.multiply(THIRTY_PERCENT).setScale(0, RoundingMode.HALF_UP);
 
         return BookingQuote.builder()
                 .baseAmount(baseAmount)

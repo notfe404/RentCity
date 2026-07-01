@@ -10,6 +10,7 @@ import com.rentcity.Rentcity.entity.PaymentStatus;
 import com.rentcity.Rentcity.entity.PaymentType;
 import com.rentcity.Rentcity.entity.PricingMode;
 import com.rentcity.Rentcity.entity.Role;
+import com.rentcity.Rentcity.entity.SecurityDepositStatus;
 import com.rentcity.Rentcity.entity.User;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.entity.FinalPaymentStatus;
@@ -125,8 +126,6 @@ class PaymentServiceTest {
 
         when(userRepository.findByEmail(customer.getEmail())).thenReturn(Optional.of(customer));
         when(bookingRepository.findByIdForUpdate(booking.getId())).thenReturn(Optional.of(booking));
-        when(bookingService.applyCustomerWalletBalance(booking.getId(), customer.getId()))
-                .thenReturn(BigDecimal.ZERO);
         when(paymentRepository.findByIdempotencyKey("new-damage-key")).thenReturn(Optional.empty());
         when(paymentRepository.findByBookingIdAndStatus(booking.getId(), PaymentStatus.PENDING))
                 .thenReturn(List.of());
@@ -156,7 +155,48 @@ class PaymentServiceTest {
         assertThat(savedPayment.getType()).isEqualTo(PaymentType.FINAL_RENTAL_PAYMENT);
         assertThat(savedPayment.getAmount()).isEqualByComparingTo("300000");
         assertThat(savedPayment.getIdempotencyKey()).isEqualTo("new-damage-key");
-        verify(bookingService).applyCustomerWalletBalance(eq(booking.getId()), eq(customer.getId()));
+    }
+
+    @Test
+    void createsSecurityDepositPaymentRequestWithoutApplyingWalletBalance() {
+        User customer = User.builder()
+                .id(7L)
+                .email("customer@example.com")
+                .role(Role.CUSTOMER)
+                .build();
+        Booking booking = Booking.builder()
+                .id(43L)
+                .bookingCode("RC-SECURITY")
+                .userId(customer.getId())
+                .carId(3L)
+                .pricingMode(PricingMode.DAILY)
+                .depositStatus(DepositStatus.PAID)
+                .status(BookingStatus.CONFIRMED)
+                .securityDepositStatus(SecurityDepositStatus.PAYMENT_REQUESTED)
+                .totalAmount(new BigDecimal("1500000"))
+                .depositAmount(new BigDecimal("500000"))
+                .outstandingAmount(new BigDecimal("5000000"))
+                .build();
+        CreateDamagePaymentRequest request = new CreateDamagePaymentRequest();
+        request.setGateway(PaymentGateway.VNPAY);
+        request.setIdempotencyKey("security-key");
+
+        when(userRepository.findByEmail(customer.getEmail())).thenReturn(Optional.of(customer));
+        when(bookingRepository.findByIdForUpdate(booking.getId())).thenReturn(Optional.of(booking));
+        when(paymentRepository.findByIdempotencyKey("security-key")).thenReturn(Optional.empty());
+        when(paymentRepository.findByBookingIdAndStatus(booking.getId(), PaymentStatus.PENDING))
+                .thenReturn(List.of());
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+            Payment payment = invocation.getArgument(0);
+            payment.setId(102L);
+            return payment;
+        });
+
+        PaymentResponse response = service.createBookingPayment(customer.getEmail(), booking.getId(), request);
+
+        assertThat(response.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(response.getType()).isEqualTo(PaymentType.SECURITY_DEPOSIT);
+        assertThat(response.getAmount()).isEqualByComparingTo("5000000");
     }
 
     @Test

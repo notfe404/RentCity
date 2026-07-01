@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { CalendarDays, Download, FileText, LoaderCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,6 +39,73 @@ function Detail({ label, value }: { label: string; value: string | number }) {
       <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
     </div>
   );
+}
+
+function FinancialGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-black uppercase tracking-wider text-gray-400">{title}</p>
+      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
+function enumLabel(value?: string | null) {
+  if (!value) return '-';
+  if (value === 'NEED_MAINTENANCE') return 'Maintenance required';
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function paymentGatewayLabel(value?: string | null) {
+  if (value === 'VNPAY') return 'VNPay';
+  if (value === 'PAYPAL') return 'PayPal';
+  if (value === 'WALLET') return 'Refund balance';
+  if (value === 'CASH') return 'Cash';
+  return null;
+}
+
+function finalPaymentMethodLabel(booking: ApiBookingResponse) {
+  if (booking.finalPaymentMethod === 'CASH') {
+    return 'Cash';
+  }
+  if (booking.finalPaymentMethod === 'PAYMENT_REQUEST') {
+    const gateway = paymentGatewayLabel(booking.finalPaymentGateway);
+    return gateway ? `Online Payment via ${gateway}` : 'Online payment request';
+  }
+  return '-';
+}
+
+function bookedHoursLabel(booking: ApiBookingResponse) {
+  const start = new Date(booking.startTime).getTime();
+  const end = new Date(booking.endTime).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+    return '1 hour';
+  }
+  const hours = Math.max(1, Math.ceil((end - start) / 3_600_000));
+  return `${hours} hour${hours === 1 ? '' : 's'}`;
+}
+
+function securityDepositRefundMethodLabel(value?: string | null) {
+  if (value === 'PAYMENT_REQUEST') return 'Refund balance';
+  if (value === 'CASH') return 'Cash';
+  return '-';
+}
+
+function securityDepositResolutionLabel(booking: ApiBookingResponse) {
+  if (booking.securityDepositStatus === 'REFUNDED') {
+    return `Refunded via ${securityDepositRefundMethodLabel(booking.securityDepositRefundMethod)}`;
+  }
+  if (booking.securityDepositStatus === 'RETAINED') {
+    return 'Retained for repair or maintenance';
+  }
+  if (booking.securityDepositStatus === 'PAID') {
+    return 'Pending return resolution';
+  }
+  return enumLabel(booking.securityDepositStatus);
 }
 
 interface ConditionSectionProps {
@@ -87,13 +154,11 @@ function ConditionSection({
         <span className={`rounded-lg px-3 py-1 text-xs font-black ${
           isGood ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
         }`}>
-          {condition.condition.replaceAll('_', ' ')}
+          {enumLabel(condition.condition)}
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Detail label="Odometer" value={`${condition.odometer.toLocaleString()} km`} />
-        <Detail label="Fuel level" value={`${condition.fuelLevel}%`} />
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Detail label="Keys" value={keyCount ?? '-'} />
         <Detail label="Damage" value={condition.damageFound ? 'Recorded' : 'None'} />
       </div>
@@ -144,6 +209,15 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
   const [isDownloading, setIsDownloading] = useState(false);
   const statusMeta = BOOKING_STATUS_META[booking.status];
   const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
+  const hasExtraServices = (booking.extraServicesAmount ?? 0) > 0;
+  const hasDeliveryFee = (booking.deliveryFeeAmount ?? 0) > 0;
+  const hasOverdueCharge = (booking.totalOverdueFee ?? 0) > 0;
+  const hasDamageCharge = (booking.damageFee ?? 0) > 0;
+  const hasSecurityDepositRepair = booking.securityDepositRepairCost != null;
+  const hasSecurityDepositRefund = (booking.securityDepositRefundedAmount ?? 0) > 0;
+  const scheduledBookingFee = (booking.baseAmount ?? 0)
+    + (booking.extraServicesAmount ?? 0)
+    + (booking.deliveryFeeAmount ?? 0);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -209,7 +283,6 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                   {booking.pickupMethod === 'ADDRESS_DELIVERY' && (
                     <Detail label="Delivery address" value={booking.deliveryAddress || 'Address unavailable'} />
                   )}
-                  <Detail label="Pricing mode" value={booking.pricingMode} />
                   <Detail label="Created" value={formatDateTime(booking.createdAt)} />
                   <Detail label="Last updated" value={formatDateTime(booking.updatedAt)} />
                 </div>
@@ -217,24 +290,34 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
 
               <section>
                 <h3 className="mb-3 font-black text-gray-900">Financial details</h3>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Detail label="Base amount" value={formatVND(booking.baseAmount)} />
-                  <Detail label="Reservation fee (30%)" value={`${formatVND(booking.reservationFeeAmount)} - ${depositMeta.label}`} />
-                  <Detail label="Vehicle security deposit" value={`${formatVND(booking.securityDepositAmount)} - ${booking.securityDepositStatus.replaceAll('_', ' ')}`} />
-                  <Detail label="Security deposit collected" value={`${formatVND(booking.securityDepositPaidAmount)} via ${getSecurityDepositPaymentLabel(booking.securityDepositGateway)}`} />
-                  <Detail label="Security deposit resolution" value={`${booking.securityDepositStatus.replaceAll('_', ' ')} via ${booking.securityDepositRefundMethod?.replaceAll('_', ' ') ?? '-'}`} />
-                  {booking.securityDepositRepairCost != null && (
-                    <Detail label="Actual repair cost" value={formatVND(booking.securityDepositRepairCost)} />
-                  )}
-                  {booking.securityDepositRepairCost != null && (
-                    <Detail label="Security deposit refunded" value={formatVND(booking.securityDepositRefundedAmount)} />
-                  )}
-                  <Detail label="Final rental amount" value={`${formatVND(booking.finalRentalAmount)} - ${booking.finalPaymentStatus.replaceAll('_', ' ')}`} />
-                  <Detail label="Final payment method" value={booking.finalPaymentMethod?.replaceAll('_', ' ') ?? '-'} />
-                  <Detail label="Total amount" value={formatVND(booking.totalAmount)} />
-                  <Detail label="Outstanding" value={formatVND(booking.outstandingAmount)} />
-                  <Detail label="Overdue charge" value={formatVND(booking.totalOverdueFee)} />
-                  <Detail label="Damage charge" value={formatVND(booking.damageFee)} />
+                <div className="space-y-5">
+                  <FinancialGroup title="Rental charges">
+                    <Detail label="Booking fee" value={`${formatVND(scheduledBookingFee)} / ${bookedHoursLabel(booking)}`} />
+                    <Detail label="Reservation fee paid" value={`${formatVND(booking.reservationFeeAmount)} - ${depositMeta.label}`} />
+                    {hasExtraServices && <Detail label="Extra services" value={formatVND(booking.extraServicesAmount ?? 0)} />}
+                    {hasDeliveryFee && <Detail label="Delivery fee" value={formatVND(booking.deliveryFeeAmount ?? 0)} />}
+                  </FinancialGroup>
+
+                  <FinancialGroup title="Final balance">
+                    {hasOverdueCharge && <Detail label="Overdue charge" value={formatVND(booking.totalOverdueFee ?? 0)} />}
+                    {hasDamageCharge && <Detail label="Damage charge" value={formatVND(booking.damageFee ?? 0)} />}
+                    <Detail label="Final rental due" value={`${formatVND(booking.finalRentalAmount)} - ${enumLabel(booking.finalPaymentStatus)}`} />
+                    <Detail label="Final payment method" value={finalPaymentMethodLabel(booking)} />
+                    <Detail label="Total booking amount" value={formatVND(booking.totalAmount)} />
+                    <Detail label="Outstanding balance" value={formatVND(booking.outstandingAmount)} />
+                  </FinancialGroup>
+
+                  <FinancialGroup title="Security deposit">
+                    <Detail label="Required deposit" value={formatVND(booking.securityDepositAmount)} />
+                    <Detail label="Collected" value={`${formatVND(booking.securityDepositPaidAmount)} via ${getSecurityDepositPaymentLabel(booking.securityDepositGateway)}`} />
+                    <Detail label="Deposit result" value={securityDepositResolutionLabel(booking)} />
+                    {hasSecurityDepositRepair && (
+                      <Detail label="Repair cost used from deposit" value={formatVND(booking.securityDepositRepairCost ?? 0)} />
+                    )}
+                    {hasSecurityDepositRefund && (
+                      <Detail label="Refunded to customer" value={formatVND(booking.securityDepositRefundedAmount ?? 0)} />
+                    )}
+                  </FinancialGroup>
                 </div>
               </section>
 
@@ -279,7 +362,7 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                 {contract && (
                   <div className="mt-4 flex items-center justify-between rounded-xl bg-[#f4f8f7] p-4">
                     <span className="text-sm font-bold text-gray-500">Contract status</span>
-                    <span className="rounded-lg bg-[#e9f2eb] px-3 py-1 text-xs font-black text-[#56832d]">{contract.status.replaceAll('_', ' ')}</span>
+                    <span className="rounded-lg bg-[#e9f2eb] px-3 py-1 text-xs font-black text-[#56832d]">{enumLabel(contract.status)}</span>
                   </div>
                 )}
               </section>
@@ -300,8 +383,8 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                   <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 sm:grid-cols-2">
                     <Detail label="Contract security deposit" value={formatVND(contract.securityDepositAmount)} />
                     <Detail label="Collected by" value={getSecurityDepositPaymentLabel(contract.securityDepositGateway)} />
-                    <Detail label="Deposit result" value={contract.securityDepositStatus?.replaceAll('_', ' ') ?? 'Pending return'} />
-                    <Detail label="Refund method" value={contract.securityDepositRefundMethod?.replaceAll('_', ' ') ?? '-'} />
+                    <Detail label="Deposit result" value={contract.securityDepositStatus ? enumLabel(contract.securityDepositStatus) : 'Pending return'} />
+                    <Detail label="Refund method" value={enumLabel(contract.securityDepositRefundMethod)} />
                     {contract.securityDepositRepairCost != null && (
                       <Detail label="Actual repair cost" value={formatVND(contract.securityDepositRepairCost)} />
                     )}
@@ -309,7 +392,7 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                       <Detail label="Deposit refunded" value={formatVND(contract.securityDepositRefundedAmount)} />
                     )}
                     <Detail label="Final rental settlement" value={formatVND(contract.finalRentalAmount ?? 0)} />
-                    <Detail label="Final payment" value={`${contract.finalPaymentStatus?.replaceAll('_', ' ') ?? '-'} via ${contract.finalPaymentMethod?.replaceAll('_', ' ') ?? '-'}`} />
+                    <Detail label="Final payment" value={`${enumLabel(contract.finalPaymentStatus)} via ${finalPaymentMethodLabel(booking)}`} />
                   </div>
                   <ConditionSection
                     title="Return contract"

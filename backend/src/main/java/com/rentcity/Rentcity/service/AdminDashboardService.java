@@ -222,7 +222,9 @@ public class AdminDashboardService {
         accumulator.vehicleBookingCounts.merge(booking.getCarId(), 1L, Long::sum);
 
         if (booking.getStatus() == BookingStatus.COMPLETED && booking.getTotalAmount() != null) {
-            accumulator.completedRevenue = accumulator.completedRevenue.add(booking.getTotalAmount());
+            BigDecimal damageCharge = booking.getDamageFee() != null ? booking.getDamageFee() : BigDecimal.ZERO;
+            BigDecimal revenueAmount = booking.getTotalAmount().subtract(damageCharge).max(BigDecimal.ZERO);
+            accumulator.completedRevenue = accumulator.completedRevenue.add(revenueAmount);
         }
     }
 

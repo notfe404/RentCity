@@ -61,6 +61,7 @@ public class BookingService {
     @Transactional
     public BookingResponse createBooking(String email, CreateBookingRequest request) {
         validateRequest(request);
+        LocalDateTime bookingCreatedAt = LocalDateTime.now();
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -111,7 +112,11 @@ public class BookingService {
                 .securityDepositStatus(SecurityDepositStatus.UNPAID)
                 .securityDepositPaidAmount(BigDecimal.ZERO)
                 .totalAmount(quote.getTotalAmount())
-                .freeCancelUntil(quote.getFreeCancelUntil())
+                .freeCancelUntil(bookingCancellationPolicyService.calculateFreeCancelUntil(
+                        request.getStartTime(),
+                        request.getPricingMode(),
+                        bookingCreatedAt
+                ))
                 .paymentExpiresAt(bookingExpirationService.newPaymentDeadline())
                 .initialConditionReportId(resolveCurrentConditionId(car.getId()))
                 .build();
@@ -576,6 +581,7 @@ public class BookingService {
                 .finalRentalAmount(nonNull(booking.getFinalRentalAmount()))
                 .finalPaymentStatus(booking.getFinalPaymentStatus())
                 .finalPaymentMethod(booking.getFinalPaymentMethod())
+                .finalPaymentGateway(resolveFinalPaymentGateway(booking.getId()))
                 .finalPaidAt(booking.getFinalPaidAt())
                 .totalAmount(booking.getTotalAmount())
                 .freeCancelUntil(booking.getFreeCancelUntil())
@@ -605,6 +611,18 @@ public class BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+
+    private PaymentGateway resolveFinalPaymentGateway(Long bookingId) {
+        if (bookingId == null) {
+            return null;
+        }
+        return paymentRepository.findFirstByBookingIdAndTypeOrderByCreatedAtDesc(
+                        bookingId,
+                        PaymentType.FINAL_RENTAL_PAYMENT
+                )
+                .map(Payment::getGateway)
+                .orElse(null);
     }
 
     private String normalizeDeliveryAddress(CreateBookingRequest request) {
@@ -798,89 +816,6 @@ public class BookingService {
     }
 
     @Transactional
-    public BigDecimal applyCustomerWalletBalance(Long bookingId, Long customerId) {
-        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
-        if (!booking.getUserId().equals(customerId)) {
-            throw new ResourceNotFoundException("booking", bookingId);
-        }
-
-        BigDecimal outstanding = booking.getOutstandingAmount();
-        if (outstanding == null || outstanding.signum() <= 0) {
-            return BigDecimal.ZERO;
-        }
-
-        if (booking.getStatus() == BookingStatus.CONFIRMED
-                && booking.getSecurityDepositStatus() == SecurityDepositStatus.PAYMENT_REQUESTED) {
-            BigDecimal paid = walletService.holdAvailableSecurityDeposit(
-                    customerId,
-                    bookingId,
-                    outstanding,
-                    "booking:" + bookingId + ":security-deposit:" + System.currentTimeMillis(),
-                    customerId
-            );
-            if (paid.signum() > 0) {
-                booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
-                booking.setSecurityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()).add(paid));
-                if (booking.getOutstandingAmount().signum() == 0) {
-                    booking.setSecurityDepositStatus(SecurityDepositStatus.PAID);
-                    booking.setSecurityDepositPaidAt(LocalDateTime.now());
-                    booking.setSecurityDepositGateway(PaymentGateway.WALLET);
-                }
-                transitionToPaidIfSettled(booking, customerId, Role.CUSTOMER);
-                bookingRepository.save(booking);
-            }
-            return paid;
-        }
-
-        if (booking.getStatus() == BookingStatus.COMPLETED
-                && booking.getFinalPaymentStatus() == FinalPaymentStatus.PAYMENT_REQUESTED) {
-            BigDecimal paid = walletService.payFinalRentalAmount(customerId, bookingId, outstanding, customerId);
-            if (paid.signum() > 0) {
-                booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
-                if (booking.getOutstandingAmount().signum() == 0) {
-                    booking.setFinalPaymentStatus(FinalPaymentStatus.PAID);
-                    booking.setFinalPaidAt(LocalDateTime.now());
-                    markContractFinalPaymentPaid(bookingId);
-                }
-                bookingRepository.save(booking);
-            }
-            return paid;
-        }
-
-        BigDecimal outstandingOverdue = booking.getTotalOverdueFee() != null ? booking.getTotalOverdueFee() : BigDecimal.ZERO;
-        BigDecimal outstandingDamage = booking.getDamageFee() != null ? booking.getDamageFee() : BigDecimal.ZERO;
-        
-        // Wait, the outstanding amount might be less than total if partially paid.
-        // We will just ask walletService to settle the entire remaining outstanding.
-        // Actually, we need to know how much of it is overdue vs damage.
-        // Let's assume overdue is paid first, then damage.
-        BigDecimal alreadyPaidTotal = outstandingOverdue.add(outstandingDamage).subtract(outstanding);
-        BigDecimal remainingOverdue = outstandingOverdue.subtract(alreadyPaidTotal).max(BigDecimal.ZERO);
-        BigDecimal remainingDamage = outstanding.subtract(remainingOverdue).max(BigDecimal.ZERO);
-
-        WalletService.SettlementResult settlement = walletService.settleBooking(
-                customerId,
-                bookingId,
-                remainingOverdue,
-                remainingDamage,
-                customerId
-        );
-
-        BigDecimal paidOverdue = settlement.overduePaid();
-        BigDecimal paidDamage = settlement.damagePaid();
-        BigDecimal totalPaid = paidOverdue.add(paidDamage);
-
-        if (totalPaid.signum() > 0) {
-            booking.setOutstandingAmount(booking.getOutstandingAmount().subtract(totalPaid).max(BigDecimal.ZERO));
-            bookingRepository.save(booking);
-            damageAssessmentService.updatePaidAmount(bookingId, paidDamage);
-            
-        }
-        return totalPaid;
-    }
-
-    @Transactional
     public void applyCustomerPayment(
             Long bookingId,
             BigDecimal amount,
@@ -902,12 +837,6 @@ public class BookingService {
 
         BigDecimal paid = amount.min(outstanding);
         if (paymentType == PaymentType.SECURITY_DEPOSIT) {
-            walletService.creditAndHoldDeposit(
-                    customerId,
-                    bookingId,
-                    paid,
-                    "payment:" + paymentId + ":security-deposit"
-            );
             booking.setSecurityDepositPaidAmount(nonNull(booking.getSecurityDepositPaidAmount()).add(paid));
             booking.setOutstandingAmount(outstanding.subtract(paid).max(BigDecimal.ZERO));
             if (booking.getOutstandingAmount().signum() == 0) {

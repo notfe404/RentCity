@@ -3,8 +3,8 @@ import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import { Save, Upload, X, FileText, Check, Edit3, CreditCard } from 'lucide-react';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
-import TransactionsTab from './TransactionsTab';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { getMe, getMyDocuments, updateProfile, uploadDocument } from '@/services/userApi';
 import { useAuth } from '@/hooks/useAuth';
 import { mapApiUserToUser } from '@/utils/userMapper';
@@ -41,8 +41,9 @@ function getProfileFieldErrors(err: unknown): ProfileFieldErrors {
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const { updateUser } = useAuth();
+  const navigate = useNavigate();
   const [profileErrors, setProfileErrors] = useState<ProfileFieldErrors>({});
-  const [activeTab, setActiveTab] = useState<'profile' | 'transactions'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile'>('profile');
 
   // Local state for displaying & editing
   const [firstName, setFirstName] = useState('');
@@ -247,15 +248,11 @@ const [backId, setBackId] = useState<{
               Profile
             </button>
             <button
-              onClick={() => setActiveTab('transactions')}
-              className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'transactions'
-                  ? 'bg-[#78ad44] text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              onClick={() => navigate('/payments')}
+              className="px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
               <CreditCard size={18} />
-              Transactions
+              Payment
             </button>
           </div>
 
@@ -491,20 +488,6 @@ const [backId, setBackId] = useState<{
               </div>
             )}
 
-          </div>
-          )}
-
-          {/* Transactions Tab */}
-          {activeTab === 'transactions' && (
-          <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
-            <div className="mb-8">
-              <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
-                <CreditCard size={24} />
-                Payment History
-              </h2>
-              <p className="text-sm text-gray-500 mt-1 font-medium">View and manage all your payment transactions</p>
-            </div>
-            <TransactionsTab />
           </div>
           )}
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LayoutDashboard, FileText, LogOut, Car, ChevronDown, WalletCards } from 'lucide-react';
+import { Menu, X, User, LayoutDashboard, FileText, LogOut, Car, ChevronDown, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,7 +40,7 @@ function UserDropdown() {
     : [
         { label: 'My Profile', icon: User, path: '/profile' },
         { label: 'My Bookings', icon: FileText, path: '/my-bookings' },
-        { label: 'My Wallet', icon: WalletCards, path: '/wallet' },
+        { label: 'Payment', icon: CreditCard, path: '/payments' },
       ];
 
   const handleLogout = async () => {
@@ -199,7 +199,7 @@ export default function Header() {
                     : [
                         { label: 'My Profile', icon: User, path: '/profile' },
                         { label: 'My Bookings', icon: FileText, path: '/my-bookings' },
-                        { label: 'My Wallet', icon: WalletCards, path: '/wallet' },
+                        { label: 'Payment', icon: CreditCard, path: '/payments' },
                       ]
                   ).map(link => (
                     <button

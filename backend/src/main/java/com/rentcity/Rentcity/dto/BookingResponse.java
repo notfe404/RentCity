@@ -61,6 +61,7 @@ public class BookingResponse {
     private BigDecimal finalRentalAmount;
     private FinalPaymentStatus finalPaymentStatus;
     private SettlementMethod finalPaymentMethod;
+    private PaymentGateway finalPaymentGateway;
     private LocalDateTime finalPaidAt;
     private BigDecimal totalAmount;
     private LocalDateTime freeCancelUntil;

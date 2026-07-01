@@ -41,12 +41,6 @@ export interface ApiWalletResponse {
   transactions: ApiWalletTransaction[];
 }
 
-export interface CreateWalletTopUpPayload {
-  amount: number;
-  gateway: PaymentGateway;
-  idempotencyKey?: string;
-}
-
 export interface CreateDamagePaymentPayload {
   gateway: PaymentGateway;
   idempotencyKey?: string;

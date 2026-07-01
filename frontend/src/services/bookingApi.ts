@@ -62,8 +62,6 @@ export const prepareSecurityDeposit = (
 export interface HandoverContractPayload {
   actualHandoverAt: string;
   condition: 'GOOD' | 'DAMAGE';
-  odometer: number;
-  fuelLevel: number;
   damageFound: boolean;
   notes?: string;
   keyCount: number;
@@ -76,8 +74,6 @@ export interface HandoverContractPayload {
 export interface ReturnConditionPayload {
   condition: 'GOOD' | 'DAMAGE' | 'NEED_MAINTENANCE';
   actualReturnAt: string;
-  odometer: number;
-  fuelLevel: number;
   damageFound: boolean;
   damageSeverity?: 'MINOR' | 'MODERATE' | 'MAJOR';
   damageDescription?: string;
@@ -99,8 +95,6 @@ export const saveHandoverContract = (
   formData.append('handover', new Blob([JSON.stringify({
     actualHandoverAt: payload.actualHandoverAt,
     condition: payload.condition,
-    odometer: payload.odometer,
-    fuelLevel: payload.fuelLevel,
     damageFound: payload.damageFound,
     notes: payload.notes?.trim() || undefined,
     keyCount: payload.keyCount,
@@ -120,8 +114,6 @@ export const saveReturnCondition = (
   formData.append('return', new Blob([JSON.stringify({
     condition: payload.condition,
     actualReturnAt: payload.actualReturnAt,
-    odometer: payload.odometer,
-    fuelLevel: payload.fuelLevel,
     damageFound: payload.damageFound,
     damageSeverity: payload.damageSeverity,
     damageDescription: payload.damageDescription?.trim() || undefined,

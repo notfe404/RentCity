@@ -1,10 +1,21 @@
 package com.rentcity.Rentcity.service;
 
 import com.rentcity.Rentcity.dto.CarConditionResponse;
-import com.rentcity.Rentcity.entity.*;
+import com.rentcity.Rentcity.entity.Booking;
+import com.rentcity.Rentcity.entity.Car;
+import com.rentcity.Rentcity.entity.Payment;
+import com.rentcity.Rentcity.entity.PaymentGateway;
+import com.rentcity.Rentcity.entity.PaymentType;
+import com.rentcity.Rentcity.entity.RentalContract;
+import com.rentcity.Rentcity.entity.RentalContractStatus;
+import com.rentcity.Rentcity.entity.SecurityDepositStatus;
+import com.rentcity.Rentcity.entity.SettlementMethod;
+import com.rentcity.Rentcity.entity.User;
+import com.rentcity.Rentcity.entity.VehiclePickupMethod;
 import com.rentcity.Rentcity.exception.ResourceNotFoundException;
 import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.CarRepository;
+import com.rentcity.Rentcity.repository.PaymentRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -21,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +48,7 @@ public class RentalContractPdfService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final CarRepository carRepository;
+    private final PaymentRepository paymentRepository;
     private final FileStorageService fileStorageService;
     private final CarConditionService carConditionService;
 
@@ -46,93 +59,115 @@ public class RentalContractPdfService {
                 .orElseThrow(() -> new ResourceNotFoundException("booking", bookingId));
         User customer = userRepository.findById(booking.getUserId()).orElse(null);
         Car car = carRepository.findById(booking.getCarId()).orElse(null);
+        Payment reservationPayment = paymentRepository
+                .findFirstByBookingIdAndTypeOrderByCreatedAtDesc(bookingId, PaymentType.DEPOSIT)
+                .orElse(null);
+        Payment finalRentalPayment = paymentRepository
+                .findFirstByBookingIdAndTypeOrderByCreatedAtDesc(bookingId, PaymentType.FINAL_RENTAL_PAYMENT)
+                .orElse(null);
 
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream output = new ByteArrayOutputStream();
              InputStream fontStream = getClass().getResourceAsStream("/fonts/DejaVuSans.ttf")) {
             if (fontStream == null) {
-                throw new IllegalStateException("Bundled Vietnamese PDF font is missing");
+                throw new IllegalStateException("Bundled PDF font is missing");
             }
 
             PDType0Font font = PDType0Font.load(document, fontStream, true);
             PageWriter writer = new PageWriter(document, font, contract.getContractNumber());
-            writer.title("HỢP ĐỒNG THUÊ XE RENTCITY");
-            writer.row("Mã hợp đồng", contract.getContractNumber());
-            writer.row("Trạng thái", contract.getStatus().name().replace('_', ' '));
-            writer.row("Phiên bản điều khoản", contract.getPolicyVersion());
+            writer.title("RENTCITY VEHICLE RENTAL CONTRACT");
+            writer.row("Contract number", contract.getContractNumber());
+            writer.row("Contract status", enumText(contract.getStatus()));
+            writer.row("Policy version", contract.getPolicyVersion());
 
-            writer.section("THÔNG TIN ĐẶT XE VÀ CÁC BÊN");
-            writer.row("Mã booking", booking.getBookingCode());
-            writer.row("Khách hàng", customer != null ? customer.getFullName() : "-");
+            writer.section("BOOKING AND PARTIES");
+            writer.row("Booking code", booking.getBookingCode());
+            writer.row("Booking status", enumText(booking.getStatus()));
+            writer.row("Reservation status", enumText(booking.getDepositStatus()));
+            writer.row("Created at", format(booking.getCreatedAt()));
+            writer.row("Customer", customer != null ? customer.getFullName() : "-");
             writer.row("Email", customer != null ? customer.getEmail() : "-");
-            writer.row("Số điện thoại", customer != null ? customer.getPhone() : "-");
-            writer.row("Xe", car != null ? car.getBrand() + " " + car.getModel() : "-");
-            writer.row("Biển số", car != null ? car.getLicensePlate() : "-");
-            writer.row("Thời gian thuê", format(booking.getStartTime()) + " đến " + format(booking.getEndTime()));
-            writer.row("Hình thức nhận xe", pickupMethod(booking));
+            writer.row("Phone", customer != null ? customer.getPhone() : "-");
+            writer.row("Vehicle", car != null ? car.getBrand() + " " + car.getModel() : "-");
+            writer.row("License plate", car != null ? car.getLicensePlate() : "-");
+            writer.row("Rental period", format(booking.getStartTime()) + " to " + format(booking.getEndTime()));
+            writer.row("Pickup method", pickupMethod(booking));
             if (booking.getPickupMethod() == VehiclePickupMethod.ADDRESS_DELIVERY) {
-                writer.row("Địa chỉ giao xe", booking.getDeliveryAddress());
+                writer.row("Delivery address", booking.getDeliveryAddress());
             }
-            writer.row("Tiền thuê cơ bản", money(booking.getBaseAmount()));
-            writer.row("Dịch vụ bổ sung", money(booking.getExtraServicesAmount()));
-            writer.row("Phí giao xe", money(booking.getDeliveryFeeAmount()));
-            writer.row("Phí giữ chỗ (30%)", money(booking.getDepositAmount()));
-            writer.row("Tiền cọc thuê xe", money(booking.getSecurityDepositAmount()));
-            writer.row("Tổng hiện tại", money(booking.getTotalAmount()));
+            writer.row("Free cancellation", freeCancellationText(booking));
 
-            writer.section("ĐIỀU KHOẢN THUÊ XE");
+            writer.section("PAYMENT SUMMARY");
+            writer.row("Base rental amount", money(nonNull(booking.getBaseAmount())));
+            writer.row("Base rental hours", baseRentalHours(booking));
+            writer.row("Extra services", money(nonNull(booking.getExtraServicesAmount())));
+            writer.row("Delivery fee", money(nonNull(booking.getDeliveryFeeAmount())));
+            writer.row("Reservation amount", money(booking.getDepositAmount()) + " (included in base rental amount)");
+            writer.row("Reservation paid at", paymentPaidAt(reservationPayment));
+            writer.row("Reservation gateway", paymentMethod(paymentGateway(reservationPayment)));
+            writer.row("Reservation transaction id", paymentTransactionId(reservationPayment));
+            writer.row("Vehicle security deposit", money(booking.getSecurityDepositAmount()));
+            writer.row("Overdue amount", money(nonNull(booking.getOverdueFee())));
+            writer.row("Penalty amount", money(nonNull(booking.getPenaltyOverdueFee())));
+            writer.row("Total rental amount", money(booking.getTotalAmount()));
+            writer.row("Total rental paid at", paymentPaidAt(finalRentalPayment));
+            writer.row("Final payment gateway", paymentMethod(paymentGateway(finalRentalPayment)));
+            writer.row("Final transaction id", paymentTransactionId(finalRentalPayment));
+
+            writer.section("RENTAL TERMS");
             for (String paragraph : contract.getPolicyText().split("\\R+")) {
                 if (!paragraph.isBlank()) {
-                    writer.paragraph(paragraph.trim());
+                    writer.paragraph(displayText(paragraph.trim()));
                 }
             }
 
             writer.pageBreak();
-            writer.section("BIÊN BẢN BÀN GIAO XE");
-            writer.row("Thời gian bàn giao", format(contract.getHandoverAt()));
-            writer.row("Tiền cọc đã thu", money(contract.getSecurityDepositAmount()));
-            writer.row("Hình thức thu cọc", paymentMethod(contract.getSecurityDepositGateway()));
-            writer.row("Thời gian thu cọc", format(contract.getSecurityDepositPaidAt()));
+            writer.section("VEHICLE HANDOVER RECORD");
+            writer.row("Handover time", format(contract.getHandoverAt()));
+            writer.row("Security deposit collected", money(contract.getSecurityDepositAmount()));
+            writer.row("Security deposit method", paymentMethod(contract.getSecurityDepositGateway()));
+            writer.row("Security deposit paid at", format(contract.getSecurityDepositPaidAt()));
             writeCondition(writer, carConditionService.getById(contract.getHandoverConditionReportId()));
-            writer.row("Số chìa khóa", String.valueOf(contract.getHandoverKeyCount()));
-            writer.row("Phụ kiện", contract.getHandoverAccessories());
-            writer.row("Khách hàng ký lúc", format(contract.getHandoverCustomerSignedAt()));
-            writer.row("Nhân viên ký lúc", format(contract.getHandoverStaffSignedAt()));
+            writer.row("Keys", String.valueOf(contract.getHandoverKeyCount()));
+            writer.row("Accessories", contract.getHandoverAccessories());
+            writer.row("Customer signed at", format(contract.getHandoverCustomerSignedAt()));
+            writer.row("Staff signed at", format(contract.getHandoverStaffSignedAt()));
             writer.signatures(
-                    "Chữ ký khách hàng",
-                    "Chữ ký nhân viên",
+                    "Customer signature",
+                    "Staff signature",
                     contract.getHandoverCustomerSignature(),
                     contract.getHandoverStaffSignature()
             );
 
             if (contract.getStatus() == RentalContractStatus.COMPLETED) {
                 writer.pageBreak();
-                writer.section("BIÊN BẢN TRẢ XE");
+                writer.section("VEHICLE RETURN RECORD");
                 if (contract.getSecurityDepositRepairCost() != null) {
-                    writer.row("Chi phí sửa chữa thực tế", money(contract.getSecurityDepositRepairCost()));
-                    writer.row("Tiền cọc hoàn lại", money(contract.getSecurityDepositRefundedAmount()));
+                    writer.row("Actual repair cost", money(contract.getSecurityDepositRepairCost()));
+                    writer.row("Security deposit refunded", money(contract.getSecurityDepositRefundedAmount()));
                 }
-                writer.row("Thời gian trả thực tế", format(booking.getActualReturnAt()));
+                writer.row("Actual return time", format(booking.getActualReturnAt()));
                 writeCondition(writer, carConditionService.getById(contract.getReturnConditionReportId()));
-                writer.row("Số chìa khóa", String.valueOf(contract.getReturnKeyCount()));
-                writer.row("Phụ kiện", contract.getReturnAccessories());
-                writer.row("Phí quá hạn", money(booking.getTotalOverdueFee()));
-                writer.row("Tiền còn lại sau phí giữ chỗ", money(bookedSubtotal(booking).subtract(booking.getDepositAmount())));
-                writer.row("Tổng thanh toán khi trả xe", money(contract.getFinalRentalAmount()));
-                writer.row("Hình thức thanh toán", enumText(contract.getFinalPaymentMethod()));
-                writer.row("Trạng thái thanh toán", enumText(contract.getFinalPaymentStatus()));
-                writer.row("Xử lý tiền cọc", enumText(contract.getSecurityDepositStatus()));
-                writer.row("Hình thức hoàn cọc", enumText(contract.getSecurityDepositRefundMethod()));
-                writer.row("Thời gian xử lý cọc", format(contract.getSecurityDepositResolvedAt()));
-                writer.row("Ghi chú tiền cọc", contract.getSecurityDepositStatus() == SecurityDepositStatus.RETAINED
-                        ? "Tiền cọc được giữ lại để sửa chữa hoặc bảo dưỡng xe."
-                        : "Tiền cọc đã được hoàn lại cho khách hàng.");
-                writer.row("Số tiền còn thiếu", money(booking.getOutstandingAmount()));
-                writer.row("Khách hàng ký lúc", format(contract.getReturnCustomerSignedAt()));
-                writer.row("Nhân viên ký lúc", format(contract.getReturnStaffSignedAt()));
+                writer.row("Returned keys", String.valueOf(contract.getReturnKeyCount()));
+                writer.row("Returned accessories", contract.getReturnAccessories());
+                writer.row("Overdue amount", money(nonNull(booking.getOverdueFee())));
+                writer.row("Penalty amount", money(nonNull(booking.getPenaltyOverdueFee())));
+                writer.row("Total overdue amount", money(nonNull(booking.getTotalOverdueFee())));
+                writer.row("Final rental amount", money(contract.getFinalRentalAmount()));
+                writer.row("Final payment method", finalPaymentMethodText(finalRentalPayment, contract.getFinalPaymentMethod()));
+                writer.row("Final payment status", enumText(contract.getFinalPaymentStatus()));
+                writer.row("Security deposit result", enumText(contract.getSecurityDepositStatus()));
+                writer.row("Security deposit refund method", securityDepositRefundMethodText(contract.getSecurityDepositRefundMethod()));
+                writer.row("Security deposit resolved at", format(contract.getSecurityDepositResolvedAt()));
+                writer.row("Security deposit note", contract.getSecurityDepositStatus() == SecurityDepositStatus.RETAINED
+                        ? "The security deposit is retained for repair or maintenance."
+                        : "The security deposit has been refunded to the customer.");
+                writer.row("Outstanding amount", money(booking.getOutstandingAmount()));
+                writer.row("Customer signed at", format(contract.getReturnCustomerSignedAt()));
+                writer.row("Staff signed at", format(contract.getReturnStaffSignedAt()));
                 writer.signatures(
-                        "Chữ ký khách hàng",
-                        "Chữ ký nhân viên",
+                        "Customer signature",
+                        "Staff signature",
                         contract.getReturnCustomerSignature(),
                         contract.getReturnStaffSignature()
                 );
@@ -148,20 +183,36 @@ public class RentalContractPdfService {
 
     private void writeCondition(PageWriter writer, CarConditionResponse condition) throws IOException {
         if (condition == null) {
-            writer.row("Tình trạng xe", "-");
+            writer.row("Vehicle condition", "-");
             return;
         }
-        writer.row("Tình trạng xe", condition.getCondition().name().replace('_', ' '));
-        writer.row("Số km", condition.getOdometer() + " km");
-        writer.row("Mức nhiên liệu", condition.getFuelLevel() + "%");
-        writer.row("Ghi nhận hư hỏng", condition.isDamageFound() ? "Có" : "Không");
-        writer.row("Ghi chú", condition.getNotes());
+        writer.row("Vehicle condition", enumText(condition.getCondition()));
+        writer.row("Damage recorded", condition.isDamageFound() ? "Yes" : "No");
+        writer.row("Condition notes", condition.getNotes());
     }
 
     private String pickupMethod(Booking booking) {
         return booking.getPickupMethod() == VehiclePickupMethod.ADDRESS_DELIVERY
-                ? "Giao xe tận địa chỉ"
-                : "Nhận xe tại chi nhánh";
+                ? "Delivery to customer address"
+                : "Pickup at branch";
+    }
+
+    private String freeCancellationText(Booking booking) {
+        if (booking.getCreatedAt() != null
+                && booking.getStartTime() != null
+                && Duration.between(booking.getCreatedAt(), booking.getStartTime()).compareTo(Duration.ofHours(24)) < 0) {
+            return "Not available - booking was created less than 24 hours before pick-up";
+        }
+        return "Until " + format(booking.getFreeCancelUntil());
+    }
+
+    private String baseRentalHours(Booking booking) {
+        if (booking.getStartTime() == null || booking.getEndTime() == null) {
+            return "-";
+        }
+        long minutes = Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes();
+        long hours = Math.max(1L, (minutes + 59L) / 60L);
+        return hours + " hour" + (hours == 1L ? "" : "s");
     }
 
     private String format(java.time.LocalDateTime value) {
@@ -170,7 +221,7 @@ public class RentalContractPdfService {
 
     private String money(BigDecimal value) {
         if (value == null) return "-";
-        return NumberFormat.getIntegerInstance(new Locale("vi", "VN")).format(value) + " VND";
+        return NumberFormat.getIntegerInstance(Locale.US).format(value) + " VND";
     }
 
     private BigDecimal bookedSubtotal(Booking booking) {
@@ -184,7 +235,43 @@ public class RentalContractPdfService {
     }
 
     private String enumText(Enum<?> value) {
-        return value == null ? "-" : value.name().replace('_', ' ');
+        if (value == null) {
+            return "-";
+        }
+        if ("NEED_MAINTENANCE".equals(value.name())) {
+            return "Maintenance required";
+        }
+        String[] parts = value.name().toLowerCase(Locale.ROOT).split("_");
+        StringBuilder label = new StringBuilder();
+        for (String part : parts) {
+            if (part.isBlank()) {
+                continue;
+            }
+            if (!label.isEmpty()) {
+                label.append(' ');
+            }
+            label.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return label.isEmpty() ? value.name() : label.toString();
+    }
+
+    private String displayText(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace("NEED_MAINTENANCE", "maintenance required");
+    }
+
+    private PaymentGateway paymentGateway(Payment payment) {
+        return payment != null ? payment.getGateway() : null;
+    }
+
+    private String paymentTransactionId(Payment payment) {
+        return payment != null && payment.getGatewayTransactionId() != null ? payment.getGatewayTransactionId() : "-";
+    }
+
+    private String paymentPaidAt(Payment payment) {
+        return payment != null && payment.getPaidAt() != null ? format(payment.getPaidAt()) : "-";
     }
 
     private String paymentMethod(PaymentGateway gateway) {
@@ -192,9 +279,27 @@ public class RentalContractPdfService {
         return switch (gateway) {
             case PAYPAL -> "Online payment - PayPal";
             case VNPAY -> "Online payment - VNPay";
-            case WALLET -> "Online payment - My Wallet";
+            case WALLET -> "Refund balance";
             case CASH -> "Cash";
         };
+    }
+
+    private String finalPaymentMethodText(Payment payment, SettlementMethod settlementMethod) {
+        if (settlementMethod == SettlementMethod.CASH) {
+            return "Cash";
+        }
+        PaymentGateway gateway = paymentGateway(payment);
+        return gateway != null ? paymentMethod(gateway) : "Online payment request";
+    }
+
+    private String securityDepositRefundMethodText(SettlementMethod settlementMethod) {
+        if (settlementMethod == SettlementMethod.CASH) {
+            return "Cash";
+        }
+        if (settlementMethod == SettlementMethod.PAYMENT_REQUEST) {
+            return "Refund balance";
+        }
+        return "-";
     }
 
     private class PageWriter {
@@ -285,8 +390,8 @@ public class RentalContractPdfService {
             y = 790;
 
             text("RENTCITY", 10, LEFT, 816, 86, 131, 45);
-            text("Hợp đồng " + contractNumber, 8, 205, 816, 108, 117, 125);
-            text("Trang " + pageNumber, 8, 500, 816, 108, 117, 125);
+            text("Contract " + contractNumber, 8, 205, 816, 108, 117, 125);
+            text("Page " + pageNumber, 8, 500, 816, 108, 117, 125);
             content.setStrokingColor(224, 229, 233);
             content.moveTo(LEFT, 807);
             content.lineTo(RIGHT, 807);
@@ -295,7 +400,7 @@ public class RentalContractPdfService {
             content.moveTo(LEFT, 42);
             content.lineTo(RIGHT, 42);
             content.stroke();
-            text("RentCity - Biên bản điện tử được lưu cùng booking", 7.5f, LEFT, 28, 108, 117, 125);
+            text("RentCity - Electronic rental contract stored with the booking", 7.5f, LEFT, 28, 108, 117, 125);
         }
 
         private void ensure(float height) throws IOException {

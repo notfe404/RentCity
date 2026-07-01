@@ -3,7 +3,6 @@ package com.rentcity.Rentcity.service;
 import com.rentcity.Rentcity.dto.CapturePaymentRequest;
 import com.rentcity.Rentcity.dto.CreatePaymentRequest;
 import com.rentcity.Rentcity.dto.CreateDamagePaymentRequest;
-import com.rentcity.Rentcity.dto.CreateWalletTopUpRequest;
 import com.rentcity.Rentcity.dto.PaymentResponse;
 import com.rentcity.Rentcity.entity.*;
 import com.rentcity.Rentcity.exception.ResourceNotFoundException;
@@ -61,6 +60,7 @@ public class PaymentService {
 
         ensureBookingOwner(user, booking);
         ensureBookingCanAcceptDeposit(booking);
+        ensureExternalGateway(request.getGateway());
 
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             var existingByKey = paymentRepository.findByIdempotencyKey(request.getIdempotencyKey().trim());
@@ -103,44 +103,10 @@ public class PaymentService {
                 .build();
 
         Payment savedPayment = paymentRepository.save(payment);
-        if (request.getGateway() == PaymentGateway.WALLET) {
-            return completePayment(
-                    savedPayment,
-                    "WALLET-" + UUID.randomUUID(),
-                    "WALLET_DEPOSIT_PAID",
-                    "Booking deposit paid from My Wallet",
-                    user
-            );
-        }
         if (booking != null) {
             notificationService.notifyPaymentPending(savedPayment, booking);
         }
         return mapToResponse(savedPayment, booking);
-    }
-
-    @Transactional
-    public PaymentResponse createWalletTopUp(String email, CreateWalletTopUpRequest request) {
-        User user = findUserByEmail(email);
-        ensureExternalGateway(request.getGateway());
-        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
-            var existing = paymentRepository.findByIdempotencyKey(request.getIdempotencyKey().trim());
-            if (existing.isPresent()) {
-                ensurePaymentOwner(user, existing.get());
-                return mapToResponse(existing.get(), null);
-            }
-        }
-
-        Payment payment = Payment.builder()
-                .userId(user.getId())
-                .type(PaymentType.WALLET_TOP_UP)
-                .gateway(request.getGateway())
-                .status(PaymentStatus.PENDING)
-                .amount(request.getAmount())
-                .currency(DEFAULT_CURRENCY)
-                .gatewayReference(generateGatewayReference(request.getGateway()))
-                .idempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()))
-                .build();
-        return mapToResponse(paymentRepository.save(payment), null);
     }
 
     @Transactional
@@ -165,24 +131,7 @@ public class PaymentService {
             throw new IllegalArgumentException("This booking does not have an active payment request");
         }
 
-        java.math.BigDecimal paidFromWallet = bookingService.applyCustomerWalletBalance(bookingId, user.getId());
-        
         if (booking.getOutstandingAmount() == null || booking.getOutstandingAmount().signum() <= 0) {
-            if (paidFromWallet.signum() > 0) {
-                Payment payment = Payment.builder()
-                        .bookingId(bookingId)
-                        .userId(user.getId())
-                        .type(requestedType)
-                        .gateway(PaymentGateway.WALLET)
-                        .status(PaymentStatus.PAID)
-                        .amount(paidFromWallet)
-                        .currency(DEFAULT_CURRENCY)
-                        .gatewayReference("wallet-" + java.util.UUID.randomUUID().toString())
-                        .idempotencyKey(normalizeIdempotencyKey(request.getIdempotencyKey()))
-                        .paidAt(java.time.LocalDateTime.now())
-                        .build();
-                return mapToResponse(paymentRepository.save(payment), booking);
-            }
             throw new IllegalArgumentException("This booking has already been fully paid");
         }
 
@@ -200,7 +149,7 @@ public class PaymentService {
         for (Payment p : pendingPayments) {
             if (p.getType() == requestedType) {
                 p.setStatus(PaymentStatus.EXPIRED);
-                p.setFailureReason("User initiated new payment request with updated wallet balance");
+                p.setFailureReason("User initiated a new payment request");
                 paymentRepository.save(p);
             }
         }
@@ -451,8 +400,8 @@ public class PaymentService {
     }
 
     private void ensureExternalGateway(PaymentGateway gateway) {
-        if (gateway == PaymentGateway.WALLET) {
-            throw new IllegalArgumentException("My Wallet is only available for booking deposit payments");
+        if (gateway != PaymentGateway.PAYPAL && gateway != PaymentGateway.VNPAY) {
+            throw new IllegalArgumentException("Customer online payments must use PayPal or VNPay");
         }
     }
 

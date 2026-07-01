@@ -165,6 +165,7 @@ export interface ApiBookingResponse {
   finalRentalAmount: number;
   finalPaymentStatus: ApiFinalPaymentStatus;
   finalPaymentMethod?: SettlementMethod | null;
+  finalPaymentGateway?: 'PAYPAL' | 'VNPAY' | 'WALLET' | 'CASH' | null;
   finalPaidAt?: string | null;
   totalAmount: number;
   freeCancelUntil: string;

@@ -1,6 +1,5 @@
 package com.rentcity.Rentcity.controller;
 
-import com.rentcity.Rentcity.dto.CreateWalletTopUpRequest;
 import com.rentcity.Rentcity.dto.CreateDamagePaymentRequest;
 import com.rentcity.Rentcity.dto.PaymentResponse;
 import com.rentcity.Rentcity.dto.WalletResponse;
@@ -24,15 +23,6 @@ public class WalletController {
     @GetMapping("/me")
     public ResponseEntity<WalletResponse> getMyWallet(Authentication authentication) {
         return ResponseEntity.ok(walletService.getMyWallet(authentication.getName()));
-    }
-
-    @PostMapping("/top-ups")
-    public ResponseEntity<PaymentResponse> createTopUp(
-            Authentication authentication,
-            @Valid @RequestBody CreateWalletTopUpRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(paymentService.createWalletTopUp(authentication.getName(), request));
     }
 
     @PostMapping("/bookings/{bookingId}/payments")

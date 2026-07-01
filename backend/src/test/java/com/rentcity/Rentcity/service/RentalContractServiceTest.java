@@ -203,8 +203,17 @@ class RentalContractServiceTest {
         assertEquals(BigDecimal.valueOf(700_000), booking.getFinalRentalAmount());
         verify(walletService).refundBookingDeposit(
                 eq(booking.getUserId()), eq(booking.getId()), eq(booking.getSecurityDepositAmount()),
-                anyString(), anyString()
+                eq("booking:" + booking.getId() + ":security-deposit-refund"),
+                eq("Vehicle security deposit added to refundable balance")
         );
+        ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
+        verify(paymentRepository, atLeastOnce()).save(paymentCaptor.capture());
+        Payment refundPayment = paymentCaptor.getAllValues().stream()
+                .filter(payment -> payment.getType() == PaymentType.SECURITY_DEPOSIT_REFUND)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(PaymentGateway.WALLET, refundPayment.getGateway());
+        assertEquals(PaymentStatus.REFUNDED, refundPayment.getStatus());
         verify(bookingStateMachineService).transition(
                 eq(booking), eq(BookingStatus.COMPLETED), eq(staff.getId()), eq(Role.STAFF), eq("SIGNED_RETURN"), any()
         );
@@ -263,7 +272,7 @@ class RentalContractServiceTest {
         assertEquals(BigDecimal.ZERO, booking.getDamageFee());
         assertEquals(CarStatus.MAINTENANCE, car.getStatus());
         assertEquals(FinalPaymentStatus.PAYMENT_REQUESTED, booking.getFinalPaymentStatus());
-        verify(walletService).retainSecurityDeposit(eq(booking.getUserId()), eq(booking.getId()), anyString(), eq(staff.getId()));
+        verify(walletService, never()).retainSecurityDeposit(anyLong(), anyLong(), anyString(), anyLong());
         verifyNoInteractions(damageAssessmentService);
     }
 

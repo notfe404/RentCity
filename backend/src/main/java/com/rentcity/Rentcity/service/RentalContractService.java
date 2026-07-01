@@ -30,9 +30,9 @@ public class RentalContractService {
 
             The 30% reservation fee secures the vehicle and is applied to the rental price. The remaining rental amount, plus any overdue charge, is settled when the vehicle is returned.
 
-            The vehicle security deposit is refundable when the vehicle is returned in GOOD condition without a problem. It is retained for repair or maintenance when the return condition is DAMAGE or NEED_MAINTENANCE. The collection and resolution methods are recorded in this contract.
+            The vehicle security deposit is refundable when the vehicle is returned in GOOD condition without a problem. It is retained for repair or maintenance when the return condition is DAMAGE or maintenance required. The collection and resolution methods are recorded in this contract.
 
-            By signing, the customer and staff confirm that the booking details, vehicle condition, photographs, odometer, fuel level, included items, and charges displayed in this record are correct.
+            By signing, the customer and staff confirm that the booking details, vehicle condition, photographs, included items, and charges displayed in this record are correct.
             """;
 
     private static final DateTimeFormatter NUMBER_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -102,10 +102,11 @@ public class RentalContractService {
             throw new IllegalArgumentException("Vehicle is not available for handover");
         }
 
+        CarConditionResponse currentCondition = carConditionService.getCurrent(car.getId());
         CarConditionRequest conditionRequest = CarConditionRequest.builder()
                 .condition(request.getCondition())
-                .odometer(request.getOdometer())
-                .fuelLevel(request.getFuelLevel())
+                .odometer(resolveOdometer(request.getOdometer(), currentCondition))
+                .fuelLevel(resolveFuelLevel(request.getFuelLevel(), currentCondition))
                 .damageFound(request.isDamageFound())
                 .notes(request.getNotes())
                 .build();
@@ -181,13 +182,15 @@ public class RentalContractService {
         if (handover == null) {
             throw new IllegalStateException("Handover condition is missing");
         }
-        if (request.getOdometer() < handover.getOdometer()) {
+        Long handoverOdometer = resolveOdometer(null, handover);
+        Long returnOdometer = resolveOdometer(request.getOdometer(), handover);
+        if (returnOdometer < handoverOdometer) {
             throw new IllegalArgumentException("Return odometer cannot be lower than handover odometer");
         }
 
         Car car = carRepository.findByIdForUpdate(booking.getCarId())
                 .orElseThrow(() -> new ResourceNotFoundException("car", booking.getCarId()));
-        CarConditionRequest conditionRequest = toConditionRequest(request);
+        CarConditionRequest conditionRequest = toConditionRequest(request, handover);
         CarConditionReport returnReport = carConditionService.createReturn(
                 car.getId(), bookingId, conditionRequest, actor.getId(), actor.getRole(), photos
         );
@@ -294,15 +297,15 @@ public class RentalContractService {
                 : SecurityDepositStatus.RETAINED);
 
         if (refundAmount.signum() > 0) {
-            PaymentGateway gateway;
+            PaymentGateway gateway = securityDepositRefundGateway(booking, request.getRefundMethod());
             if (request.getRefundMethod() == SettlementMethod.CASH) {
-                gateway = PaymentGateway.CASH;
-                walletService.recordRetainedSecurityDepositCashRefund(
-                        booking.getUserId(), bookingId, refundAmount,
-                        "booking:" + bookingId + ":retained-deposit-cash-refund", actor.getId()
-                );
+                if (isWalletSecurityDeposit(booking)) {
+                    walletService.recordRetainedSecurityDepositCashRefund(
+                            booking.getUserId(), bookingId, refundAmount,
+                            "booking:" + bookingId + ":retained-deposit-cash-refund", actor.getId()
+                    );
+                }
             } else {
-                gateway = PaymentGateway.WALLET;
                 walletService.refundRetainedSecurityDepositToWallet(
                         booking.getUserId(), bookingId, refundAmount,
                         "booking:" + bookingId + ":retained-deposit-wallet-refund", actor.getId()
@@ -341,7 +344,7 @@ public class RentalContractService {
                 .bookingId(contract.getBookingId())
                 .contractNumber(contract.getContractNumber())
                 .policyVersion(contract.getPolicyVersion())
-                .policyText(contract.getPolicyText())
+                .policyText(displayText(contract.getPolicyText()))
                 .status(contract.getStatus())
                 .handoverAt(contract.getHandoverAt())
                 .handoverKeyCount(contract.getHandoverKeyCount())
@@ -494,32 +497,48 @@ public class RentalContractService {
             booking.setSecurityDepositStatus(SecurityDepositStatus.RETAINED);
             booking.setSecurityDepositRefundMethod(null);
             booking.setSecurityDepositResolvedAt(now);
-            walletService.retainSecurityDeposit(
-                    booking.getUserId(), booking.getId(),
-                    "booking:" + booking.getId() + ":security-deposit-retained", actorId
-            );
+            if (isWalletSecurityDeposit(booking)) {
+                walletService.retainSecurityDeposit(
+                        booking.getUserId(), booking.getId(),
+                        "booking:" + booking.getId() + ":security-deposit-retained", actorId
+                );
+            }
             return;
         }
 
         booking.setSecurityDepositStatus(SecurityDepositStatus.REFUNDED);
         booking.setSecurityDepositRefundMethod(request.getSecurityDepositRefundMethod());
         booking.setSecurityDepositResolvedAt(now);
+        booking.setSecurityDepositRefundedAmount(booking.getSecurityDepositAmount());
         if (request.getSecurityDepositRefundMethod() == SettlementMethod.CASH) {
-            walletService.refundSecurityDepositByCash(
-                    booking.getUserId(), booking.getId(),
-                    "booking:" + booking.getId() + ":security-deposit-cash-refund", actorId
-            );
+            if (isWalletSecurityDeposit(booking)) {
+                walletService.refundSecurityDepositByCash(
+                        booking.getUserId(), booking.getId(),
+                        "booking:" + booking.getId() + ":security-deposit-cash-refund", actorId
+                );
+            }
             recordPayment(booking, PaymentType.SECURITY_DEPOSIT_REFUND, PaymentGateway.CASH,
                     PaymentStatus.REFUNDED, booking.getSecurityDepositAmount(), actorId);
         } else {
             walletService.refundBookingDeposit(
                     booking.getUserId(), booking.getId(), booking.getSecurityDepositAmount(),
                     "booking:" + booking.getId() + ":security-deposit-refund",
-                    "Vehicle security deposit refunded electronically"
+                    "Vehicle security deposit added to refundable balance"
             );
-            recordPayment(booking, PaymentType.SECURITY_DEPOSIT_REFUND, PaymentGateway.WALLET,
+            recordPayment(booking, PaymentType.SECURITY_DEPOSIT_REFUND, securityDepositRefundGateway(booking, request.getSecurityDepositRefundMethod()),
                     PaymentStatus.REFUNDED, booking.getSecurityDepositAmount(), actorId);
         }
+    }
+
+    private boolean isWalletSecurityDeposit(Booking booking) {
+        return booking.getSecurityDepositGateway() == PaymentGateway.WALLET;
+    }
+
+    private PaymentGateway securityDepositRefundGateway(Booking booking, SettlementMethod refundMethod) {
+        if (refundMethod == SettlementMethod.CASH) {
+            return PaymentGateway.CASH;
+        }
+        return PaymentGateway.WALLET;
     }
 
     private Payment recordPayment(
@@ -547,12 +566,12 @@ public class RentalContractService {
                 .build());
     }
 
-    private CarConditionRequest toConditionRequest(ReturnContractRequest request) {
+    private CarConditionRequest toConditionRequest(ReturnContractRequest request, CarConditionResponse handover) {
         return CarConditionRequest.builder()
                 .condition(request.getCondition())
                 .actualReturnAt(request.getActualReturnAt())
-                .odometer(request.getOdometer())
-                .fuelLevel(request.getFuelLevel())
+                .odometer(resolveOdometer(request.getOdometer(), handover))
+                .fuelLevel(resolveFuelLevel(request.getFuelLevel(), handover))
                 .damageFound(request.isDamageFound())
                 .damageSeverity(request.getDamageSeverity())
                 .estimatedDamageFee(request.getEstimatedDamageFee())
@@ -561,8 +580,35 @@ public class RentalContractService {
                 .build();
     }
 
+    private Long resolveOdometer(Long requested, CarConditionResponse fallback) {
+        if (requested != null) {
+            return requested;
+        }
+        if (fallback != null && fallback.getOdometer() != null) {
+            return fallback.getOdometer();
+        }
+        return 0L;
+    }
+
+    private Integer resolveFuelLevel(Integer requested, CarConditionResponse fallback) {
+        if (requested != null) {
+            return requested;
+        }
+        if (fallback != null && fallback.getFuelLevel() != null) {
+            return fallback.getFuelLevel();
+        }
+        return 100;
+    }
+
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String displayText(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace("NEED_MAINTENANCE", "maintenance required");
     }
 
     private String generateContractNumber() {
