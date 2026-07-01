@@ -77,7 +77,7 @@ export default function ResolveRetainedDepositModal({ booking, isSaving, onClose
                   active={refundMethod === 'PAYMENT_REQUEST'}
                   icon={Send}
                   label="Electronic refund"
-                  hint="Credit My Wallet"
+                  hint="Record non-cash refund"
                   onClick={() => setRefundMethod('PAYMENT_REQUEST')}
                 />
                 <MethodButton

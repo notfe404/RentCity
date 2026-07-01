@@ -118,6 +118,13 @@ export default function BookingDetailPage() {
   const durationLabel = getBookingDurationLabel(booking);
   const vehicleName = getBookingVehicleName(booking);
   const vehicleImage = getBookingVehicleImage(booking);
+  const freeCancellationAvailable = isFreeCancellationAvailable(booking);
+  const freeCancellationWindowPassed = freeCancellationAvailable && new Date() > new Date(booking.freeCancelUntil);
+  const vehicleRentalAmount = booking.baseAmount ?? 0;
+  const bookingSubtotalBeforeOverdue = vehicleRentalAmount
+    + (booking.extraServicesAmount ?? 0)
+    + (booking.deliveryFeeAmount ?? 0);
+  const totalVehicleRentalFee = bookingSubtotalBeforeOverdue + (booking.totalOverdueFee ?? 0);
 
   const handleCancel = async () => {
     if (!id || isCancelling) {
@@ -293,12 +300,34 @@ export default function BookingDetailPage() {
                 </section>
 
                 <section>
-                  
-                    <div className="flex items-center gap-3 bg-[#f4f8f7] p-4 rounded-xl">
-                      <CheckCircle2 size={18} className="text-[#78ad44]" />
-                      <span className="text-sm font-bold text-gray-900">Free cancellation until: {formatDateTime(booking.freeCancelUntil)}</span>
+                  <div className={`flex items-start gap-3 p-4 rounded-xl ${
+                    freeCancellationAvailable && !freeCancellationWindowPassed
+                      ? 'bg-[#f4f8f7]'
+                      : 'bg-orange-50 border border-orange-100'
+                  }`}>
+                    {freeCancellationAvailable && !freeCancellationWindowPassed ? (
+                      <CheckCircle2 size={18} className="mt-0.5 text-[#78ad44]" />
+                    ) : (
+                      <AlertTriangle size={18} className="mt-0.5 text-orange-600" />
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        {freeCancellationAvailable
+                          ? `Free cancellation until: ${formatDateTime(booking.freeCancelUntil)}`
+                          : 'Free cancellation is not available for this booking'}
+                      </p>
+                      {!freeCancellationAvailable && (
+                        <p className="mt-1 text-xs font-medium text-orange-700">
+                          This booking was created less than 24 hours before pick-up.
+                        </p>
+                      )}
+                      {freeCancellationWindowPassed && (
+                        <p className="mt-1 text-xs font-medium text-orange-700">
+                          The free cancellation window has already ended.
+                        </p>
+                      )}
                     </div>
-                  
+                  </div>
                 </section>
 
                 {booking.cancelReason && (
@@ -322,7 +351,7 @@ export default function BookingDetailPage() {
                     <div className="space-y-4 rounded-2xl bg-[#f4f8f7] p-5">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-500">Contract status</span>
-                        <span className="rounded-lg bg-[#e9f2eb] px-3 py-1 text-xs font-black text-[#56832d]">{contract.status.replaceAll('_', ' ')}</span>
+                        <span className="rounded-lg bg-[#e9f2eb] px-3 py-1 text-xs font-black text-[#56832d]">{enumLabel(contract.status)}</span>
                       </div>
                       <div className="grid gap-3 text-sm md:grid-cols-2">
                         <div className="rounded-xl bg-white p-4">
@@ -363,12 +392,8 @@ export default function BookingDetailPage() {
                               ? 'bg-orange-100 text-orange-700'
                               : 'bg-red-100 text-red-700'
                         }`}>
-                          {booking.initialCondition.condition.replaceAll('_', ' ')}
+                          {enumLabel(booking.initialCondition.condition)}
                         </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div><p className="text-gray-400 font-bold">Odometer</p><p className="font-black">{booking.initialCondition.odometer.toLocaleString()} km</p></div>
-                        <div><p className="text-gray-400 font-bold">Fuel</p><p className="font-black">{booking.initialCondition.fuelLevel}%</p></div>
                       </div>
                       {booking.initialCondition.notes && (
                         <p className="text-sm text-gray-600 font-medium">{booking.initialCondition.notes}</p>
@@ -383,10 +408,6 @@ export default function BookingDetailPage() {
                       Return condition
                     </h3>
                     <div className="bg-[#f4f8f7] p-6 rounded-2xl space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div><p className="text-gray-400 font-bold">Odometer</p><p className="font-black">{booking.returnCondition.odometer.toLocaleString()} km</p></div>
-                        <div><p className="text-gray-400 font-bold">Fuel</p><p className="font-black">{booking.returnCondition.fuelLevel}%</p></div>
-                      </div>
                       <p className={`inline-flex px-3 py-1 rounded-lg text-xs font-black ${
                         booking.returnCondition.condition === 'GOOD'
                           ? 'bg-green-100 text-green-700'
@@ -394,7 +415,7 @@ export default function BookingDetailPage() {
                             ? 'bg-orange-100 text-orange-700'
                             : 'bg-red-100 text-red-700'
                       }`}>
-                        {booking.returnCondition.condition.replaceAll('_', ' ')}
+                        {enumLabel(booking.returnCondition.condition)}
                       </p>
                       <p className={`text-sm font-black ${booking.returnCondition.damageFound ? 'text-red-600' : 'text-[#56832d]'}`}>
                         {booking.returnCondition.damageFound ? 'Damage was reported' : 'No damage reported'}
@@ -421,7 +442,7 @@ export default function BookingDetailPage() {
                     </h4>
                     <div className="space-y-3 text-sm font-medium text-gray-600 mb-6">
                       <div className="flex justify-between">
-                        <span>Vehicle Rental ({durationLabel})</span>
+                        <span>Base rental ({durationLabel})</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.baseAmount)}</span>
                       </div>
                       {booking.extraServicesAmount > 0 && (
@@ -436,12 +457,16 @@ export default function BookingDetailPage() {
                           <span className="font-bold text-gray-900">{formatVND(booking.deliveryFeeAmount)}</span>
                         </div>
                       )}
+                      <div className="flex justify-between border-t border-gray-200 pt-3 font-black text-gray-900">
+                        <span>Booking subtotal before overdue and penalty</span>
+                        <span>{formatVND(bookingSubtotalBeforeOverdue)}</span>
+                      </div>
                       <div className="flex justify-between">
-                        <span>Reservation Fee (30%)</span>
+                        <span>Reservation Fee (included in vehicle rental fee)</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.reservationFeeAmount)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Vehicle Deposit ({booking.securityDepositStatus.replaceAll('_', ' ')})</span>
+                        <span>Vehicle Deposit ({enumLabel(booking.securityDepositStatus)})</span>
                         <span className="font-bold text-gray-900">{formatVND(booking.securityDepositAmount)}</span>
                       </div>
                       {booking.securityDepositRepairCost != null && (
@@ -454,12 +479,6 @@ export default function BookingDetailPage() {
                             <span>Security deposit refunded</span>
                             <span className="font-black">{formatVND(booking.securityDepositRefundedAmount)}</span>
                           </div>
-                        </div>
-                      )}
-                      {booking.finalPaymentStatus !== 'NOT_DUE' && (
-                        <div className="flex justify-between text-[#56832d] font-black">
-                          <span>Payment on Return ({booking.finalPaymentStatus.replaceAll('_', ' ')})</span>
-                          <span>{formatVND(booking.finalRentalAmount)}</span>
                         </div>
                       )}
                       {booking.overdueFee > 0 && (
@@ -501,10 +520,10 @@ export default function BookingDetailPage() {
                       )}
                     </div>
                     <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-                      <span className="font-bold text-gray-500 text-sm">
-                        {booking.depositStatus === 'REFUNDED' ? 'Reservation fee refunded' : 'Total'}
+                      <span className="font-bold text-gray-500 text-sm">Total vehicle rental fee</span>
+                      <span className="font-black text-2xl text-[#78ad44]">
+                        {formatVND(totalVehicleRentalFee)}
                       </span>
-                      <span className="font-black text-2xl text-[#78ad44]">{formatVND(booking.totalAmount)}</span>
                     </div>
                   </div>
                 </div>
@@ -530,7 +549,11 @@ export default function BookingDetailPage() {
                     ) : (
                       <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5 space-y-4">
                         <p className="text-sm font-bold text-red-700">Are you sure you want to cancel this booking?</p>
-                        <p className="text-xs text-red-500 font-medium">Cancellation fees may apply according to the cancellation policy.</p>
+                        <p className="text-xs text-red-500 font-medium">
+                          {freeCancellationAvailable && !freeCancellationWindowPassed
+                            ? 'Your reservation fee should be refunded if you cancel before the free cancellation deadline.'
+                            : 'Your reservation fee may be forfeited according to the cancellation policy.'}
+                        </p>
                         <div className="flex gap-3">
                           <button
                             onClick={handleCancel}
@@ -586,4 +609,23 @@ export default function BookingDetailPage() {
       <Footer />
     </div>
   );
+}
+
+function enumLabel(value?: string | null) {
+  if (!value) return '-';
+  if (value === 'NEED_MAINTENANCE') return 'Maintenance required';
+  return value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function isFreeCancellationAvailable(booking: ApiBookingResponse) {
+  const createdAt = new Date(booking.createdAt).getTime();
+  const startTime = new Date(booking.startTime).getTime();
+  if (Number.isNaN(createdAt) || Number.isNaN(startTime)) {
+    return false;
+  }
+  return startTime - createdAt >= 24 * 60 * 60 * 1000;
 }

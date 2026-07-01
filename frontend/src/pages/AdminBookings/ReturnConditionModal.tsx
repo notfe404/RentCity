@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, Loader2, Wrench, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, FileSignature, Loader2, Wrench, X } from 'lucide-react';
 import type { ApiBookingResponse } from '@/types';
 import type { ReturnConditionPayload } from '@/services/bookingApi';
 import { formatDateTime, formatVND } from '@/utils/formatters';
@@ -14,13 +14,12 @@ interface Props {
 }
 
 export default function ReturnConditionModal({ booking, isSaving, onClose, onSubmit }: Props) {
+  const [step, setStep] = useState<'RECORD' | 'SIGN'>('RECORD');
   const [condition, setCondition] = useState<ReturnConditionPayload['condition']>('GOOD');
   const [initialReturnAt] = useState(() => new Date());
   const [actualReturnDate, setActualReturnDate] = useState(() => toDateInputValue(initialReturnAt));
   const [actualReturnHour, setActualReturnHour] = useState(() => twoDigits(initialReturnAt.getHours()));
   const [actualReturnMinute, setActualReturnMinute] = useState(() => twoDigits(initialReturnAt.getMinutes()));
-  const [odometer, setOdometer] = useState(booking.initialCondition?.odometer ?? 0);
-  const [fuelLevel, setFuelLevel] = useState(booking.initialCondition?.fuelLevel ?? 100);
   const [damageFound, setDamageFound] = useState(false);
   const [damageSeverity, setDamageSeverity] = useState<'MINOR' | 'MODERATE' | 'MAJOR'>('MINOR');
   const [damageDescription, setDamageDescription] = useState('');
@@ -74,8 +73,6 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
       : Math.ceil(estimatedFee * 0.15);
     return {
       minutes,
-      earlyHandoverMinutes: Math.ceil(earlyHandoverMs / 60_000),
-      lateReturnMinutes: Math.ceil(lateReturnMs / 60_000),
       billableHours,
       estimatedFee,
       estimatedPenaltyFee,
@@ -91,14 +88,19 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (returnTimeError || !selectedReturnTime || !customerSignature || !staffSignature || !accepted) {
+    if (step === 'RECORD') {
+      if (returnTimeError || !selectedReturnTime || files.length === 0) {
+        return;
+      }
+      setStep('SIGN');
+      return;
+    }
+    if (!selectedReturnTime || !customerSignature || !staffSignature || !accepted) {
       return;
     }
     await onSubmit({
       condition,
       actualReturnAt: toDateTimeLocalValue(selectedReturnTime),
-      odometer,
-      fuelLevel,
       damageFound: hasDamageAssessment,
       damageSeverity: hasDamageAssessment ? damageSeverity : undefined,
       damageDescription: hasDamageAssessment ? damageDescription : undefined,
@@ -133,6 +135,8 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto">
+          <StepIndicator current={step === 'RECORD' ? 1 : 2} />
+          <fieldset className={step === 'SIGN' ? 'hidden' : 'space-y-5'} disabled={isSaving}>
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-2">Overall condition *</label>
             <div className="grid grid-cols-3 gap-2">
@@ -218,16 +222,6 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             </div>
             {overdue.minutes > 0 && (
               <div className="mt-3 pt-3 border-t border-orange-200">
-                <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-orange-800">
-                  <div className="rounded-lg bg-white/70 p-2.5">
-                    <p className="font-bold">Early handover</p>
-                    <p className="mt-1 font-black">{formatMinutes(overdue.earlyHandoverMinutes)}</p>
-                  </div>
-                  <div className="rounded-lg bg-white/70 p-2.5">
-                    <p className="font-bold">Late return</p>
-                    <p className="mt-1 font-black">{formatMinutes(overdue.lateReturnMinutes)}</p>
-                  </div>
-                </div>
                 {overdue.estimatedFee == null ? (
                   <p className="text-xs font-bold text-red-600">
                     Daily vehicle rate unavailable
@@ -254,32 +248,6 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
                 )}
               </div>
             )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Odometer (km) *</label>
-              <input
-                type="number"
-                min={booking.initialCondition?.odometer ?? 0}
-                required
-                value={odometer}
-                onChange={(event) => setOdometer(Number(event.target.value))}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Fuel level (%) *</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                required
-                value={fuelLevel}
-                onChange={(event) => setFuelLevel(Number(event.target.value))}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
-              />
-            </div>
           </div>
 
           <label className="flex items-center gap-3 text-sm font-bold text-gray-700">
@@ -421,6 +389,40 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
             <p>The final rental amount equals the booking price minus the reservation fee, plus any overdue charge.</p>
           </div>
 
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving || Boolean(returnTimeError) || files.length === 0}
+              className="flex-1 py-3 bg-[#78ad44] text-white font-bold rounded-xl disabled:bg-gray-300 flex items-center justify-center gap-2"
+            >
+              <FileSignature size={16} />
+              Review return contract
+            </button>
+          </div>
+          </fieldset>
+
+          {step === 'SIGN' && (
+            <>
+              <ReturnContractPaper
+                booking={booking}
+                condition={condition}
+                actualReturnAt={selectedReturnTime ? toDateTimeLocalValue(selectedReturnTime) : ''}
+                hasDamageAssessment={hasDamageAssessment}
+                damageSeverity={damageSeverity}
+                damageDescription={damageDescription}
+                notes={notes}
+                keyCount={keyCount}
+                accessories={accessories}
+                files={files}
+                finalPaymentMethod={finalPaymentMethod}
+                securityDepositRefundMethod={condition === 'GOOD' ? securityDepositRefundMethod : undefined}
+                rentalBalanceAfterReservation={rentalBalanceAfterReservation}
+                overdueTotal={overdue.estimatedTotalFee ?? 0}
+              />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 rounded-xl bg-[#f8f9fa] p-4">
             <SignaturePad label="Customer return signature" disabled={isSaving} onChange={setCustomerSignature} />
             <SignaturePad label="Staff return signature" disabled={isSaving} onChange={setStaffSignature} />
@@ -432,19 +434,151 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
           </label>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">
-              Cancel
+            <button type="button" onClick={() => setStep('RECORD')} disabled={isSaving} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl flex items-center justify-center gap-2">
+              <ArrowLeft size={16} /> Back to record
             </button>
             <button
               type="submit"
-              disabled={isSaving || Boolean(returnTimeError) || files.length === 0 || !customerSignature || !staffSignature || !accepted}
+              disabled={isSaving || !customerSignature || !staffSignature || !accepted}
               className="flex-1 py-3 bg-[#78ad44] text-white font-bold rounded-xl disabled:bg-gray-300 flex items-center justify-center gap-2"
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
               Complete return
             </button>
           </div>
+            </>
+          )}
         </form>
+      </div>
+    </div>
+  );
+}
+
+function StepIndicator({ current }: { current: 1 | 2 }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-2 text-xs font-black">
+      <div className={`rounded-lg px-3 py-2 text-center ${current === 1 ? 'bg-[#78ad44] text-white' : 'text-gray-500'}`}>1. Record details</div>
+      <div className={`rounded-lg px-3 py-2 text-center ${current === 2 ? 'bg-[#78ad44] text-white' : 'text-gray-500'}`}>2. Review and sign</div>
+    </div>
+  );
+}
+
+function ReturnContractPaper({
+  booking,
+  condition,
+  actualReturnAt,
+  hasDamageAssessment,
+  damageSeverity,
+  damageDescription,
+  notes,
+  keyCount,
+  accessories,
+  files,
+  finalPaymentMethod,
+  securityDepositRefundMethod,
+  rentalBalanceAfterReservation,
+  overdueTotal,
+}: {
+  booking: ApiBookingResponse;
+  condition: ReturnConditionPayload['condition'];
+  actualReturnAt: string;
+  hasDamageAssessment: boolean;
+  damageSeverity: 'MINOR' | 'MODERATE' | 'MAJOR';
+  damageDescription: string;
+  notes: string;
+  keyCount: number;
+  accessories: string;
+  files: File[];
+  finalPaymentMethod: 'PAYMENT_REQUEST' | 'CASH';
+  securityDepositRefundMethod?: 'PAYMENT_REQUEST' | 'CASH';
+  rentalBalanceAfterReservation: number;
+  overdueTotal: number;
+}) {
+  const totalDue = rentalBalanceAfterReservation + overdueTotal;
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="border-b border-gray-200 pb-4 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">RentCity Vehicle Rental</p>
+        <h3 className="mt-2 text-xl font-black text-gray-900">Vehicle Return Contract</h3>
+        <p className="mt-1 text-xs font-bold text-gray-500">{booking.bookingCode}</p>
+      </div>
+
+      <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+        <PaperDetail label="Customer" value={booking.customerName ?? '-'} />
+        <PaperDetail label="Vehicle" value={`${booking.vehicleName ?? '-'} (${booking.vehicleLicensePlate ?? '-'})`} />
+        <PaperDetail label="Scheduled return" value={formatDateTime(booking.endTime)} />
+        <PaperDetail label="Actual return" value={formatDateTime(actualReturnAt)} />
+        <PaperDetail label="Condition" value={conditionLabel(condition)} />
+        <PaperDetail label="Returned keys" value={`${keyCount}`} />
+        <PaperDetail label="Returned accessories" value={accessories || '-'} />
+        <PaperDetail label="Final rental payment" value={finalPaymentMethod === 'CASH' ? 'Cash' : 'Payment request'} />
+        <PaperDetail label="Booking balance" value={formatVND(rentalBalanceAfterReservation)} />
+        <PaperDetail label="Overdue charge" value={formatVND(overdueTotal)} />
+        <PaperDetail label="Total due now" value={formatVND(totalDue)} />
+        <PaperDetail
+          label="Security deposit"
+          value={condition === 'GOOD'
+            ? `${formatVND(booking.securityDepositAmount)} refund by ${securityDepositRefundMethod === 'CASH' ? 'cash' : 'refund balance'}`
+            : `${formatVND(booking.securityDepositAmount)} retained for repair or maintenance`}
+        />
+      </div>
+
+      {hasDamageAssessment && (
+        <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-800">
+          <p className="text-xs font-black uppercase tracking-[0.12em]">Damage or maintenance record</p>
+          <p className="mt-2 text-sm font-bold">{damageSeverity}</p>
+          <p className="mt-1 whitespace-pre-line text-sm font-medium">{damageDescription || 'Damage details recorded by staff.'}</p>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-gray-400">Inspection notes</p>
+        <p className="mt-2 whitespace-pre-line text-sm font-medium text-gray-700">{notes || 'No extra notes.'}</p>
+      </div>
+
+      <PhotoPreviewGrid files={files} title="Return photos" />
+
+      <div className="mt-4 rounded-xl border border-gray-200 bg-[#f8f9fa] p-4 text-xs font-medium leading-5 text-gray-600">
+        <p className="font-black text-gray-900">Return acknowledgement</p>
+        <p className="mt-2">The parties confirm the return condition, photos, final rental payment method, and security-deposit resolution shown in this contract.</p>
+      </div>
+    </div>
+  );
+}
+
+function PaperDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-gray-100 p-3">
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-400">{label}</p>
+      <p className="mt-1 font-bold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function conditionLabel(value: ReturnConditionPayload['condition']) {
+  if (value === 'NEED_MAINTENANCE') return 'Maintenance required';
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
+function PhotoPreviewGrid({ files, title }: { files: File[]; title: string }) {
+  const [previews, setPreviews] = useState<Array<{ name: string; url: string }>>([]);
+
+  useEffect(() => {
+    const nextPreviews = files.map((file) => ({ name: file.name, url: URL.createObjectURL(file) }));
+    setPreviews(nextPreviews);
+    return () => nextPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [files]);
+
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-black uppercase tracking-[0.12em] text-gray-400">{title}</p>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {previews.map((preview) => (
+          <figure key={preview.url} className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+            <img src={preview.url} alt={preview.name} className="h-28 w-full object-cover" />
+            <figcaption className="truncate px-2 py-1 text-[10px] font-bold text-gray-500">{preview.name}</figcaption>
+          </figure>
+        ))}
       </div>
     </div>
   );
@@ -492,15 +626,6 @@ function combineDateAndTime(dateValue: string, hour: string, minute: string) {
 
 function twoDigits(value: number) {
   return String(value).padStart(2, '0');
-}
-
-function formatMinutes(totalMinutes: number) {
-  if (totalMinutes <= 0) return 'None';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes} minute(s)`;
-  if (minutes === 0) return `${hours} hour(s)`;
-  return `${hours} hour(s) ${minutes} minute(s)`;
 }
 
 function buildSelectableDates(rentalStart: Date) {

@@ -5,13 +5,9 @@ import type {
   ApiWalletResponse,
   CreateDamagePaymentPayload,
   CreateWithdrawalPayload,
-  CreateWalletTopUpPayload,
 } from '@/types';
 
 export const getMyWallet = () => api.get<ApiWalletResponse>('/wallet/me');
-
-export const createWalletTopUp = (payload: CreateWalletTopUpPayload) =>
-  api.post<ApiPaymentResponse>('/wallet/top-ups', payload);
 
 export const createBookingPayment = (
   bookingId: number | string,

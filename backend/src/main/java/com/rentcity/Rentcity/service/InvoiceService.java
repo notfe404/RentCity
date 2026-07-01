@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -48,22 +49,33 @@ public class InvoiceService {
 
         User customer = userRepository.findById(booking.getUserId()).orElse(null);
         Car car = carRepository.findById(booking.getCarId()).orElse(null);
-        Payment paidPayment = paymentRepository
-                .findFirstByBookingIdAndTypeAndStatusOrderByCreatedAtDesc(
+        Payment reservationPayment = paymentRepository
+                .findFirstByBookingIdAndTypeOrderByCreatedAtDesc(
                         bookingId,
-                        PaymentType.DEPOSIT,
-                        PaymentStatus.PAID
+                        PaymentType.DEPOSIT
+                )
+                .orElse(null);
+        Payment finalRentalPayment = paymentRepository
+                .findFirstByBookingIdAndTypeOrderByCreatedAtDesc(
+                        bookingId,
+                        PaymentType.FINAL_RENTAL_PAYMENT
                 )
                 .orElse(null);
 
         try {
-            return buildInvoicePdf(booking, customer, car, paidPayment);
+            return buildInvoicePdf(booking, customer, car, reservationPayment, finalRentalPayment);
         } catch (IOException ex) {
             throw new IllegalStateException("Cannot generate invoice PDF", ex);
         }
     }
 
-    private byte[] buildInvoicePdf(Booking booking, User customer, Car car, Payment paidPayment) throws IOException {
+    private byte[] buildInvoicePdf(
+            Booking booking,
+            User customer,
+            Car car,
+            Payment reservationPayment,
+            Payment finalRentalPayment
+    ) throws IOException {
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
@@ -77,7 +89,7 @@ public class InvoiceService {
                 y = writeSection(content, "Booking", y - 22);
                 y = writeRow(content, "Booking code", booking.getBookingCode(), y);
                 y = writeRow(content, "Booking status", booking.getStatus().name(), y);
-                y = writeRow(content, "Deposit status", booking.getDepositStatus().name(), y);
+                y = writeRow(content, "Reservation status", booking.getDepositStatus().name(), y);
                 y = writeRow(content, "Created at", formatDateTime(booking.getCreatedAt()), y);
 
                 y = writeSection(content, "Customer", y - 12);
@@ -90,17 +102,23 @@ public class InvoiceService {
                 y = writeRow(content, "License plate", car != null ? car.getLicensePlate() : "-", y);
                 y = writeRow(content, "Start time", formatDateTime(booking.getStartTime()), y);
                 y = writeRow(content, "End time", formatDateTime(booking.getEndTime()), y);
-                y = writeRow(content, "Free cancel until", formatDateTime(booking.getFreeCancelUntil()), y);
+                y = writeRow(content, "Free cancellation", freeCancellationText(booking), y);
 
                 y = writeSection(content, "Payment", y - 12);
-                y = writeRow(content, "Base amount", formatMoney(booking.getBaseAmount()), y);
-                y = writeRow(content, "Extra services", formatMoney(booking.getExtraServicesAmount()), y);
-                y = writeRow(content, "Delivery fee", formatMoney(booking.getDeliveryFeeAmount()), y);
-                y = writeRow(content, "Deposit amount", formatMoney(booking.getDepositAmount()), y);
-                y = writeRow(content, "Total booking", formatMoney(booking.getTotalAmount()), y);
-                y = writeRow(content, "Payment gateway", paidPayment != null ? paidPayment.getGateway().name() : "-", y);
-                y = writeRow(content, "Transaction id", paidPayment != null ? paidPayment.getGatewayTransactionId() : "-", y);
-                y = writeRow(content, "Paid at", paidPayment != null ? formatDateTime(paidPayment.getPaidAt()) : "-", y);
+                BigDecimal baseRentalAmount = nonNull(booking.getBaseAmount());
+                y = writeRow(content, "Base rental amount", formatMoney(baseRentalAmount) + " / " + baseRentalHours(booking), y);
+                y = writeRow(content, "Extra services", formatMoney(nonNull(booking.getExtraServicesAmount())), y);
+                y = writeRow(content, "Delivery fee", formatMoney(nonNull(booking.getDeliveryFeeAmount())), y);
+                y = writeRow(content, "Reservation amount", formatMoney(booking.getDepositAmount()) + " (included in base rental amount)", y);
+                y = writeRow(content, "Reservation paid at", paymentPaidAt(reservationPayment), y);
+                y = writeRow(content, "Reservation gateway", paymentGateway(reservationPayment), y);
+                y = writeRow(content, "Reservation transaction id", paymentTransactionId(reservationPayment), y);
+                y = writeRow(content, "Overdue amount", formatMoney(nonNull(booking.getOverdueFee())), y);
+                y = writeRow(content, "Penalty amount", formatMoney(nonNull(booking.getPenaltyOverdueFee())), y);
+                y = writeRow(content, "Total rental amount", formatMoney(booking.getTotalAmount()), y);
+                y = writeRow(content, "Total rental paid at", paymentPaidAt(finalRentalPayment), y);
+                y = writeRow(content, "Final payment gateway", paymentGateway(finalRentalPayment), y);
+                y = writeRow(content, "Final transaction id", paymentTransactionId(finalRentalPayment), y);
 
                 writeFooter(content);
             }
@@ -169,6 +187,46 @@ public class InvoiceService {
 
     private String buildVehicleName(Car car) {
         return (car.getBrand() + " " + car.getModel()).trim();
+    }
+
+    private String freeCancellationText(Booking booking) {
+        if (booking.getCreatedAt() != null
+                && booking.getStartTime() != null
+                && Duration.between(booking.getCreatedAt(), booking.getStartTime()).compareTo(Duration.ofHours(24)) < 0) {
+            return "Not available - booking was created less than 24 hours before pick-up";
+        }
+        return "Until " + formatDateTime(booking.getFreeCancelUntil());
+    }
+
+    private String baseRentalHours(Booking booking) {
+        if (booking.getStartTime() == null || booking.getEndTime() == null) {
+            return "-";
+        }
+        long minutes = Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes();
+        long hours = Math.max(1L, (minutes + 59L) / 60L);
+        return hours + " hour" + (hours == 1L ? "" : "s");
+    }
+
+    private BigDecimal bookedSubtotal(Booking booking) {
+        return nonNull(booking.getBaseAmount())
+                .add(nonNull(booking.getExtraServicesAmount()))
+                .add(nonNull(booking.getDeliveryFeeAmount()));
+    }
+
+    private BigDecimal nonNull(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private String paymentGateway(Payment payment) {
+        return payment != null && payment.getGateway() != null ? payment.getGateway().name() : "-";
+    }
+
+    private String paymentTransactionId(Payment payment) {
+        return payment != null && payment.getGatewayTransactionId() != null ? payment.getGatewayTransactionId() : "-";
+    }
+
+    private String paymentPaidAt(Payment payment) {
+        return payment != null && payment.getPaidAt() != null ? formatDateTime(payment.getPaidAt()) : "-";
     }
 
     private String formatDateTime(java.time.LocalDateTime value) {

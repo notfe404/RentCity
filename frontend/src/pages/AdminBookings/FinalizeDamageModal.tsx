@@ -40,7 +40,7 @@ export const FinalizeDamageModal = ({
     try {
       await finalizeDamageAssessment(bookingId, { actualFee });
       if (refundAmount > 0) {
-        toast.success(`Automatically refunded ${formatVND(refundAmount)} to the customer wallet.`);
+        toast.success(`Automatically added ${formatVND(refundAmount)} to the customer's refundable balance.`);
       } else {
         toast.success('Actual repair cost updated.');
       }
@@ -102,7 +102,7 @@ export const FinalizeDamageModal = ({
               <div>
                 <p className="text-sm font-bold text-green-700 mb-1">Refund amount:</p>
                 <p className="text-lg font-black text-green-700 mb-2">{formatVND(refundAmount)}</p>
-                <p className="text-xs font-medium text-green-600">This amount will be refunded automatically to the customer wallet.</p>
+                <p className="text-xs font-medium text-green-600">This amount will be added to the customer's refundable balance.</p>
               </div>
             ) : outstandingAmount > 0 ? (
               <div>

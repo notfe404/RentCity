@@ -61,3 +61,4 @@ backend/uploads/**/*.png
 backend/uploads/**/*.webp
 backend/uploads/**/*.gif
 !backend/uploads/cars/hyundai-santafe-2022.jpg
+backend/private-uploads/

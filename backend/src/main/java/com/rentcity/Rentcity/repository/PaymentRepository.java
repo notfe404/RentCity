@@ -32,6 +32,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             PaymentStatus status
     );
 
+    Optional<Payment> findFirstByBookingIdAndTypeOrderByCreatedAtDesc(
+            Long bookingId,
+            PaymentType type
+    );
+
     Optional<Payment> findFirstByBookingIdAndGatewayAndTypeAndStatusOrderByCreatedAtDesc(
             Long bookingId,
             PaymentGateway gateway,

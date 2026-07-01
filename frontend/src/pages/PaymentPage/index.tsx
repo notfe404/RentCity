@@ -11,7 +11,6 @@ import {
   History,
   Receipt,
   ShieldCheck,
-  WalletCards,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,8 +18,7 @@ import BookingStepper from '@/components/booking/BookingStepper';
 import PaymentHoldCountdown from '@/components/booking/PaymentHoldCountdown';
 import { usePaymentHoldCountdown } from '@/hooks/usePaymentHoldCountdown';
 import { getMyBooking } from '@/services/bookingApi';
-import { createDepositPayment, getMyPayments } from '@/services/paymentApi';
-import { getMyWallet } from '@/services/walletApi';
+import { getMyPayments } from '@/services/paymentApi';
 import { DEPOSIT_STATUS_META, getBookingVehicleImage, getBookingVehicleName } from '@/utils/bookingMapper';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiPaymentResponse, PaymentGateway } from '@/types';
@@ -37,19 +35,13 @@ const PAYMENT_METHODS: PaymentMethod[] = [
     gateway: 'PAYPAL',
     title: 'PayPal',
     description: 'Secure payment via PayPal. You will be redirected to PayPal to complete it.',
-    icon: <WalletCards size={22} />,
+    icon: <CreditCard size={22} />,
   },
   {
     gateway: 'VNPAY',
     title: 'VNPay',
     description: 'Scan the QR code to pay. Supports all banks and e-wallets.',
     icon: <CreditCard size={22} />,
-  },
-  {
-    gateway: 'WALLET',
-    title: 'My Wallet',
-    description: 'Pay instantly using your available My Wallet balance.',
-    icon: <WalletCards size={22} />,
   },
 ];
 
@@ -67,7 +59,6 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<ApiBookingResponse | null>(null);
   const [payments, setPayments] = useState<ApiPaymentResponse[]>([]);
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('VNPAY');
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaying, setIsPaying] = useState(false);
 
@@ -88,18 +79,13 @@ export default function PaymentPage() {
         setBooking(data);
 
         try {
-          const [paymentsResponse, walletResponse] = await Promise.all([
-            getMyPayments(),
-            getMyWallet(),
-          ]);
+          const paymentsResponse = await getMyPayments();
           if (!cancelled) {
             setPayments(paymentsResponse.data.filter((payment) => payment.bookingId === data.id));
-            setWalletBalance(walletResponse.data.availableBalance);
           }
         } catch {
           if (!cancelled) {
             setPayments([]);
-            setWalletBalance(null);
           }
         }
       } catch {
@@ -172,25 +158,6 @@ export default function PaymentPage() {
         navigate(`/booking/${booking.id}/payment/vnpay`);
         return;
       }
-
-      if (selectedGateway === 'WALLET') {
-        if (walletBalance === null) {
-          throw new Error('Could not load My Wallet balance');
-        }
-        if (walletBalance < booking.depositAmount) {
-          throw new Error('Insufficient My Wallet balance');
-        }
-        const { data: payment } = await createDepositPayment({
-          bookingId: booking.id,
-          gateway: 'WALLET',
-          idempotencyKey: `booking-${booking.id}-wallet`,
-        });
-        if (payment.status !== 'PAID') {
-          throw new Error('Wallet payment was not completed');
-        }
-        toast.success('Reservation fee paid from My Wallet');
-        navigate(`/booking/${booking.id}/result`);
-      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -218,9 +185,7 @@ export default function PaymentPage() {
   const canPay = booking.status === 'PENDING'
     && booking.depositStatus === 'UNPAID'
     && !paymentExpired;
-  const walletHasEnoughBalance = walletBalance !== null && walletBalance >= booking.depositAmount;
-  const canSubmitPayment = canPay
-    && (selectedGateway !== 'WALLET' || walletHasEnoughBalance);
+  const canSubmitPayment = canPay;
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
       <Header />
@@ -253,7 +218,7 @@ export default function PaymentPage() {
 
             <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">Choose Payment Method</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.gateway}
@@ -273,21 +238,6 @@ export default function PaymentPage() {
                       <span className="font-black text-gray-900">{method.title}</span>
                     </div>
                     <p className="text-xs font-bold text-gray-500 leading-relaxed">{method.description}</p>
-                    {method.gateway === 'WALLET' && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 text-xs font-black">
-                        <p className="text-gray-500">
-                          Available:{' '}
-                          <span className={walletHasEnoughBalance ? 'text-[#78ad44]' : 'text-red-600'}>
-                            {walletBalance === null ? 'Unavailable' : formatVND(walletBalance)}
-                          </span>
-                        </p>
-                        {walletBalance !== null && !walletHasEnoughBalance && (
-                          <p className="text-red-600 mt-1">
-                            Need {formatVND(booking.depositAmount - walletBalance)} more
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </button>
                 ))}
               </div>
@@ -313,7 +263,7 @@ export default function PaymentPage() {
             <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 mb-6">
                 <History size={22} className="text-[#78ad44]" />
-                <h2 className="text-2xl font-black text-gray-900">Payment History</h2>
+                <h2 className="text-2xl font-black text-gray-900">Receipts</h2>
               </div>
 
               {payments.length === 0 ? (

@@ -1,546 +1,730 @@
-import { useEffect, useMemo, useState } from 'react';
-import Header from '../LandingPage/Header';
-import Footer from '../LandingPage/Footer';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Calendar,
   CreditCard,
   Download,
-  Filter,
-  Search,
   Eye,
-  ChevronDown,
+  Landmark,
   Loader2,
-  ArrowLeft,
+  Receipt,
+  RefreshCw,
+  Send,
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { getMyPayments, downloadBookingInvoicePdf } from '@/services/paymentApi';
+import CustomerSidebar from '@/components/layout/CustomerSidebar';
+import Header from '../LandingPage/Header';
+import Footer from '../LandingPage/Footer';
+import { getMyBookings } from '@/services/bookingApi';
+import { downloadBookingInvoicePdf, getMyPayments } from '@/services/paymentApi';
+import {
+  createBookingPayment,
+  createWithdrawalRequest,
+  getMyWallet,
+  getMyWithdrawalRequests,
+} from '@/services/walletApi';
 import { formatDateTime, formatVND } from '@/utils/formatters';
-import type { ApiPaymentResponse, PaymentStatus, PaymentGateway } from '@/types';
+import type {
+  ApiBookingResponse,
+  ApiPaymentResponse,
+  ApiWalletResponse,
+  ApiWithdrawalRequest,
+  PaymentGateway,
+  PaymentStatus,
+  PaymentType,
+} from '@/types';
+import PaymentCheckoutModal from '../MyWalletPage/PaymentCheckoutModal';
 
+type TabKey = 'REQUESTS' | 'RECEIPTS' | 'DEPOSITS';
 type FilterStatus = PaymentStatus | 'ALL';
 type FilterGateway = PaymentGateway | 'ALL';
 
-interface PaymentFilter {
-  status: FilterStatus;
-  gateway: FilterGateway;
-  searchTerm: string;
-  startDate: string;
-  endDate: string;
-}
-
-const STATUS_META: Record<PaymentStatus, { label: string; color: string; icon: string; bgColor: string }> = {
-  PENDING: { label: 'Pending Payment', color: 'text-orange-600', icon: '⏱️', bgColor: 'bg-orange-50' },
-  PAID: { label: 'Paid', color: 'text-green-600', icon: '✓', bgColor: 'bg-green-50' },
-  FAILED: { label: 'Failed', color: 'text-red-600', icon: '✗', bgColor: 'bg-red-50' },
-  REFUNDED: { label: 'Refunded', color: 'text-blue-600', icon: '↶', bgColor: 'bg-blue-50' },
-  EXPIRED: { label: 'Expired', color: 'text-gray-600', icon: '⌛', bgColor: 'bg-gray-50' },
+const STATUS_META: Record<PaymentStatus, { label: string; color: string; bgColor: string }> = {
+  PENDING: { label: 'Pending', color: 'text-orange-600', bgColor: 'bg-orange-50' },
+  PAID: { label: 'Paid', color: 'text-green-600', bgColor: 'bg-green-50' },
+  FAILED: { label: 'Failed', color: 'text-red-600', bgColor: 'bg-red-50' },
+  REFUNDED: { label: 'Refunded', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  EXPIRED: { label: 'Expired', color: 'text-gray-600', bgColor: 'bg-gray-50' },
 };
 
-const GATEWAY_META: Record<PaymentGateway, { label: string; icon: string; color: string }> = {
-  PAYPAL: { label: 'PayPal', icon: '🔵', color: '#003087' },
-  VNPAY: { label: 'VNPay', icon: '💳', color: '#003087' },
-  WALLET: { label: 'My Wallet', icon: 'W', color: '#78ad44' },
+const GATEWAY_META: Record<string, { label: string; color: string }> = {
+  PAYPAL: { label: 'PayPal', color: 'text-blue-700' },
+  VNPAY: { label: 'VNPay', color: 'text-indigo-700' },
+  CASH: { label: 'Cash', color: 'text-gray-700' },
+  WALLET: { label: 'Refund balance', color: 'text-[#78ad44]' },
 };
 
-interface PaymentDetailsModalProps {
-  payment: ApiPaymentResponse | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onDownloadInvoice: (bookingId: number) => Promise<void>;
+const RECEIPT_REVENUE_TYPES = new Set<PaymentType>(['DEPOSIT', 'FINAL_RENTAL_PAYMENT', 'BALANCE_PAYMENT', 'FULL']);
+const SECURITY_DEPOSIT_TYPES = new Set<PaymentType>(['SECURITY_DEPOSIT', 'SECURITY_DEPOSIT_REFUND']);
+
+function isDepositOrRefundPayment(payment: ApiPaymentResponse) {
+  return SECURITY_DEPOSIT_TYPES.has(payment.type) || payment.type.includes('REFUND') || payment.status === 'REFUNDED';
 }
 
-function PaymentDetailsModal({ payment, isOpen, onClose, onDownloadInvoice }: PaymentDetailsModalProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  if (!isOpen || !payment) return null;
-
-  const statusMeta = STATUS_META[payment.status];
-  const gatewayMeta = GATEWAY_META[payment.gateway];
-
-  const handleDownload = async () => {
-    if (payment.bookingId == null) return;
-    setIsDownloading(true);
-    try {
-      await onDownloadInvoice(payment.bookingId);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-center justify-between">
-          <h2 className="text-xl font-black text-gray-900">Transaction Details</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            ✕
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Status Badge */}
-          <div className={`${statusMeta.bgColor} rounded-2xl p-4 flex items-center gap-3`}>
-            <div className="text-2xl">{statusMeta.icon}</div>
-            <div>
-              <p className="text-xs font-bold text-gray-500">Transaction Status</p>
-              <p className={`text-lg font-black ${statusMeta.color}`}>{statusMeta.label}</p>
-            </div>
-          </div>
-
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-sm font-bold text-gray-500">Transaction ID</span>
-              <span className="font-black text-gray-900">#{payment.id}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-bold text-gray-500">Method</span>
-              <div className="flex items-center gap-2">
-                <span>{gatewayMeta.icon}</span>
-                <span className="font-black text-gray-900">{gatewayMeta.label}</span>
-              </div>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-bold text-gray-500">Payment Type</span>
-              <span className="font-black text-gray-900">{payment.type}</span>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4 space-y-4">
-            {/* Amount */}
-            <div className="flex justify-between items-end">
-              <span className="text-sm font-bold text-gray-500">Amount</span>
-              <div className="text-right">
-                <p className="text-2xl font-black text-[#78ad44]">{formatVND(payment.amount)}</p>
-                <p className="text-xs font-bold text-gray-400">{payment.currency}</p>
-              </div>
-            </div>
-
-            {/* Dates */}
-            <div className="flex justify-between">
-              <span className="text-sm font-bold text-gray-500">Created Date</span>
-              <span className="font-medium text-gray-900">{formatDateTime(payment.createdAt)}</span>
-            </div>
-
-            {payment.paidAt && (
-              <div className="flex justify-between">
-                <span className="text-sm font-bold text-gray-500">Payment Date</span>
-                <span className="font-medium text-gray-900">{formatDateTime(payment.paidAt)}</span>
-              </div>
-            )}
-
-            {payment.refundedAt && (
-              <div className="flex justify-between">
-                <span className="text-sm font-bold text-gray-500">Refund Date</span>
-                <span className="font-medium text-gray-900">{formatDateTime(payment.refundedAt)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Reference Info */}
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-            {payment.gatewayReference && (
-              <>
-                <p className="text-xs font-bold text-gray-500">Gateway Reference</p>
-                <p className="text-xs font-mono text-gray-700 break-all">{payment.gatewayReference}</p>
-              </>
-            )}
-
-            {payment.gatewayTransactionId && (
-              <>
-                <p className="text-xs font-bold text-gray-500 mt-3">Transaction ID</p>
-                <p className="text-xs font-mono text-gray-700 break-all">{payment.gatewayTransactionId}</p>
-              </>
-            )}
-          </div>
-
-          {/* Failure Reason */}
-          {payment.failureReason && (
-            <div className="bg-red-50 rounded-2xl p-4 border border-red-200">
-              <p className="text-xs font-bold text-red-600">Failure Reason</p>
-              <p className="text-sm text-red-700 mt-1">{payment.failureReason}</p>
-            </div>
-          )}
-
-          {/* Booking Info */}
-          <div className="bg-blue-50 rounded-2xl p-4">
-            <p className="text-xs font-bold text-gray-500">Booking</p>
-            <p className="text-sm font-black text-gray-900 mt-1">{payment.bookingCode}</p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            {payment.bookingId != null && <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="w-full bg-[#78ad44] hover:bg-[#689938] disabled:bg-gray-300 text-white font-bold rounded-2xl py-3 flex items-center justify-center gap-2 transition-colors"
-            >
-              {isDownloading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <Download size={18} />
-                  Download Invoice PDF
-                </>
-              )}
-            </button>}
-            <button
-              onClick={onClose}
-              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold rounded-2xl py-3 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function paymentGatewayMeta(payment: ApiPaymentResponse) {
+  if (payment.gateway !== 'CASH' && (payment.type === 'SECURITY_DEPOSIT_REFUND' || payment.status === 'REFUNDED')) {
+    return GATEWAY_META.WALLET;
+  }
+  return GATEWAY_META[payment.gateway] ?? { label: payment.gateway, color: 'text-gray-700' };
 }
 
 export default function PaymentsPage() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [payments, setPayments] = useState<ApiPaymentResponse[]>([]);
+  const [wallet, setWallet] = useState<ApiWalletResponse | null>(null);
+  const [withdrawals, setWithdrawals] = useState<ApiWithdrawalRequest[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<ApiBookingResponse[]>([]);
+  const [activeTab, setActiveTab] = useState<TabKey>('REQUESTS');
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
+  const [gatewayFilter, setGatewayFilter] = useState<FilterGateway>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+  const [checkoutPayment, setCheckoutPayment] = useState<ApiPaymentResponse | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<ApiPaymentResponse | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const fromPath = (location.state as { from?: unknown } | null)?.from;
-  const returnTarget =
-    typeof fromPath === 'string' && fromPath.startsWith('/my-bookings')
-      ? { path: '/my-bookings', label: 'Back to My Bookings' }
-      : { path: '/profile', label: 'Back to Profile' };
-
-  const [filters, setFilters] = useState<PaymentFilter>({
-    status: 'ALL',
-    gateway: 'ALL',
-    searchTerm: '',
-    startDate: '',
-    endDate: '',
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawalForm, setWithdrawalForm] = useState({
+    amount: 0,
+    bankName: '',
+    accountNumber: '',
+    accountHolderName: '',
   });
 
-  const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const { data } = await getMyPayments();
-        setPayments(data);
-      } catch (error) {
-        toast.error('Could not load payment history');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPayments();
+  const loadPage = useCallback(async () => {
+    const [{ data: paymentData }, { data: walletData }, { data: bookingData }, { data: withdrawalData }] =
+      await Promise.all([
+        getMyPayments(),
+        getMyWallet(),
+        getMyBookings(),
+        getMyWithdrawalRequests(),
+      ]);
+    setPayments(paymentData);
+    setWallet(walletData);
+    setWithdrawals(withdrawalData);
+    setPaymentRequests(bookingData.filter((booking) => (booking.outstandingAmount ?? 0) > 0));
   }, []);
 
-  const filteredPayments = useMemo(() => {
-    return payments.filter((payment) => {
-      // Status filter
-      if (filters.status !== 'ALL' && payment.status !== filters.status) {
-        return false;
-      }
+  const receiptPayments = useMemo(
+    () => payments.filter((payment) => !isDepositOrRefundPayment(payment)),
+    [payments]
+  );
+  const depositAndRefundPayments = useMemo(
+    () => payments.filter(isDepositOrRefundPayment),
+    [payments]
+  );
 
-      // Gateway filter
-      if (filters.gateway !== 'ALL' && payment.gateway !== filters.gateway) {
-        return false;
-      }
+  useEffect(() => {
+    loadPage()
+      .catch(() => toast.error('Could not load payment information'))
+      .finally(() => setIsLoading(false));
+  }, [loadPage]);
 
-      // Search term filter
-      if (filters.searchTerm) {
-        const term = filters.searchTerm.toLowerCase();
-        if (
-          !(payment.bookingCode ?? '').toLowerCase().includes(term) &&
-          !payment.id.toString().includes(term)
-        ) {
-          return false;
-        }
-      }
-
-      // Date range filter
-      if (filters.startDate) {
-        const paymentDate = new Date(payment.createdAt);
-        const startDate = new Date(filters.startDate);
-        if (paymentDate < startDate) {
-          return false;
-        }
-      }
-
-      if (filters.endDate) {
-        const paymentDate = new Date(payment.createdAt);
-        const endDate = new Date(filters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        if (paymentDate > endDate) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [payments, filters]);
-
-  const totalAmount = useMemo(() => {
-    return filteredPayments
-      .filter((p) => p.status === 'PAID')
-      .reduce((sum, p) => sum + p.amount, 0);
-  }, [filteredPayments]);
-
-  const handleViewDetails = (payment: ApiPaymentResponse) => {
-    setSelectedPayment(payment);
-    setIsModalOpen(true);
+  const refresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadPage();
+    } catch {
+      toast.error('Could not refresh payment information');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  const handleDownloadInvoice = async (bookingId: number) => {
+  const filteredPayments = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return receiptPayments.filter((payment) => {
+      if (statusFilter !== 'ALL' && payment.status !== statusFilter) return false;
+      if (gatewayFilter !== 'ALL' && payment.gateway !== gatewayFilter) return false;
+      if (!term) return true;
+      return (
+        (payment.bookingCode ?? '').toLowerCase().includes(term) ||
+        payment.type.toLowerCase().includes(term) ||
+        String(payment.id).includes(term)
+      );
+    });
+  }, [receiptPayments, gatewayFilter, searchTerm, statusFilter]);
+
+  const refundableBalance = wallet?.availableBalance ?? 0;
+  const pendingWithdrawalTotal = withdrawals
+    .filter((request) => request.status === 'PENDING')
+    .reduce((sum, request) => sum + request.amount, 0);
+  const receiptTotal = filteredPayments
+    .filter((payment) => payment.status === 'PAID' && RECEIPT_REVENUE_TYPES.has(payment.type))
+    .reduce((sum, payment) => sum + payment.amount, 0);
+
+  const payBookingRequest = async (booking: ApiBookingResponse, gateway: PaymentGateway) => {
+    setPayingBookingId(booking.id);
+    try {
+      const { data: payment } = await createBookingPayment(booking.id, {
+        gateway,
+        idempotencyKey: `booking-pay-${booking.id}-${Date.now()}`,
+      });
+      if (payment.status === 'PAID') {
+        toast.success('Payment request already completed');
+        await loadPage();
+      } else {
+        setCheckoutPayment(payment);
+      }
+    } catch (error) {
+      const message = (error as { response?: { data?: { error?: string } } }).response?.data?.error;
+      toast.error(message ?? 'Could not create payment');
+    } finally {
+      setPayingBookingId(null);
+    }
+  };
+
+  const requestWithdrawal = async () => {
+    if (!wallet || withdrawalForm.amount <= 0) {
+      toast.error('Enter a withdrawal amount');
+      return;
+    }
+    if (withdrawalForm.amount > wallet.availableBalance) {
+      toast.error('Withdrawal amount exceeds refundable balance');
+      return;
+    }
+    if (!withdrawalForm.bankName.trim() || !withdrawalForm.accountNumber.trim() || !withdrawalForm.accountHolderName.trim()) {
+      toast.error('Complete all banking information');
+      return;
+    }
+    setIsWithdrawing(true);
+    try {
+      await createWithdrawalRequest(withdrawalForm);
+      setWithdrawalForm({ amount: 0, bankName: '', accountNumber: '', accountHolderName: '' });
+      await loadPage();
+      toast.success('Withdrawal request sent');
+    } catch (error) {
+      const message = (error as { response?: { data?: { error?: string } } }).response?.data?.error;
+      toast.error(message ?? 'Could not create withdrawal request');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const downloadInvoice = async (bookingId: number) => {
     try {
       const { data: blob } = await downloadBookingInvoicePdf(bookingId);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice-${bookingId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `invoice-${bookingId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Invoice downloaded successfully');
-    } catch (error) {
-      toast.error('Error downloading invoice');
+      document.body.removeChild(anchor);
+      toast.success('Invoice downloaded');
+    } catch {
+      toast.error('Could not download invoice');
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <Header />
-
-      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full flex-1">
-        {/* Page Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-4xl font-black text-gray-900 mb-2">Payment History</h1>
-            <p className="text-gray-500 font-medium">View all your payment transactions</p>
-          </div>
-          <button
-            onClick={() => navigate(returnTarget.path)}
-            className="self-start inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-gray-700 shadow-sm border border-gray-100 hover:bg-[#f4f8f7] hover:text-[#78ad44] transition-colors"
-          >
-            <ArrowLeft size={16} />
-            {returnTarget.label}
-          </button>
-        </div>
-
-        {/* Summary Card */}
-        {!isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <p className="text-sm font-bold text-gray-500 mb-2">Total Paid</p>
-              <p className="text-3xl font-black text-[#78ad44]">{formatVND(totalAmount)}</p>
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <p className="text-sm font-bold text-gray-500 mb-2">Total Transactions</p>
-              <p className="text-3xl font-black text-gray-900">{filteredPayments.length}</p>
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <p className="text-sm font-bold text-gray-500 mb-2">Pending</p>
-              <p className="text-3xl font-black text-orange-600">
-                {filteredPayments.filter((p) => p.status === 'PENDING').length}
+      <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full flex-1 flex flex-col lg:flex-row gap-10">
+        <CustomerSidebar />
+        <main className="flex-1 space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-gray-900">Payment</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Payment requests, receipts, deposits, refunds, and withdrawal requests.
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 mb-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
-              <Filter size={20} />
-              Filter Transactions
-            </h2>
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              type="button"
+              onClick={refresh}
+              disabled={isRefreshing}
+              className="self-start inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-gray-700 border border-gray-100 shadow-sm hover:bg-[#f4f8f7] disabled:opacity-60"
             >
-              {showFilters ? 'Hide' : 'Show'}
-              <ChevronDown size={18} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh
             </button>
           </div>
 
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-2">Search</label>
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Booking code or ID"
-                    value={filters.searchTerm}
-                    onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#78ad44]"
-                  />
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-2">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as FilterStatus })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#78ad44]"
-                >
-                  <option value="ALL">All</option>
-                  <option value="PENDING">Pending Payment</option>
-                  <option value="PAID">Paid</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="REFUNDED">Refunded</option>
-                  <option value="EXPIRED">Expired</option>
-                </select>
-              </div>
-
-              {/* Gateway Filter */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-2">Method</label>
-                <select
-                  value={filters.gateway}
-                  onChange={(e) => setFilters({ ...filters, gateway: e.target.value as FilterGateway })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#78ad44]"
-                >
-                  <option value="ALL">All</option>
-                  <option value="PAYPAL">PayPal</option>
-                  <option value="VNPAY">VNPay</option>
-                  <option value="WALLET">My Wallet</option>
-                </select>
-              </div>
-
-              {/* Reset Button */}
-              <div className="flex items-end">
-                <button
-                  onClick={() =>
-                    setFilters({
-                      status: 'ALL',
-                      gateway: 'ALL',
-                      searchTerm: '',
-                      startDate: '',
-                      endDate: '',
-                    })
-                  }
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl py-2 transition-colors"
-                >
-                  Reset
-                </button>
-              </div>
+          {isLoading || !wallet ? (
+            <div className="bg-white rounded-3xl p-12 flex justify-center border border-gray-100">
+              <Loader2 className="animate-spin text-[#78ad44]" />
             </div>
-          )}
-        </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-3 gap-4">
+                <SummaryCard icon={Landmark} label="Refundable balance" value={formatVND(refundableBalance)} tone="green" />
+                <SummaryCard icon={Send} label="Pending withdrawals" value={formatVND(pendingWithdrawalTotal)} tone="blue" />
+                <SummaryCard icon={Receipt} label="Receipt total" value={formatVND(receiptTotal)} tone="dark" />
+              </div>
 
-        {/* Payment List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={32} className="animate-spin text-[#78ad44]" />
-          </div>
-        ) : filteredPayments.length === 0 ? (
-          <div className="text-center py-20">
-            <CreditCard size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 font-bold text-lg">No transactions found</p>
-            <p className="text-gray-400 text-sm mt-1">Complete a booking to create payment transactions</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredPayments.map((payment) => {
-              const statusMeta = STATUS_META[payment.status];
-              const gatewayMeta = GATEWAY_META[payment.gateway];
+              <div className="bg-white rounded-3xl border border-gray-100 p-2 shadow-sm flex flex-wrap gap-2">
+                <TabButton active={activeTab === 'REQUESTS'} onClick={() => setActiveTab('REQUESTS')}>
+                  Payment Requests
+                </TabButton>
+                <TabButton active={activeTab === 'RECEIPTS'} onClick={() => setActiveTab('RECEIPTS')}>
+                  Receipts
+                </TabButton>
+                <TabButton active={activeTab === 'DEPOSITS'} onClick={() => setActiveTab('DEPOSITS')}>
+                  Deposit and Refunds
+                </TabButton>
+              </div>
 
-              return (
-                <div
-                  key={payment.id}
-                  className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-100 hover:shadow-md transition-shadow"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-center">
-                    {/* Gateway & Status */}
-                    <div className="flex items-center gap-3">
-                      <div className={`${statusMeta.bgColor} w-12 h-12 rounded-xl flex items-center justify-center text-xl`}>
-                        {statusMeta.icon}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-gray-900">
-                          {gatewayMeta.label} #{payment.id}
-                        </p>
-                        <p className={`text-xs font-bold ${statusMeta.color}`}>{statusMeta.label}</p>
-                      </div>
+              {activeTab === 'REQUESTS' && (
+                <section className="bg-white rounded-3xl border border-orange-100 shadow-sm overflow-hidden">
+                  <SectionHeader
+                    icon={<AlertTriangle className="text-orange-500" size={20} />}
+                    title="Payment Requests"
+                    description={`${paymentRequests.length} outstanding request(s) need online payment.`}
+                  />
+                  {paymentRequests.length === 0 ? (
+                    <EmptyState icon={<CreditCard size={40} />} title="No payment requests" text="Outstanding booking payments will appear here." />
+                  ) : (
+                    <div className="divide-y divide-orange-100">
+                      {paymentRequests.map((booking) => (
+                        <PaymentRequestRow
+                          key={booking.id}
+                          booking={booking}
+                          isPaying={payingBookingId === booking.id}
+                          onPay={payBookingRequest}
+                        />
+                      ))}
                     </div>
+                  )}
+                </section>
+              )}
 
-                    {/* Booking & Type */}
-                    <div className="hidden lg:block">
-                      <p className="text-xs font-bold text-gray-500">Booking</p>
-                      <p className="font-black text-gray-900">{payment.bookingCode}</p>
-                      <p className="text-xs text-gray-500 mt-1">{payment.type}</p>
+              {activeTab === 'RECEIPTS' && (
+                <section className="space-y-4">
+                  <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm grid md:grid-cols-3 gap-3">
+                    <input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Booking code, type, or ID"
+                      className="px-4 py-3 rounded-xl border border-gray-200 font-bold outline-none focus:border-[#78ad44]"
+                    />
+                    <select
+                      value={statusFilter}
+                      onChange={(event) => setStatusFilter(event.target.value as FilterStatus)}
+                      className="px-4 py-3 rounded-xl border border-gray-200 font-bold bg-white outline-none focus:border-[#78ad44]"
+                    >
+                      <option value="ALL">All statuses</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="PAID">Paid</option>
+                      <option value="FAILED">Failed</option>
+                      <option value="REFUNDED">Refunded</option>
+                      <option value="EXPIRED">Expired</option>
+                    </select>
+                    <select
+                      value={gatewayFilter}
+                      onChange={(event) => setGatewayFilter(event.target.value as FilterGateway)}
+                      className="px-4 py-3 rounded-xl border border-gray-200 font-bold bg-white outline-none focus:border-[#78ad44]"
+                    >
+                      <option value="ALL">All methods</option>
+                      <option value="PAYPAL">PayPal</option>
+                      <option value="VNPAY">VNPay</option>
+                      <option value="CASH">Cash</option>
+                    </select>
+                  </div>
+                  {filteredPayments.length === 0 ? (
+                    <EmptyState icon={<Receipt size={40} />} title="No receipts found" text="Completed and pending payments will appear here." />
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredPayments.map((payment) => (
+                        <ReceiptRow
+                          key={payment.id}
+                          payment={payment}
+                          onDetails={setSelectedPayment}
+                          onDownload={downloadInvoice}
+                          showInvoice
+                        />
+                      ))}
                     </div>
+                  )}
+                </section>
+              )}
 
-                    {/* Date */}
-                    <div className="hidden lg:block">
-                      <p className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                        <Calendar size={14} /> Date
+              {activeTab === 'DEPOSITS' && (
+                <section className="space-y-4">
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <SectionHeader
+                      icon={<Landmark className="text-[#78ad44]" size={20} />}
+                      title="Deposit and Refunds"
+                      description="Security deposit and refund records are separate from rental receipts and do not have invoices."
+                    />
+                    <div className="p-6 border-b border-gray-100">
+                      <p className="text-sm text-gray-500">Available to withdraw</p>
+                      <p className="text-3xl font-black text-[#78ad44] mt-1">{formatVND(refundableBalance)}</p>
+                    </div>
+                    {depositAndRefundPayments.length === 0 ? (
+                      <EmptyState icon={<Landmark size={40} />} title="No deposit or refund records" text="Security deposit and refund records will appear here." />
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {depositAndRefundPayments.map((payment) => (
+                          <ReceiptRow
+                            key={payment.id}
+                            payment={payment}
+                            onDetails={setSelectedPayment}
+                            onDownload={downloadInvoice}
+                            showInvoice={false}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-blue-100 p-6 shadow-sm">
+                    <h2 className="font-black text-gray-900 text-lg flex items-center gap-2">
+                      <Landmark size={20} className="text-blue-600" /> Request Refund Withdrawal
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1 mb-5">
+                      Withdrawals are limited to refundable balance from refunds. Customers cannot top up this balance.
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min={1}
+                        max={wallet.availableBalance}
+                        placeholder="Amount (VND)"
+                        value={withdrawalForm.amount || ''}
+                        onChange={(event) => setWithdrawalForm((form) => ({ ...form, amount: Number(event.target.value) }))}
+                        className="px-4 py-3 rounded-xl border border-gray-200 font-bold outline-none focus:border-blue-500"
+                      />
+                      <input
+                        placeholder="Bank name"
+                        value={withdrawalForm.bankName}
+                        onChange={(event) => setWithdrawalForm((form) => ({ ...form, bankName: event.target.value }))}
+                        className="px-4 py-3 rounded-xl border border-gray-200 font-bold outline-none focus:border-blue-500"
+                      />
+                      <input
+                        placeholder="Account number"
+                        value={withdrawalForm.accountNumber}
+                        onChange={(event) => setWithdrawalForm((form) => ({ ...form, accountNumber: event.target.value }))}
+                        className="px-4 py-3 rounded-xl border border-gray-200 font-bold outline-none focus:border-blue-500"
+                      />
+                      <input
+                        placeholder="Account holder name"
+                        value={withdrawalForm.accountHolderName}
+                        onChange={(event) => setWithdrawalForm((form) => ({ ...form, accountHolderName: event.target.value }))}
+                        className="px-4 py-3 rounded-xl border border-gray-200 font-bold uppercase outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <p className="text-sm text-gray-500">
+                        Available to withdraw: <strong className="text-gray-900">{formatVND(wallet.availableBalance)}</strong>
                       </p>
-                      <p className="font-medium text-gray-900 text-sm">{formatDateTime(payment.createdAt)}</p>
-                    </div>
-
-                    {/* Amount */}
-                    <div className="text-right lg:text-center">
-                      <p className="text-xs font-bold text-gray-500">Amount</p>
-                      <p className="text-xl font-black text-[#78ad44]">{formatVND(payment.amount)}</p>
-                    </div>
-
-                    {/* Action Button */}
-                    <div className="flex gap-2 justify-end">
                       <button
-                        onClick={() => handleViewDetails(payment)}
-                        className="flex-1 sm:flex-none bg-[#f4f8f7] hover:bg-[#e9f2eb] text-gray-700 font-bold rounded-xl py-2 px-4 transition-colors flex items-center justify-center gap-2"
+                        onClick={requestWithdrawal}
+                        disabled={isWithdrawing || wallet.availableBalance <= 0}
+                        className="px-6 py-3 rounded-xl bg-blue-600 text-white font-black disabled:bg-gray-300 flex items-center justify-center gap-2"
                       >
-                        <Eye size={16} />
-                        <span className="hidden sm:inline">Details</span>
+                        {isWithdrawing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        Send request
                       </button>
                     </div>
                   </div>
 
-                  {/* Mobile Details */}
-                  <div className="lg:hidden mt-4 pt-4 border-t border-gray-100 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-bold">Booking:</span>
-                      <span className="font-black text-gray-900">{payment.bookingCode}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-bold">Type:</span>
-                      <span className="font-medium text-gray-900">{payment.type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-bold">Date:</span>
-                      <span className="font-medium text-gray-900">{formatDateTime(payment.createdAt)}</span>
-                    </div>
+                  <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
+                    <SectionHeader
+                      icon={<Send className="text-blue-600" size={20} />}
+                      title="Withdrawal Requests"
+                      description="Admin will mark the request completed after sending the refund."
+                    />
+                    {withdrawals.length === 0 ? (
+                      <EmptyState icon={<Send size={40} />} title="No withdrawal requests" text="Requests for refund withdrawal will appear here." />
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {withdrawals.map((request) => (
+                          <div key={request.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <p className="font-black text-gray-900">{formatVND(request.amount)} to {request.bankName}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {request.accountHolderName} | {request.accountNumber} | {formatDateTime(request.createdAt)}
+                              </p>
+                              {request.rejectionReason && (
+                                <p className="text-xs text-red-600 mt-1">Reason: {request.rejectionReason}</p>
+                              )}
+                            </div>
+                            <WithdrawalStatusBadge status={request.status} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                </section>
+              )}
+            </>
+          )}
+        </main>
       </div>
 
-      {/* Details Modal */}
-      <PaymentDetailsModal
-        payment={selectedPayment}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onDownloadInvoice={handleDownloadInvoice}
-      />
-
       <Footer />
+
+      {checkoutPayment && (
+        <PaymentCheckoutModal
+          payment={checkoutPayment}
+          onClose={() => setCheckoutPayment(null)}
+          onSuccess={() => {
+            setCheckoutPayment(null);
+            loadPage();
+          }}
+        />
+      )}
+
+      {selectedPayment && (
+        <PaymentDetailsModal
+          payment={selectedPayment}
+          onClose={() => setSelectedPayment(null)}
+          onDownload={downloadInvoice}
+          showInvoice={!isDepositOrRefundPayment(selectedPayment)}
+        />
+      )}
     </div>
   );
+}
+
+function PaymentRequestRow({
+  booking,
+  isPaying,
+  onPay,
+}: {
+  booking: ApiBookingResponse;
+  isPaying: boolean;
+  onPay: (booking: ApiBookingResponse, gateway: PaymentGateway) => void;
+}) {
+  const [gateway, setGateway] = useState<PaymentGateway>('VNPAY');
+  const assessment = booking.damageAssessment;
+  const hasOverdueFee = (booking.totalOverdueFee ?? 0) > 0;
+  const hasDamageFee = (assessment?.approvedFee ?? 0) > 0;
+  const isSecurityDeposit = booking.securityDepositStatus === 'PAYMENT_REQUESTED';
+  const isFinalRentalPayment = booking.finalPaymentStatus === 'PAYMENT_REQUESTED';
+
+  return (
+    <div className="p-6 grid lg:grid-cols-[1fr_auto] gap-5 items-center">
+      <div>
+        <p className="font-black text-gray-900">{booking.bookingCode}</p>
+        <div className="flex flex-col gap-1 mt-2">
+          {hasOverdueFee && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Overdue fee:</span> Returned {booking.overdueMinutes} minutes late.
+            </p>
+          )}
+          {hasDamageFee && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Damage fee:</span> {assessment?.description}
+            </p>
+          )}
+          {isSecurityDeposit && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Vehicle security deposit:</span> Refundable after a good return; retained for damage or maintenance.
+            </p>
+          )}
+          {isFinalRentalPayment && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Final rental payment:</span> Rental price minus reservation fee, plus overdue charges.
+            </p>
+          )}
+        </div>
+        <p className="text-red-600 mt-4 text-sm">
+          Remaining: <strong>{formatVND(booking.outstandingAmount ?? 0)}</strong>
+        </p>
+      </div>
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <select
+          value={gateway}
+          onChange={(event) => setGateway(event.target.value as PaymentGateway)}
+          className="px-4 py-3 rounded-xl border border-orange-200 font-bold bg-white focus:outline-none focus:border-orange-500"
+        >
+          <option value="VNPAY">VNPay</option>
+          <option value="PAYPAL">PayPal</option>
+        </select>
+        <button
+          onClick={() => onPay(booking, gateway)}
+          disabled={isPaying}
+          className="px-6 py-3 rounded-xl bg-orange-600 text-white font-black disabled:bg-gray-300 flex items-center justify-center gap-2 min-w-[140px]"
+        >
+          {isPaying && <Loader2 size={16} className="animate-spin" />}
+          Pay request
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReceiptRow({
+  payment,
+  onDetails,
+  onDownload,
+  showInvoice = true,
+  compact = false,
+}: {
+  payment: ApiPaymentResponse;
+  onDetails: (payment: ApiPaymentResponse) => void;
+  onDownload: (bookingId: number) => void;
+  showInvoice?: boolean;
+  compact?: boolean;
+}) {
+  const statusMeta = STATUS_META[payment.status];
+  const gatewayMeta = paymentGatewayMeta(payment);
+
+  return (
+    <div className={`bg-white border border-gray-100 ${compact ? 'border-x-0 border-t-0 rounded-none' : 'rounded-2xl shadow-sm'} p-5`}>
+      <div className="grid sm:grid-cols-[1fr_auto] gap-4 sm:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-black text-gray-900">{payment.bookingCode ?? `Payment #${payment.id}`}</p>
+            <span className={`px-2 py-1 rounded-lg text-xs font-black ${statusMeta.bgColor} ${statusMeta.color}`}>
+              {statusMeta.label}
+            </span>
+            <span className={`text-xs font-black ${gatewayMeta.color}`}>{gatewayMeta.label}</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+            <Calendar size={14} />
+            {formatDateTime(payment.createdAt)} | {payment.type}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 sm:justify-end">
+          <p className="font-black text-xl text-[#78ad44]">{formatVND(payment.amount)}</p>
+          <button
+            onClick={() => onDetails(payment)}
+            className="p-2 rounded-xl bg-[#f4f8f7] text-gray-700 hover:text-[#78ad44]"
+            title="Details"
+          >
+            <Eye size={18} />
+          </button>
+          {showInvoice && payment.bookingId != null && (
+            <button
+              onClick={() => onDownload(payment.bookingId!)}
+              className="p-2 rounded-xl bg-[#f4f8f7] text-gray-700 hover:text-[#78ad44]"
+              title="Download invoice"
+            >
+              <Download size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentDetailsModal({
+  payment,
+  onClose,
+  onDownload,
+  showInvoice,
+}: {
+  payment: ApiPaymentResponse;
+  onClose: () => void;
+  onDownload: (bookingId: number) => void;
+  showInvoice: boolean;
+}) {
+  const statusMeta = STATUS_META[payment.status];
+  const gatewayMeta = paymentGatewayMeta(payment);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-xl font-black text-gray-900">{showInvoice ? 'Receipt Details' : 'Deposit/Refund Details'}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 font-black">X</button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className={`${statusMeta.bgColor} rounded-2xl p-4`}>
+            <p className="text-xs font-bold text-gray-500">Status</p>
+            <p className={`text-lg font-black ${statusMeta.color}`}>{statusMeta.label}</p>
+          </div>
+          <DetailRow label="Payment ID" value={`#${payment.id}`} />
+          <DetailRow label="Method" value={gatewayMeta.label} />
+          <DetailRow label="Type" value={payment.type} />
+          <DetailRow label="Amount" value={formatVND(payment.amount)} strong />
+          <DetailRow label="Created" value={formatDateTime(payment.createdAt)} />
+          {payment.paidAt && <DetailRow label="Paid" value={formatDateTime(payment.paidAt)} />}
+          {payment.refundedAt && <DetailRow label="Refunded" value={formatDateTime(payment.refundedAt)} />}
+          {payment.gatewayReference && <DetailRow label="Reference" value={payment.gatewayReference} />}
+          {payment.failureReason && <DetailRow label="Failure" value={payment.failureReason} />}
+          {showInvoice && payment.bookingId != null && (
+            <button
+              onClick={() => onDownload(payment.bookingId!)}
+              className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-3 flex items-center justify-center gap-2"
+            >
+              <Download size={18} />
+              Download Invoice PDF
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="font-bold text-gray-500">{label}</span>
+      <span className={`${strong ? 'font-black text-[#78ad44]' : 'font-bold text-gray-900'} text-right break-all`}>{value}</span>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof Landmark;
+  label: string;
+  value: string;
+  tone: 'green' | 'blue' | 'dark';
+}) {
+  const color = tone === 'green' ? 'text-[#78ad44]' : tone === 'blue' ? 'text-blue-600' : 'text-gray-900';
+  return (
+    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+      <Icon size={22} className={color} />
+      <p className="text-xs font-bold text-gray-500 mt-4">{label}</p>
+      <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-3 rounded-2xl text-sm font-black transition-colors ${
+        active ? 'bg-[#78ad44] text-white shadow-sm' : 'text-gray-500 hover:bg-[#f4f8f7] hover:text-gray-900'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SectionHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+  return (
+    <div className="p-6 border-b border-gray-100">
+      <h2 className="font-black text-gray-900 text-lg flex items-center gap-2">
+        {icon}
+        {title}
+      </h2>
+      <p className="text-sm text-gray-500 mt-1">{description}</p>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <div className="p-10 text-center text-gray-400">
+      <div className="flex justify-center mb-3">{icon}</div>
+      <p className="font-black text-gray-500">{title}</p>
+      <p className="text-sm mt-1">{text}</p>
+    </div>
+  );
+}
+
+function WithdrawalStatusBadge({ status }: { status: ApiWithdrawalRequest['status'] }) {
+  const style = status === 'COMPLETED'
+    ? 'bg-green-50 text-green-700'
+    : status === 'REJECTED'
+      ? 'bg-red-50 text-red-700'
+      : 'bg-orange-50 text-orange-700';
+  return <span className={`px-3 py-1 rounded-full text-xs font-black ${style}`}>{status}</span>;
 }

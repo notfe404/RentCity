@@ -3,6 +3,7 @@ package com.rentcity.Rentcity.repository;
 import com.rentcity.Rentcity.entity.Booking;
 import com.rentcity.Rentcity.entity.BookingStatus;
 import com.rentcity.Rentcity.entity.DepositStatus;
+import com.rentcity.Rentcity.entity.SecurityDepositStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -72,6 +73,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     List<Booking> findAllByOrderByCreatedAtDesc();
 
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    List<Booking> findByUserIdAndSecurityDepositStatusOrderByCreatedAtDesc(
+            Long userId,
+            SecurityDepositStatus securityDepositStatus
+    );
 
     List<Booking> findTop5ByOrderByCreatedAtDesc();
 

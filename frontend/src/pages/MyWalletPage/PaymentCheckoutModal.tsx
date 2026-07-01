@@ -23,7 +23,7 @@ export default function PaymentCheckoutModal({ payment, onClose, onSuccess }: Pa
     if (payment.gateway !== 'VNPAY') return '';
     return generateVNPayQRCode(
       payment.amount,
-      payment.bookingCode ?? `WALLET-${payment.id}`,
+      payment.bookingCode ?? `PAYMENT-${payment.id}`,
     );
   }, [payment]);
 
@@ -57,7 +57,7 @@ export default function PaymentCheckoutModal({ payment, onClose, onSuccess }: Pa
           purchase_units: [{
             description: payment.type === 'DAMAGE_PAYMENT'
               ? `Damage payment for ${payment.bookingCode}`
-              : 'RentCity wallet top-up',
+              : `RentCity payment ${payment.bookingCode ?? payment.id}`,
             amount: { currency_code: 'USD', value: Math.max(1, payment.amount / 25000).toFixed(2) },
           }],
         }),
@@ -99,7 +99,7 @@ export default function PaymentCheckoutModal({ payment, onClose, onSuccess }: Pa
       return;
     }
     setStatus('success');
-    toast.success(result.type === 'DAMAGE_PAYMENT' ? 'Damage request paid' : 'Wallet top-up completed');
+    toast.success('Payment completed');
     window.setTimeout(() => {
       onSuccess();
     }, 1200);
@@ -119,13 +119,13 @@ export default function PaymentCheckoutModal({ payment, onClose, onSuccess }: Pa
         <div className="p-8">
           {status === 'error' && <Centered icon={<CreditCard className="text-red-500" size={48} />} title="Payment failed" text={error} />}
           {status === 'processing' && <Centered icon={<Loader2 className="animate-spin text-blue-600" size={48} />} title="Confirming payment..." />}
-          {status === 'success' && <Centered icon={<CheckCircle2 className="text-green-600" size={52} />} title="Payment successful" text="Your wallet has been updated." />}
+          {status === 'success' && <Centered icon={<CheckCircle2 className="text-green-600" size={52} />} title="Payment successful" text="Your payment has been recorded." />}
 
           {status === 'ready' && (
             <div>
               <div className="text-center mb-8 mt-4">
                 <h2 className="text-2xl font-black text-gray-900">
-                  {payment.type === 'DAMAGE_PAYMENT' ? 'Pay damage request' : 'Top up My Wallet'}
+                  Complete Payment
                 </h2>
                 <p className="mt-2 text-sm text-gray-500 font-medium">
                   Complete payment through {payment.gateway}.

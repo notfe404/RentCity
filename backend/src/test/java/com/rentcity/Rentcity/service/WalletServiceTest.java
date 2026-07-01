@@ -1,8 +1,12 @@
 package com.rentcity.Rentcity.service;
 
+import com.rentcity.Rentcity.entity.Booking;
+import com.rentcity.Rentcity.entity.SecurityDepositStatus;
+import com.rentcity.Rentcity.entity.SettlementMethod;
 import com.rentcity.Rentcity.entity.Wallet;
 import com.rentcity.Rentcity.entity.WalletTransaction;
 import com.rentcity.Rentcity.entity.WalletTransactionType;
+import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import com.rentcity.Rentcity.repository.WalletRepository;
 import com.rentcity.Rentcity.repository.WalletTransactionRepository;
@@ -34,6 +38,8 @@ class WalletServiceTest {
     private WalletTransactionRepository transactionRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private BookingRepository bookingRepository;
 
     private final AtomicReference<Wallet> storedWallet = new AtomicReference<>();
     private final List<WalletTransaction> transactions = new ArrayList<>();
@@ -41,7 +47,7 @@ class WalletServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new WalletService(walletRepository, transactionRepository, userRepository);
+        service = new WalletService(walletRepository, transactionRepository, userRepository, bookingRepository);
         when(walletRepository.findByUserId(1L))
                 .thenAnswer(invocation -> Optional.ofNullable(storedWallet.get()));
         when(walletRepository.findByUserIdForUpdate(1L))
@@ -60,6 +66,10 @@ class WalletServiceTest {
         });
         when(transactionRepository.findByWalletIdOrderByCreatedAtDesc(1L))
                 .thenAnswer(invocation -> new ArrayList<>(transactions));
+        when(bookingRepository.findByUserIdAndSecurityDepositStatusOrderByCreatedAtDesc(
+                1L,
+                SecurityDepositStatus.REFUNDED
+        )).thenReturn(List.of());
         when(transactionRepository.save(any(WalletTransaction.class))).thenAnswer(invocation -> {
             WalletTransaction transaction = invocation.getArgument(0);
             transaction.setId((long) transactions.size() + 1);
@@ -165,5 +175,28 @@ class WalletServiceTest {
                 )
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exceeds available wallet balance");
+    }
+
+    @Test
+    void withdrawalReconcilesResolvedRetainedDepositRefundBeforeReserving() {
+        Booking booking = Booking.builder()
+                .id(10L)
+                .userId(1L)
+                .securityDepositStatus(SecurityDepositStatus.REFUNDED)
+                .securityDepositRefundMethod(SettlementMethod.PAYMENT_REQUEST)
+                .securityDepositRepairCost(new BigDecimal("2000000"))
+                .securityDepositRefundedAmount(new BigDecimal("3000000"))
+                .build();
+        when(bookingRepository.findByUserIdAndSecurityDepositStatusOrderByCreatedAtDesc(
+                1L,
+                SecurityDepositStatus.REFUNDED
+        )).thenReturn(List.of(booking));
+
+        service.reserveWithdrawal(1L, new BigDecimal("3000000"), "withdrawal:9:requested");
+
+        assertThat(storedWallet.get().getAvailableBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(transactions).extracting(WalletTransaction::getType)
+                .containsExactly(WalletTransactionType.REFUND_CREDIT, WalletTransactionType.WITHDRAWAL_REQUEST);
+        assertThat(transactions.get(0).getReference()).isEqualTo("booking:10:retained-deposit-wallet-refund");
     }
 }

@@ -88,7 +88,7 @@ export function getSecurityDepositPaymentLabel(
     case 'VNPAY':
       return 'Online payment - VNPay';
     case 'WALLET':
-      return 'Online payment - My Wallet';
+      return 'Refund balance';
     case 'CASH':
       return 'Cash';
     default:

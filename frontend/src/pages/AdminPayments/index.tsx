@@ -28,6 +28,8 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'FAILED', label: 'Failed' },
 ];
 
+const REVENUE_PAYMENT_TYPES = new Set(['DEPOSIT', 'FINAL_RENTAL_PAYMENT', 'BALANCE_PAYMENT', 'FULL']);
+
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<ApiAdminPayment[]>([]);
   const [search, setSearch] = useState('');
@@ -68,7 +70,9 @@ export default function AdminPaymentsPage() {
   }, [payments, search, statusFilter]);
 
   const totalPaid = useMemo(
-    () => filtered.filter((p) => p.status === 'PAID').reduce((s, p) => s + p.amount, 0),
+    () => filtered
+      .filter((p) => p.status === 'PAID' && REVENUE_PAYMENT_TYPES.has(p.type))
+      .reduce((s, p) => s + p.amount, 0),
     [filtered],
   );
 

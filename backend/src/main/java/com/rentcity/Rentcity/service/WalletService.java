@@ -2,10 +2,14 @@ package com.rentcity.Rentcity.service;
 
 import com.rentcity.Rentcity.dto.WalletResponse;
 import com.rentcity.Rentcity.dto.WalletTransactionResponse;
+import com.rentcity.Rentcity.entity.Booking;
+import com.rentcity.Rentcity.entity.SecurityDepositStatus;
+import com.rentcity.Rentcity.entity.SettlementMethod;
 import com.rentcity.Rentcity.entity.User;
 import com.rentcity.Rentcity.entity.Wallet;
 import com.rentcity.Rentcity.entity.WalletTransaction;
 import com.rentcity.Rentcity.entity.WalletTransactionType;
+import com.rentcity.Rentcity.repository.BookingRepository;
 import com.rentcity.Rentcity.repository.UserRepository;
 import com.rentcity.Rentcity.repository.WalletRepository;
 import com.rentcity.Rentcity.repository.WalletTransactionRepository;
@@ -23,10 +27,12 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
 
     @Transactional
     public WalletResponse getMyWallet(String email) {
         User user = findUser(email);
+        reconcileRefundableSecurityDeposits(user.getId());
         Wallet wallet = getOrCreateWallet(user.getId());
         return map(wallet, transactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getId()));
     }
@@ -261,6 +267,7 @@ public class WalletService {
         if (transactionRepository.existsByReference(reference)) {
             return;
         }
+        reconcileRefundableSecurityDeposits(userId);
         Wallet wallet = getOrCreateWalletForUpdate(userId);
         if (wallet.getAvailableBalance().compareTo(amount) < 0) {
             throw new IllegalArgumentException("Withdrawal amount exceeds available wallet balance");
@@ -303,6 +310,40 @@ public class WalletService {
                             : "Overdue return charge", actorId);
         }
         return charged;
+    }
+
+    private void reconcileRefundableSecurityDeposits(Long userId) {
+        bookingRepository.findByUserIdAndSecurityDepositStatusOrderByCreatedAtDesc(
+                        userId,
+                        SecurityDepositStatus.REFUNDED
+                )
+                .stream()
+                .filter(booking -> booking.getSecurityDepositRefundMethod() != SettlementMethod.CASH)
+                .filter(booking -> amountOrZero(booking.getSecurityDepositRefundedAmount()).signum() > 0)
+                .forEach(booking -> {
+                    BigDecimal refundAmount = booking.getSecurityDepositRefundedAmount();
+                    if (booking.getSecurityDepositRepairCost() != null) {
+                        refundRetainedSecurityDepositToWallet(
+                                userId,
+                                booking.getId(),
+                                refundAmount,
+                                "booking:" + booking.getId() + ":retained-deposit-wallet-refund",
+                                userId
+                        );
+                    } else {
+                        refundBookingDeposit(
+                                userId,
+                                booking.getId(),
+                                refundAmount,
+                                "booking:" + booking.getId() + ":security-deposit-refund",
+                                "Vehicle security deposit added to refundable balance"
+                        );
+                    }
+                });
+    }
+
+    private BigDecimal amountOrZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private void consumeHeldDeposit(

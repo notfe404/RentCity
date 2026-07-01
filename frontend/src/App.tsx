@@ -26,7 +26,6 @@ const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
 
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const PaymentsPage = lazy(() => import('@/pages/PaymentsPage'));
-const MyWalletPage = lazy(() => import('@/pages/MyWalletPage'));
 const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage'));
 const BookingDetailPage = lazy(() => import('@/pages/BookingDetailPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
@@ -83,7 +82,7 @@ export default function App() {
               {/* ─── User Profile & Dashboard ─── */}
               <Route path={ROUTES.PROFILE} element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path={ROUTES.PAYMENTS} element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
-              <Route path={ROUTES.WALLET} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyWalletPage /></ProtectedRoute>} />
+              <Route path={ROUTES.WALLET} element={<Navigate to={ROUTES.PAYMENTS} replace />} />
               <Route path={ROUTES.MY_BOOKINGS} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><MyBookingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.BOOKING_DETAIL} element={<ProtectedRoute allowedRoles={['CUSTOMER']}><BookingDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
