@@ -14,6 +14,8 @@ import AuthModal from '@/components/auth/AuthModal';
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const SearchPage = lazy(() => import('@/pages/SearchPage'));
 const VehicleDetailPage = lazy(() => import('@/pages/VehicleDetailPage'));
+const ServicesPage = lazy(() => import('@/pages/ServicesPage'));
+const CommunityPage = lazy(() => import('@/pages/CommunityPage'));
 
 const BookingPage = lazy(() => import('@/pages/BookingPage'));
 const BookingConfirmPage = lazy(() => import('@/pages/BookingConfirmPage'));
@@ -65,6 +67,8 @@ export default function App() {
             <Routes>
               {/* ─── Public ─── */}
               <Route path={ROUTES.HOME} element={<LandingPage />} />
+              <Route path={ROUTES.SERVICES} element={<ServicesPage />} />
+              <Route path={ROUTES.COMMUNITY} element={<CommunityPage />} />
               <Route path={ROUTES.SEARCH} element={<SearchPage />} />
               <Route path={ROUTES.VEHICLE_DETAIL} element={<VehicleDetailPage />} />
 

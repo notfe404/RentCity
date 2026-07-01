@@ -1,6 +1,8 @@
 export const ROUTES = {
   // Public
   HOME: '/',
+  SERVICES: '/services',
+  COMMUNITY: '/community',
   SEARCH: '/search',
   VEHICLE_DETAIL: '/vehicles/:id',
 

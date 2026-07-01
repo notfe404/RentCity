@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, LayoutDashboard, FileText, LogOut, Car, ChevronDown, WalletCards } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const NAV_LINKS = [
   { label: 'Home',      href: '/' },
-  { label: 'Services',  href: '#services' },
+  { label: 'Services',  href: '/services' },
   { label: 'Fleet',     href: '/search' },
-  { label: 'Community', href: '#community' },
+  { label: 'Community', href: '/community' },
 ];
 
 function UserDropdown() {
@@ -125,9 +125,9 @@ export default function Header() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map(l => (
-              <a key={l.label} href={l.href} className="text-sm font-medium text-muted hover:text-brand transition-colors">
+              <Link key={l.label} to={l.href} className="text-sm font-medium text-muted hover:text-brand transition-colors">
                 {l.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -156,9 +156,9 @@ export default function Header() {
       {open && (
         <div className="md:hidden bg-white border-t border-border px-4 pb-6 pt-2 space-y-1 shadow-lg absolute w-full left-0 z-50">
           {NAV_LINKS.map(l => (
-            <a key={l.label} href={l.href} onClick={() => setOpen(false)} className="block py-2.5 text-sm font-bold text-gray-600 hover:text-[#78ad44]">
+            <Link key={l.label} to={l.href} onClick={() => setOpen(false)} className="block py-2.5 text-sm font-bold text-gray-600 hover:text-[#78ad44]">
               {l.label}
-            </a>
+            </Link>
           ))}
           
           <div className="pt-4 border-t border-gray-100 mt-4">

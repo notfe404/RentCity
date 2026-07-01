@@ -36,7 +36,7 @@ export default function PaymentCheckoutModal({ payment, onClose, onSuccess }: Pa
     }
     const script = document.createElement('script');
     script.dataset.rentcityPaypal = 'true';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID}&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test'}&currency=USD`;
     script.async = true;
     script.onload = renderPaypal;
     script.onerror = () => {
