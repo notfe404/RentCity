@@ -1,6 +1,7 @@
 package com.rentcity.Rentcity.dto;
 
 import com.rentcity.Rentcity.entity.CarStatus;
+import com.rentcity.Rentcity.entity.FuelType;
 import com.rentcity.Rentcity.entity.Transmission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -40,6 +41,9 @@ public class CarRequest {
 
     @NotNull(message = "Hộp số không được để trống (AUTO hoặc MANUAL)")
     private Transmission transmission;
+
+    @NotNull(message = "Fuel type is required")
+    private FuelType fuelType;
 
     @NotNull(message = "Giá thuê / ngày không được để trống")
     @Positive(message = "Giá thuê / ngày phải lớn hơn 0")

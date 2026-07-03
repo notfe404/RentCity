@@ -394,19 +394,9 @@ public class BookingService {
         if (request.getActualReturnAt().isBefore(booking.getStartTime())) {
             throw new IllegalArgumentException("Actual return time cannot be before the booking start time");
         }
-        if (request.getOdometer() == null || request.getOdometer() < 0) {
-            throw new IllegalArgumentException("Odometer must be zero or greater");
-        }
-        if (request.getFuelLevel() == null || request.getFuelLevel() < 0 || request.getFuelLevel() > 100) {
-            throw new IllegalArgumentException("Fuel level must be between 0 and 100");
-        }
 
         Car car = carRepository.findByIdForUpdate(booking.getCarId())
                 .orElseThrow(() -> new ResourceNotFoundException("car", booking.getCarId()));
-        CarConditionResponse preRentalCondition = carConditionService.getById(booking.getInitialConditionReportId());
-        if (preRentalCondition != null && request.getOdometer() < preRentalCondition.getOdometer()) {
-            throw new IllegalArgumentException("Return odometer cannot be lower than the pre-rental odometer");
-        }
 
         carConditionService.createReturn(
                 car.getId(),

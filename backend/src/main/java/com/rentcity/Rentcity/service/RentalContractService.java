@@ -102,11 +102,8 @@ public class RentalContractService {
             throw new IllegalArgumentException("Vehicle is not available for handover");
         }
 
-        CarConditionResponse currentCondition = carConditionService.getCurrent(car.getId());
         CarConditionRequest conditionRequest = CarConditionRequest.builder()
                 .condition(request.getCondition())
-                .odometer(resolveOdometer(request.getOdometer(), currentCondition))
-                .fuelLevel(resolveFuelLevel(request.getFuelLevel(), currentCondition))
                 .damageFound(request.isDamageFound())
                 .notes(request.getNotes())
                 .build();
@@ -181,11 +178,6 @@ public class RentalContractService {
         CarConditionResponse handover = carConditionService.getById(contract.getHandoverConditionReportId());
         if (handover == null) {
             throw new IllegalStateException("Handover condition is missing");
-        }
-        Long handoverOdometer = resolveOdometer(null, handover);
-        Long returnOdometer = resolveOdometer(request.getOdometer(), handover);
-        if (returnOdometer < handoverOdometer) {
-            throw new IllegalArgumentException("Return odometer cannot be lower than handover odometer");
         }
 
         Car car = carRepository.findByIdForUpdate(booking.getCarId())
@@ -570,34 +562,12 @@ public class RentalContractService {
         return CarConditionRequest.builder()
                 .condition(request.getCondition())
                 .actualReturnAt(request.getActualReturnAt())
-                .odometer(resolveOdometer(request.getOdometer(), handover))
-                .fuelLevel(resolveFuelLevel(request.getFuelLevel(), handover))
                 .damageFound(request.isDamageFound())
                 .damageSeverity(request.getDamageSeverity())
                 .estimatedDamageFee(request.getEstimatedDamageFee())
                 .damageDescription(request.getDamageDescription())
                 .notes(request.getNotes())
                 .build();
-    }
-
-    private Long resolveOdometer(Long requested, CarConditionResponse fallback) {
-        if (requested != null) {
-            return requested;
-        }
-        if (fallback != null && fallback.getOdometer() != null) {
-            return fallback.getOdometer();
-        }
-        return 0L;
-    }
-
-    private Integer resolveFuelLevel(Integer requested, CarConditionResponse fallback) {
-        if (requested != null) {
-            return requested;
-        }
-        if (fallback != null && fallback.getFuelLevel() != null) {
-            return fallback.getFuelLevel();
-        }
-        return 100;
     }
 
     private String normalize(String value) {

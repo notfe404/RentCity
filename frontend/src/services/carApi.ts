@@ -1,5 +1,5 @@
 import api from './api';
-import type { ApiCarResponse, ApiPageResponse } from '@/types';
+import type { ApiCarResponse, ApiPageResponse, FuelType } from '@/types';
 
 interface SearchCarsParams {
   page?: number;
@@ -35,6 +35,7 @@ export interface AdminCarPayload {
   licensePlate: string;
   year?: number;
   transmission: 'AUTO' | 'MANUAL';
+  fuelType: FuelType;
   pricePerDay: number;
   deposit: number;
   status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED';
@@ -44,8 +45,6 @@ export interface AdminCarPayload {
   seats?: number;
   initialCondition?: {
     condition: 'GOOD';
-    odometer: number;
-    fuelLevel: number;
     damageFound: boolean;
     notes?: string;
   };

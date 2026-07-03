@@ -120,6 +120,7 @@ public class DataSeeder implements CommandLineRunner {
                 .category(category).branch(branch)
                 .licensePlate(plate).brand(brand).model(model).year(year)
                 .transmission(transmission)
+                .fuelType(FuelType.GASOLINE)
                 .pricePerDay(new BigDecimal(pricePerDay))
                 .deposit(new BigDecimal(deposit))
                 .status(status).description(description)

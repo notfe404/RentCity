@@ -21,6 +21,7 @@ const EMPTY: AdminCarPayload = {
   licensePlate: '',
   year: new Date().getFullYear(),
   transmission: 'AUTO',
+  fuelType: 'GASOLINE',
   pricePerDay: 0,
   deposit: 5_000_000,
   status: 'AVAILABLE',
@@ -30,8 +31,6 @@ const EMPTY: AdminCarPayload = {
   seats: 5,
   initialCondition: {
     condition: 'GOOD',
-    odometer: 0,
-    fuelLevel: 100,
     damageFound: false,
     notes: '',
   },
@@ -52,6 +51,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
         licensePlate: initialData.licensePlate,
         year: initialData.year ?? new Date().getFullYear(),
         transmission: initialData.transmission,
+        fuelType: initialData.fuelType,
         pricePerDay: initialData.pricePerDay,
         deposit: initialData.deposit ?? 5_000_000,
         status: initialData.status,
@@ -61,8 +61,6 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
         seats: initialData.seats ?? 5,
         initialCondition: initialData.currentCondition ? {
           condition: 'GOOD',
-          odometer: initialData.currentCondition.odometer,
-          fuelLevel: initialData.currentCondition.fuelLevel,
           damageFound: initialData.currentCondition.damageFound,
           notes: initialData.currentCondition.notes ?? '',
         } : EMPTY.initialCondition,
@@ -154,6 +152,19 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
               >
                 <option value="AUTO">Automatic</option>
                 <option value="MANUAL">Manual</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Fuel</label>
+              <select
+                value={form.fuelType}
+                onChange={(e) => setForm({ ...form, fuelType: e.target.value as AdminCarPayload['fuelType'] })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44] appearance-none"
+              >
+                <option value="GASOLINE">Gasoline</option>
+                <option value="DIESEL">Diesel</option>
+                <option value="ELECTRIC">Electric</option>
+                <option value="HYBRID">Hybrid</option>
               </select>
             </div>
             <div>
@@ -278,39 +289,7 @@ export default function VehicleFormModal({ isOpen, onClose, onSave, initialData,
             <div className="border border-gray-200 rounded-2xl p-5 space-y-4 bg-[#f8f9fa]">
               <div>
                 <h3 className="font-black text-gray-900">Initial car condition</h3>
-                <p className="text-xs text-gray-500 mt-1">Condition is recorded as GOOD. Add the measurable details below.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Odometer (km) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={form.initialCondition?.odometer ?? 0}
-                    onChange={(e) => setForm({
-                      ...form,
-                      initialCondition: { ...form.initialCondition!, odometer: Number(e.target.value) },
-                    })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5">Fuel level (%) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    required
-                    value={form.initialCondition?.fuelLevel ?? 100}
-                    onChange={(e) => setForm({
-                      ...form,
-                      initialCondition: { ...form.initialCondition!, fuelLevel: Number(e.target.value) },
-                    })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#78ad44]"
-                  />
-                </div>
+                <p className="text-xs text-gray-500 mt-1">Condition is recorded as GOOD. Add notes and photos when needed.</p>
               </div>
 
               <label className="flex items-center gap-3 text-sm font-bold text-gray-700">

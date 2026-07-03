@@ -5,7 +5,7 @@ import { getRentalDurationParts } from '@/utils/bookingDateTime';
 export const BOOKING_STATUS_META: Record<ApiBookingStatus, { label: string; bg: string; color: string }> = {
   PENDING: { label: 'Pending Confirmation', bg: 'bg-orange-500', color: 'text-orange-600' },
   CONFIRMED: { label: 'Confirmed', bg: 'bg-[#78ad44]', color: 'text-[#78ad44]' },
-  PAID: { label: 'Vehicle Deposit Collected', bg: 'bg-emerald-600', color: 'text-emerald-600' },
+  PAID: { label: 'Ready for Handover', bg: 'bg-emerald-600', color: 'text-emerald-600' },
   ONGOING: { label: 'Ongoing', bg: 'bg-blue-600', color: 'text-blue-600' },
   COMPLETED: { label: 'Completed', bg: 'bg-gray-700', color: 'text-gray-500' },
   CANCELLED: { label: 'Cancelled', bg: 'bg-red-500', color: 'text-red-500' },

@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
-import { Save, Upload, X, FileText, Check, Edit3, CreditCard } from 'lucide-react';
+import { Save, Upload, X, FileText, Check, Edit3 } from 'lucide-react';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { getMe, getMyDocuments, updateProfile, uploadDocument } from '@/services/userApi';
 import { useAuth } from '@/hooks/useAuth';
 import { mapApiUserToUser } from '@/utils/userMapper';
@@ -41,9 +40,7 @@ function getProfileFieldErrors(err: unknown): ProfileFieldErrors {
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const { updateUser } = useAuth();
-  const navigate = useNavigate();
   const [profileErrors, setProfileErrors] = useState<ProfileFieldErrors>({});
-  const [activeTab, setActiveTab] = useState<'profile'>('profile');
 
   // Local state for displaying & editing
   const [firstName, setFirstName] = useState('');
@@ -234,31 +231,9 @@ const [backId, setBackId] = useState<{
         
         <div className="flex-1 space-y-8 animate-in fade-in duration-500 relative">
           
-          {/* Tab Navigation */}
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex gap-4">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'profile'
-                  ? 'bg-[#78ad44] text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Edit3 size={18} />
-              Profile
-            </button>
-            <button
-              onClick={() => navigate('/payments')}
-              className="px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              <CreditCard size={18} />
-              Payment
-            </button>
-          </div>
+          
 
-          {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
+          <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 transition-all">
             {/* Header: Personal Info */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-5 mb-8 gap-4">
               <div>
@@ -489,7 +464,6 @@ const [backId, setBackId] = useState<{
             )}
 
           </div>
-          )}
 
         </div>
 

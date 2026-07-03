@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Users, Settings, Briefcase, Fuel, Star } from 'lucide-react';
+import { Car, Users, Settings, Fuel, Star } from 'lucide-react';
 import { formatVND } from '@/utils/formatters';
 import type { MockVehicle } from '@/data/mockVehicles';
 
@@ -10,8 +10,24 @@ interface VehicleCardProps {
 }
 
 export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, onBookClick }) => {
+  const openDetails = () => onDetailsClick(car.id);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openDetails();
+    }
+  };
+
   return (
-    <div className="bg-white rounded-3xl overflow-hidden shadow-[0_2px_15px_rgb(0,0,0,0.04)] border border-gray-100/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full cursor-pointer">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={openDetails}
+      onKeyDown={handleKeyDown}
+      aria-label={`View details for ${car.name}`}
+      className="bg-white rounded-3xl overflow-hidden shadow-[0_2px_15px_rgb(0,0,0,0.04)] border border-gray-100/50 hover:shadow-xl hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#78ad44] focus:ring-offset-2 transition-all duration-300 group flex flex-col h-full cursor-pointer"
+    >
 
       {/* Car Image */}
       <div className="relative h-56 bg-[#f4f8f7] p-6 overflow-hidden flex items-center justify-center">
@@ -51,7 +67,7 @@ export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, 
             <Users size={16} className="text-[#78ad44]" /> {car.passengers} seats
           </div>
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
-            <Briefcase size={16} className="text-[#78ad44]" /> {car.luggage} luggage
+            <Fuel size={16} className="text-[#78ad44]" /> {car.fuelType}
           </div>
           <div className="flex items-center justify-start text-xs font-semibold text-gray-600 gap-2">
             <Car size={16} className="text-[#78ad44]" /> {car.doors} doors
@@ -64,13 +80,19 @@ export const VehicleCard = React.memo<VehicleCardProps>(({ car, onDetailsClick, 
         {/* Actions */}
         <div className="mt-auto flex gap-3">
           <button
-            onClick={() => onDetailsClick(car.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              openDetails();
+            }}
             className="flex-1 bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-full font-bold text-sm tracking-wide hover:border-[#78ad44] hover:text-[#78ad44] transition-colors"
           >
             Details
           </button>
           <button
-            onClick={() => onBookClick(car.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onBookClick(car.id);
+            }}
             className="flex-1 bg-[#212529] text-white py-3 rounded-full font-bold text-sm tracking-wide hover:bg-[#78ad44] transition-colors shadow-lg"
           >
             Book Now

@@ -40,8 +40,6 @@ export interface CheckinReport {
   bookingId: string;
   reportType: ReportType;
   staffId: string;
-  odometer: number;                 // odometer kilometers
-  fuelLevel: number;                // 0–100%
   conditionNotes?: string;
   damageFound: boolean;
   imageUrls: string[];              // vehicle image array
@@ -74,8 +72,6 @@ export interface CreateBookingRequest {
 }
 
 export interface CheckinRequest {
-  odometer: number;
-  fuelLevel: number;
   conditionNotes?: string;
   imageUrls: string[];
 }

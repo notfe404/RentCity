@@ -54,7 +54,6 @@ export interface Vehicle {
   seats: number;
   fuelType: FuelType;
   transmission: Transmission;
-  currentOdometer: number;
   locationId: string;
   location?: Location;              // joined when needed
   status: VehicleStatus;
@@ -120,8 +119,6 @@ export interface ApiCarConditionResponse {
   bookingId?: number | null;
   reportType: ApiConditionReportType;
   condition: ApiCarCondition;
-  odometer: number;
-  fuelLevel: number;
   damageFound: boolean;
   notes?: string | null;
   createdAt: string;
@@ -140,6 +137,7 @@ export interface ApiCarResponse {
   model: string;
   year?: number | null;
   transmission: 'AUTO' | 'MANUAL';
+  fuelType: FuelType;
   pricePerDay: number;
   deposit?: number | null;
   status: 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED';

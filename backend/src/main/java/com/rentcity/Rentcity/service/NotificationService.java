@@ -81,8 +81,8 @@ public class NotificationService {
                 customer.getId(),
                 NotificationAudience.USER,
                 NotificationType.BOOKING_CREATED,
-                "Đã tạo booking",
-                "Booking " + booking.getBookingCode() + " đang chờ xác nhận.",
+                "Booking created",
+                "Booking " + booking.getBookingCode() + " is waiting for confirmation.",
                 customerData
         );
 
@@ -91,8 +91,8 @@ public class NotificationService {
         putIfPresent(adminData, "customerEmail", customer.getEmail());
         createForAdminsAndStaff(
                 NotificationType.BOOKING_CREATED,
-                "Booking mới cần xử lý",
-                customerDisplayName(customer) + " vừa tạo booking " + booking.getBookingCode() + ".",
+                "New booking needs review",
+                customerDisplayName(customer) + " created booking " + booking.getBookingCode() + ".",
                 adminData
         );
     }
@@ -127,8 +127,8 @@ public class NotificationService {
         if (targetStatus == BookingStatus.CONFIRMED && isToday(booking.getStartTime())) {
             createForAdminsAndStaff(
                     NotificationType.SYSTEM,
-                    "Lịch nhận xe hôm nay",
-                    "Booking " + booking.getBookingCode() + " có lịch nhận xe trong hôm nay.",
+                    "Pickup scheduled today",
+                    "Booking " + booking.getBookingCode() + " is scheduled for pickup today.",
                     bookingData(booking, null, "/admin/bookings")
             );
         }
@@ -136,8 +136,8 @@ public class NotificationService {
         if (targetStatus == BookingStatus.ONGOING && isToday(booking.getEndTime())) {
             createForAdminsAndStaff(
                     NotificationType.SYSTEM,
-                    "Lịch trả xe hôm nay",
-                    "Booking " + booking.getBookingCode() + " có lịch trả xe trong hôm nay.",
+                    "Return scheduled today",
+                    "Booking " + booking.getBookingCode() + " is scheduled for return today.",
                     bookingData(booking, null, "/admin/bookings")
             );
         }
@@ -145,8 +145,8 @@ public class NotificationService {
         if (targetStatus == BookingStatus.CANCELLED) {
             createForAdminsAndStaff(
                     type,
-                    "Booking đã hủy",
-                    "Booking " + booking.getBookingCode() + " đã được hủy.",
+                    "Booking cancelled",
+                    "Booking " + booking.getBookingCode() + " has been cancelled.",
                     bookingData(booking, null, "/admin/bookings")
             );
         }
@@ -157,8 +157,8 @@ public class NotificationService {
         Map<String, String> data = paymentData(payment, booking, "/admin/payments");
         createForAdminsAndStaff(
                 NotificationType.PAYMENT_PENDING,
-                "Thanh toán đang chờ",
-                "Booking " + bookingCode(booking, payment) + " có thanh toán " + payment.getGateway() + " đang chờ.",
+                "Payment pending",
+                "Booking " + bookingCode(booking, payment) + " has a pending " + payment.getGateway() + " payment.",
                 data
         );
     }
@@ -171,8 +171,8 @@ public class NotificationService {
                 booking.getUserId(),
                 NotificationAudience.USER,
                 NotificationType.SYSTEM,
-                "Hoàn tiền phí sửa chữa xe",
-                "Bạn đã được hoàn " + format.format(amount) + " phí sửa chữa cho booking " + booking.getBookingCode() + " vào ví.",
+                "Repair fee refunded",
+                "You received a repair fee refund of " + format.format(amount) + " for booking " + booking.getBookingCode() + " in your refund balance.",
                 data
         );
     }
@@ -204,7 +204,7 @@ public class NotificationService {
             createForAdminsAndStaff(
                     type,
                     paymentStatusTitle(status),
-                    "Thanh toán #" + payment.getId() + " cho booking #" + payment.getBookingId() + " cần kiểm tra.",
+                    "Payment #" + payment.getId() + " for booking #" + payment.getBookingId() + " needs review.",
                     paymentData(payment, null, "/admin/payments")
             );
         }
@@ -221,8 +221,8 @@ public class NotificationService {
 
         createForAdminsAndStaff(
                 NotificationType.KYC_PENDING,
-                "Hồ sơ KYC cần duyệt",
-                customerDisplayName(user) + " vừa tải hồ sơ xác minh.",
+                "KYC document needs review",
+                customerDisplayName(user) + " uploaded a verification document.",
                 data
         );
     }
@@ -282,15 +282,16 @@ public class NotificationService {
     }
 
     private NotificationResponse mapToResponse(Notification notification) {
+        Map<String, String> data = readData(notification.getDataJson());
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .recipientUserId(notification.getRecipientUserId())
                 .audience(notification.getAudience())
                 .type(notification.getType())
-                .title(notification.getTitle())
-                .message(notification.getMessage())
-                .body(notification.getMessage())
-                .data(readData(notification.getDataJson()))
+                .title(displayTitle(notification, data))
+                .message(displayMessage(notification, data))
+                .body(displayMessage(notification, data))
+                .data(data)
                 .isRead(notification.getReadAt() != null)
                 .readAt(notification.getReadAt())
                 .createdAt(notification.getCreatedAt())
@@ -366,45 +367,151 @@ public class NotificationService {
         return value != null && value.toLocalDate().equals(LocalDateTime.now().toLocalDate());
     }
 
+    private String displayTitle(Notification notification, Map<String, String> data) {
+        String title = notification.getTitle();
+        if (!looksLegacyVietnamese(title)) {
+            return title;
+        }
+        return switch (notification.getType()) {
+            case BOOKING_CREATED -> notification.getAudience() == NotificationAudience.USER
+                    ? "Booking created"
+                    : "New booking needs review";
+            case BOOKING_CONFIRMED -> "Booking confirmed";
+            case BOOKING_CANCELLED -> "Booking cancelled";
+            case BOOKING_ONGOING -> "Rental started";
+            case BOOKING_COMPLETED -> "Booking completed";
+            case REVIEW_REQUEST -> "Review your rental";
+            case PAYMENT_PENDING -> "Payment pending";
+            case PAYMENT_FAILED -> "Payment failed";
+            case PAYMENT_REFUNDED -> "Payment refunded";
+            case PAYMENT_EXPIRED -> "Payment expired";
+            case PAYMENT_PAID -> data.containsKey("paymentId")
+                    ? "Payment successful"
+                    : "Booking ready for handover";
+            case KYC_PENDING -> "KYC document needs review";
+            case SYSTEM -> systemTitle(data, title);
+        };
+    }
+
+    private String displayMessage(Notification notification, Map<String, String> data) {
+        String message = notification.getMessage();
+        if (!looksLegacyVietnamese(message)) {
+            return message;
+        }
+
+        String bookingCode = data.getOrDefault("bookingCode", "this booking");
+        String paymentId = data.get("paymentId");
+        return switch (notification.getType()) {
+            case BOOKING_CREATED -> notification.getAudience() == NotificationAudience.USER
+                    ? "Booking " + bookingCode + " is waiting for confirmation."
+                    : customerFromData(data) + " created booking " + bookingCode + ".";
+            case BOOKING_CONFIRMED -> "Booking " + bookingCode + " has been confirmed.";
+            case BOOKING_CANCELLED -> "Booking " + bookingCode + " has been cancelled.";
+            case BOOKING_ONGOING -> "Booking " + bookingCode + " is now ongoing.";
+            case BOOKING_COMPLETED -> "Booking " + bookingCode + " is complete.";
+            case REVIEW_REQUEST -> "Booking " + bookingCode + " is complete. Please share your experience.";
+            case PAYMENT_PENDING -> "Booking " + bookingCode + " has a pending payment.";
+            case PAYMENT_FAILED -> paymentId != null
+                    ? "Payment #" + paymentId + " failed. Please review it."
+                    : "A payment needs review.";
+            case PAYMENT_REFUNDED -> paymentId != null
+                    ? "Payment #" + paymentId + " has been refunded."
+                    : "A payment has been refunded.";
+            case PAYMENT_EXPIRED -> paymentId != null
+                    ? "Payment #" + paymentId + " has expired."
+                    : "A payment has expired.";
+            case PAYMENT_PAID -> paymentId != null
+                    ? "Payment #" + paymentId + " was successful."
+                    : "Booking " + bookingCode + " has collected the vehicle security deposit and is ready for handover.";
+            case KYC_PENDING -> customerFromData(data) + " uploaded a verification document.";
+            case SYSTEM -> systemMessage(data, message);
+        };
+    }
+
+    private boolean looksLegacyVietnamese(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        return value.chars().anyMatch(ch -> ch > 127)
+                || value.contains("Thanh to")
+                || value.contains("Hoan tien")
+                || value.contains("Booking da");
+    }
+
+    private String customerFromData(Map<String, String> data) {
+        String customerName = data.get("customerName");
+        if (customerName != null && !customerName.isBlank()) {
+            return customerName;
+        }
+        String customerEmail = data.get("customerEmail");
+        if (customerEmail != null && !customerEmail.isBlank()) {
+            return customerEmail;
+        }
+        return "A customer";
+    }
+
+    private String systemTitle(Map<String, String> data, String fallback) {
+        String targetUrl = data.getOrDefault("targetUrl", "");
+        if (targetUrl.contains("/admin/bookings")) {
+            return "Booking reminder";
+        }
+        if (targetUrl.contains("/wallet")) {
+            return "Refund balance updated";
+        }
+        return "System notification";
+    }
+
+    private String systemMessage(Map<String, String> data, String fallback) {
+        String bookingCode = data.getOrDefault("bookingCode", "this booking");
+        String targetUrl = data.getOrDefault("targetUrl", "");
+        if (targetUrl.contains("/admin/bookings")) {
+            return "Booking " + bookingCode + " needs attention today.";
+        }
+        if (targetUrl.contains("/wallet")) {
+            return "Your refund balance has been updated for booking " + bookingCode + ".";
+        }
+        return "There is an update for your account.";
+    }
+
     private String bookingStatusTitle(BookingStatus status) {
         return switch (status) {
-            case CONFIRMED -> "Booking đã được xác nhận";
-            case PAID -> "Booking đã thanh toán đủ";
-            case ONGOING -> "Đã bắt đầu thuê xe";
-            case COMPLETED -> "Đánh giá chuyến xe";
-            case CANCELLED -> "Booking đã hủy";
-            case PENDING -> "Booking đang chờ";
+            case CONFIRMED -> "Booking confirmed";
+            case PAID -> "Booking ready for handover";
+            case ONGOING -> "Rental started";
+            case COMPLETED -> "Review your rental";
+            case CANCELLED -> "Booking cancelled";
+            case PENDING -> "Booking pending";
         };
     }
 
     private String bookingStatusMessage(Booking booking, BookingStatus status) {
         return switch (status) {
-            case CONFIRMED -> "Booking " + booking.getBookingCode() + " đã được xác nhận.";
-            case PAID -> "Booking " + booking.getBookingCode() + " đã thanh toán đủ và sẵn sàng bàn giao xe.";
-            case ONGOING -> "Booking " + booking.getBookingCode() + " đang trong thời gian thuê.";
-            case COMPLETED -> "Booking " + booking.getBookingCode() + " đã hoàn tất. Hãy chia sẻ trải nghiệm của bạn.";
-            case CANCELLED -> "Booking " + booking.getBookingCode() + " đã được hủy.";
-            case PENDING -> "Booking " + booking.getBookingCode() + " đang chờ xử lý.";
+            case CONFIRMED -> "Booking " + booking.getBookingCode() + " has been confirmed.";
+            case PAID -> "Booking " + booking.getBookingCode() + " has collected the vehicle security deposit and is ready for handover.";
+            case ONGOING -> "Booking " + booking.getBookingCode() + " is now ongoing.";
+            case COMPLETED -> "Booking " + booking.getBookingCode() + " is complete. Please share your experience.";
+            case CANCELLED -> "Booking " + booking.getBookingCode() + " has been cancelled.";
+            case PENDING -> "Booking " + booking.getBookingCode() + " is waiting for review.";
         };
     }
 
     private String paymentStatusTitle(PaymentStatus status) {
         return switch (status) {
-            case PAID -> "Thanh toán thành công";
-            case FAILED -> "Thanh toán thất bại";
-            case REFUNDED -> "Đã hoàn tiền";
-            case EXPIRED -> "Thanh toán hết hạn";
-            case PENDING -> "Thanh toán đang chờ";
+            case PAID -> "Payment successful";
+            case FAILED -> "Payment failed";
+            case REFUNDED -> "Payment refunded";
+            case EXPIRED -> "Payment expired";
+            case PENDING -> "Payment pending";
         };
     }
 
     private String paymentStatusMessage(Payment payment, PaymentStatus status) {
         return switch (status) {
-            case PAID -> "Thanh toán #" + payment.getId() + " đã thành công.";
-            case FAILED -> "Thanh toán #" + payment.getId() + " thất bại. Vui lòng thử lại hoặc chọn cổng khác.";
-            case REFUNDED -> "Thanh toán #" + payment.getId() + " đã được hoàn tiền.";
-            case EXPIRED -> "Thanh toán #" + payment.getId() + " đã hết hạn.";
-            case PENDING -> "Thanh toán #" + payment.getId() + " đang chờ xử lý.";
+            case PAID -> "Payment #" + payment.getId() + " was successful.";
+            case FAILED -> "Payment #" + payment.getId() + " failed. Please try again or choose another gateway.";
+            case REFUNDED -> "Payment #" + payment.getId() + " has been refunded.";
+            case EXPIRED -> "Payment #" + payment.getId() + " has expired.";
+            case PENDING -> "Payment #" + payment.getId() + " is pending.";
         };
     }
 }

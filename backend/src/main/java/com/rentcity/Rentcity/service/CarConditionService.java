@@ -17,6 +17,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CarConditionService {
+    private static final Long DEFAULT_ODOMETER = 0L;
+    private static final Integer DEFAULT_FUEL_LEVEL = 100;
 
     private final CarConditionReportRepository reportRepository;
     private final CarConditionImageRepository imageRepository;
@@ -137,8 +139,6 @@ public class CarConditionService {
                 .bookingId(report.getBookingId())
                 .reportType(report.getReportType())
                 .condition(report.getCondition())
-                .odometer(report.getOdometer())
-                .fuelLevel(report.getFuelLevel())
                 .damageFound(report.isDamageFound())
                 .notes(report.getNotes())
                 .createdAt(report.getCreatedAt())
@@ -166,8 +166,8 @@ public class CarConditionService {
                 .bookingId(bookingId)
                 .reportType(type)
                 .condition(request.getCondition())
-                .odometer(request.getOdometer())
-                .fuelLevel(request.getFuelLevel())
+                .odometer(DEFAULT_ODOMETER)
+                .fuelLevel(DEFAULT_FUEL_LEVEL)
                 .damageFound(request.isDamageFound())
                 .notes(normalizeNotes(request.getNotes()))
                 .createdByUserId(actorId)

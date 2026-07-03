@@ -21,6 +21,8 @@ public class PaymentResponse {
     private Long bookingId;
     private String bookingCode;
     private Long userId;
+    private String customerName;
+    private String customerEmail;
     private PaymentType type;
     private PaymentGateway gateway;
     private PaymentStatus status;

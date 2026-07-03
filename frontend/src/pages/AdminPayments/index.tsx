@@ -1,23 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Search, CreditCard, Loader2, RotateCcw, DollarSign } from 'lucide-react';
+import { Search, CreditCard, Loader2, DollarSign, Eye, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminGetPayments, adminRefundPayment, type ApiAdminPayment } from '@/services/adminApi';
+import { adminGetPayments, type ApiAdminPayment } from '@/services/adminApi';
 import { formatDateTime, formatVND } from '@/utils/formatters';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'EXPIRED';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:  { label: 'Pending',    color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
-  PAID:     { label: 'Paid',     color: 'text-green-600',  bg: 'bg-green-50 border-green-100' },
-  FAILED:   { label: 'Failed',  color: 'text-red-600',    bg: 'bg-red-50 border-red-100' },
-  REFUNDED: { label: 'Refunded', color: 'text-blue-600',   bg: 'bg-blue-50 border-blue-100' },
-  EXPIRED:  { label: 'Expired',   color: 'text-gray-500',   bg: 'bg-gray-50 border-gray-100' },
+  PENDING: { label: 'Pending', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
+  PAID: { label: 'Paid', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
+  FAILED: { label: 'Failed', color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
+  REFUNDED: { label: 'Refunded', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
+  EXPIRED: { label: 'Expired', color: 'text-gray-500', bg: 'bg-gray-50 border-gray-100' },
 };
 
 const GATEWAY_LABEL: Record<string, string> = {
   PAYPAL: 'PayPal',
   VNPAY: 'VNPay',
+  CASH: 'Cash',
+  WALLET: 'Refund balance',
 };
 
 const FILTERS: { key: StatusFilter; label: string }[] = [
@@ -30,12 +32,37 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
 
 const REVENUE_PAYMENT_TYPES = new Set(['DEPOSIT', 'FINAL_RENTAL_PAYMENT', 'BALANCE_PAYMENT', 'FULL']);
 
+function paymentTypeLabel(type: string) {
+  switch (type) {
+    case 'DEPOSIT':
+      return 'Reservation Fee';
+    case 'SECURITY_DEPOSIT':
+      return 'Vehicle Security Deposit';
+    case 'SECURITY_DEPOSIT_REFUND':
+      return 'Security Deposit Refund';
+    case 'FINAL_RENTAL_PAYMENT':
+      return 'Final Rental Payment';
+    case 'DAMAGE_PAYMENT':
+      return 'Damage Payment';
+    case 'BALANCE_PAYMENT':
+      return 'Balance Payment';
+    case 'WALLET_TOP_UP':
+      return 'Wallet Top-up';
+    case 'FULL':
+      return 'Full Payment';
+    case 'REFUND':
+      return 'Refund';
+    default:
+      return type.replaceAll('_', ' ');
+  }
+}
+
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<ApiAdminPayment[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isLoading, setIsLoading] = useState(true);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<ApiAdminPayment | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,40 +103,24 @@ export default function AdminPaymentsPage() {
     [filtered],
   );
 
-  const handleRefund = async (payment: ApiAdminPayment) => {
-    setActiveId(payment.id);
-    try {
-      const { data } = await adminRefundPayment(payment.id);
-      setPayments((cur) => cur.map((p) => (p.id === payment.id ? data : p)));
-      toast.success(`Refunded cho transactions #${payment.id}`);
-    } catch (error) {
-      const msg = (error as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Could not refund payment';
-      toast.error(msg);
-    } finally {
-      setActiveId(null);
-    }
-  };
-
   return (
     <AdminLayout title="Payment Management">
-      {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: 'Total Transactions', value: payments.length, color: 'text-gray-900' },
           { label: 'Revenue (visible)', value: formatVND(totalPaid), color: 'text-[#78ad44]' },
           { label: 'Pending', value: payments.filter((p) => p.status === 'PENDING').length, color: 'text-orange-600' },
           { label: 'Refunded', value: payments.filter((p) => p.status === 'REFUNDED').length, color: 'text-blue-600' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div key={s.label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <DollarSign size={20} className="mb-3 text-gray-400" />
             <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-xs font-bold text-gray-400 mt-1">{s.label}</p>
+            <p className="mt-1 text-xs font-bold text-gray-400">{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row">
         <div className="relative flex-1 md:max-w-sm">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -117,16 +128,16 @@ export default function AdminPaymentsPage() {
             placeholder="Booking code, customer, ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#78ad44]/20 focus:border-[#78ad44]"
+            className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-4 text-sm font-medium focus:border-[#78ad44] focus:outline-none focus:ring-2 focus:ring-[#78ad44]/20"
           />
         </div>
-        <div className="flex bg-[#f4f8f7] p-1 rounded-xl overflow-x-auto">
+        <div className="flex overflow-x-auto rounded-xl bg-[#f4f8f7] p-1">
           {FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setStatusFilter(f.key)}
-              className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all ${
-                statusFilter === f.key ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'
+              className={`whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                statusFilter === f.key ? 'border border-gray-200 bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {f.label}
@@ -135,33 +146,32 @@ export default function AdminPaymentsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-[1.5rem] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-[#f4f8f7] border-b border-gray-100">
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Transactions</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Booking</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Customer</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Method</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Amount</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
+              <tr className="border-b border-gray-100 bg-[#f4f8f7]">
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Transactions</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Booking</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Method</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Amount</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Status</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-gray-400">Date</th>
+                <th className="p-5 text-right text-xs font-black uppercase tracking-wider text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading && (
                 <tr>
                   <td colSpan={8} className="p-10 text-center">
-                    <Loader2 className="animate-spin mx-auto text-[#78ad44]" size={28} />
+                    <Loader2 className="mx-auto animate-spin text-[#78ad44]" size={28} />
                   </td>
                 </tr>
               )}
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center text-gray-400 font-bold">
+                  <td colSpan={8} className="p-10 text-center font-bold text-gray-400">
                     <CreditCard className="mx-auto mb-3 text-gray-300" size={36} />
                     No matching transactions found
                   </td>
@@ -169,43 +179,39 @@ export default function AdminPaymentsPage() {
               )}
               {!isLoading && filtered.map((p) => {
                 const meta = STATUS_META[p.status] ?? { label: p.status, color: 'text-gray-500', bg: 'bg-gray-50 border-gray-100' };
-                const busy = activeId === p.id;
                 return (
-                  <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={p.id} className="transition-colors hover:bg-gray-50/60">
                     <td className="p-5">
-                      <p className="font-black text-gray-900 text-sm">#{p.id}</p>
-                      <p className="text-xs text-gray-400 font-bold">{p.type}</p>
+                      <p className="text-sm font-black text-gray-900">#{p.id}</p>
+                      <p className="text-xs font-bold text-gray-400">{paymentTypeLabel(p.type)}</p>
                     </td>
                     <td className="p-5">
-                      <p className="font-bold text-gray-900 text-sm">{p.bookingCode || `#${p.bookingId}`}</p>
+                      <p className="text-sm font-bold text-gray-900">{p.bookingCode || `#${p.bookingId}`}</p>
                     </td>
                     <td className="p-5">
-                      <p className="font-bold text-gray-900 text-sm">{p.customerName || '—'}</p>
-                      <p className="text-xs text-gray-400">{p.customerEmail || '—'}</p>
+                      <p className="text-sm font-bold text-gray-900">{p.customerName || `Customer #${p.userId}`}</p>
+                      <p className="text-xs text-gray-400">{p.customerEmail || 'No email available'}</p>
                     </td>
                     <td className="p-5">
                       <span className="text-sm font-bold text-gray-700">{GATEWAY_LABEL[p.gateway] ?? p.gateway}</span>
                     </td>
                     <td className="p-5">
-                      <p className="font-black text-[#78ad44] text-sm">{formatVND(p.amount)}</p>
+                      <p className="text-sm font-black text-[#78ad44]">{formatVND(p.amount)}</p>
                     </td>
                     <td className="p-5">
-                      <span className={`px-3 py-1 text-xs font-bold rounded-lg border ${meta.bg} ${meta.color}`}>
+                      <span className={`rounded-lg border px-3 py-1 text-xs font-bold ${meta.bg} ${meta.color}`}>
                         {meta.label}
                       </span>
                     </td>
                     <td className="p-5 text-xs font-bold text-gray-500">{formatDateTime(p.createdAt)}</td>
                     <td className="p-5 text-right">
-                      {p.status === 'PAID' && (
-                        <button
-                          disabled={busy}
-                          onClick={() => handleRefund(p)}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-                        >
-                          {busy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                          Refunded
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setSelectedPayment(p)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100"
+                      >
+                        <Eye size={14} />
+                        Details
+                      </button>
                     </td>
                   </tr>
                 );
@@ -213,10 +219,84 @@ export default function AdminPaymentsPage() {
             </tbody>
           </table>
         </div>
-        <div className="p-5 border-t border-gray-100">
+        <div className="border-t border-gray-100 p-5">
           <p className="text-xs font-bold text-gray-400">Showing {filtered.length} / {payments.length} transactions</p>
         </div>
       </div>
+
+      {selectedPayment && (
+        <PaymentDetailModal payment={selectedPayment} onClose={() => setSelectedPayment(null)} />
+      )}
     </AdminLayout>
+  );
+}
+
+function PaymentDetailModal({
+  payment,
+  onClose,
+}: {
+  payment: ApiAdminPayment;
+  onClose: () => void;
+}) {
+  const meta = STATUS_META[payment.status] ?? { label: payment.status, color: 'text-gray-500', bg: 'bg-gray-50 border-gray-100' };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 bg-[#f4f8f7] px-6 py-5">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-gray-400">Payment detail</p>
+            <h2 className="mt-1 text-xl font-black text-gray-900">Transaction #{payment.id}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-white hover:text-gray-900"
+            aria-label="Close payment details"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="grid gap-4 p-6 md:grid-cols-2">
+          <Detail label="Transaction type" value={paymentTypeLabel(payment.type)} />
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-gray-400">Status</p>
+            <span className={`mt-2 inline-flex rounded-lg border px-3 py-1 text-xs font-bold ${meta.bg} ${meta.color}`}>
+              {meta.label}
+            </span>
+          </div>
+          <Detail label="Amount" value={formatVND(payment.amount)} strong />
+          <Detail label="Method" value={GATEWAY_LABEL[payment.gateway] ?? payment.gateway} />
+          <Detail label="Booking" value={payment.bookingCode || `#${payment.bookingId}`} />
+          <Detail label="Customer" value={payment.customerName || `Customer #${payment.userId}`} subValue={payment.customerEmail || 'No email available'} />
+          <Detail label="Gateway reference" value={payment.gatewayReference || '-'} />
+          <Detail label="Gateway transaction ID" value={payment.gatewayTransactionId || '-'} />
+          <Detail label="Created at" value={formatDateTime(payment.createdAt)} />
+          <Detail label="Paid at" value={payment.paidAt ? formatDateTime(payment.paidAt) : '-'} />
+          <Detail label="Refunded at" value={payment.refundedAt ? formatDateTime(payment.refundedAt) : '-'} />
+          <Detail label="Failure reason" value={payment.failureReason || '-'} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Detail({
+  label,
+  value,
+  subValue,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  subValue?: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-4">
+      <p className="text-xs font-black uppercase tracking-wide text-gray-400">{label}</p>
+      <p className={`mt-2 break-words text-sm ${strong ? 'font-black text-[#78ad44]' : 'font-bold text-gray-900'}`}>{value}</p>
+      {subValue && <p className="mt-1 break-words text-xs font-medium text-gray-400">{subValue}</p>}
+    </div>
   );
 }

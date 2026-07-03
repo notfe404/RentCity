@@ -20,8 +20,6 @@ public class CarConditionResponse {
     private Long bookingId;
     private CarConditionReportType reportType;
     private CarCondition condition;
-    private Long odometer;
-    private Integer fuelLevel;
     private boolean damageFound;
     private String notes;
     private LocalDateTime createdAt;

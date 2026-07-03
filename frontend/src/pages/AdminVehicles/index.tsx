@@ -168,6 +168,7 @@ export default function AdminVehiclesPage() {
               <tr className="bg-[#f4f8f7] border-b border-gray-100">
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Vehicle</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Category</th>
+                <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Fuel</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Price / day</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Security deposit</th>
                 <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-wider">Branch</th>
@@ -178,14 +179,14 @@ export default function AdminVehiclesPage() {
             <tbody className="divide-y divide-gray-50">
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center">
+                  <td colSpan={8} className="p-12 text-center">
                     <Loader2 className="animate-spin mx-auto text-[#78ad44]" size={28} />
                   </td>
                 </tr>
               )}
               {!isLoading && paged.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-gray-400 font-bold">
+                  <td colSpan={8} className="p-10 text-center text-gray-400 font-bold">
                     {search ? `No vehicles found for "${search}"` : 'No vehicles yet'}
                   </td>
                 </tr>
@@ -217,6 +218,7 @@ export default function AdminVehiclesPage() {
                         {car.categoryName || '—'}
                       </span>
                     </td>
+                    <td className="p-5 text-sm font-bold text-gray-600">{car.fuelType}</td>
                     <td className="p-5 font-black text-gray-900 text-sm">{formatVND(car.pricePerDay)}</td>
                     <td className="p-5 font-black text-amber-700 text-sm">{formatVND(car.deposit ?? 0)}</td>
                     <td className="p-5 text-sm font-bold text-gray-600">{car.branchName || '—'}</td>

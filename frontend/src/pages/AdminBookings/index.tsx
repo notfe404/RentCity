@@ -34,7 +34,7 @@ const FILTERS: Array<{ key: StatusFilter; label: string }> = [
   { key: 'ALL', label: 'All' },
   { key: 'PENDING', label: 'Pending' },
   { key: 'CONFIRMED', label: 'Confirmed' },
-  { key: 'PAID', label: 'Paid' },
+  { key: 'PAID', label: 'Ready for Handover' },
   { key: 'ONGOING', label: 'Ongoing' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'CANCELLED', label: 'Cancelled' },

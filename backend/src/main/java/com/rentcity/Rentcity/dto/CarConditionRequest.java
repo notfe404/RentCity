@@ -2,8 +2,6 @@ package com.rentcity.Rentcity.dto;
 
 import com.rentcity.Rentcity.entity.CarCondition;
 import com.rentcity.Rentcity.entity.DamageSeverity;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -25,15 +23,6 @@ public class CarConditionRequest {
     private CarCondition condition;
 
     private LocalDateTime actualReturnAt;
-
-    @NotNull(message = "Odometer is required")
-    @PositiveOrZero(message = "Odometer cannot be negative")
-    private Long odometer;
-
-    @NotNull(message = "Fuel level is required")
-    @Min(value = 0, message = "Fuel level must be between 0 and 100")
-    @Max(value = 100, message = "Fuel level must be between 0 and 100")
-    private Integer fuelLevel;
 
     private boolean damageFound;
 

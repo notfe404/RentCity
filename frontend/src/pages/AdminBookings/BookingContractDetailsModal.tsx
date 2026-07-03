@@ -215,7 +215,8 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
   const hasDamageCharge = (booking.damageFee ?? 0) > 0;
   const hasSecurityDepositRepair = booking.securityDepositRepairCost != null;
   const hasSecurityDepositRefund = (booking.securityDepositRefundedAmount ?? 0) > 0;
-  const scheduledBookingFee = (booking.baseAmount ?? 0)
+  const rentalFee = booking.baseAmount ?? 0;
+  const totalBookingFee = rentalFee
     + (booking.extraServicesAmount ?? 0)
     + (booking.deliveryFeeAmount ?? 0);
 
@@ -292,7 +293,8 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                 <h3 className="mb-3 font-black text-gray-900">Financial details</h3>
                 <div className="space-y-5">
                   <FinancialGroup title="Rental charges">
-                    <Detail label="Booking fee" value={`${formatVND(scheduledBookingFee)} / ${bookedHoursLabel(booking)}`} />
+                    <Detail label="Rental fee" value={`${formatVND(rentalFee)} / ${bookedHoursLabel(booking)}`} />
+                    <Detail label="Booking fee" value={`${formatVND(totalBookingFee)} total`} />
                     <Detail label="Reservation fee paid" value={`${formatVND(booking.reservationFeeAmount)} - ${depositMeta.label}`} />
                     {hasExtraServices && <Detail label="Extra services" value={formatVND(booking.extraServicesAmount ?? 0)} />}
                     {hasDeliveryFee && <Detail label="Delivery fee" value={formatVND(booking.deliveryFeeAmount ?? 0)} />}
@@ -345,7 +347,7 @@ export default function BookingContractDetailsModal({ booking, contract, contrac
                   {contract && (
                     <button type="button" onClick={downloadContract} disabled={isDownloading} className="inline-flex items-center gap-2 rounded-xl bg-[#212529] px-4 py-2.5 text-xs font-bold text-white disabled:bg-gray-300">
                       {isDownloading ? <LoaderCircle size={15} className="animate-spin" /> : <Download size={15} />}
-                      Download PDF
+                      Download Contract
                     </button>
                   )}
                 </div>

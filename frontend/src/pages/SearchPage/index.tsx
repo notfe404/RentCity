@@ -36,7 +36,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 const CATEGORIES = ['Sedan', 'SUV', 'Luxury', 'Van'];
-const SEAT_OPTIONS = [4, 5, 7];
+const SEAT_OPTIONS = [4, 5, 7, 8, 9];
 const FUEL_OPTIONS = ['Gasoline', 'Diesel', 'Electric', 'Hybrid'] as const;
 const TRANSMISSION_OPTIONS = ['Automatic', 'Manual'] as const;
 
@@ -275,18 +275,19 @@ export default function SearchPage() {
       {/* Seats */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3 block">Seats</h4>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {SEAT_OPTIONS.map(s => (
             <button
               key={s}
               onClick={() => toggleSeatFilter(s)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              className={`min-h-14 w-full rounded-xl px-2 py-2 text-sm font-bold leading-tight transition-all ${
                 selectedSeats.includes(s)
                   ? 'bg-[#78ad44] text-white shadow-md'
                   : 'bg-[#f4f8f7] text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {s} seats
+              <span className="block">{s}</span>
+              <span className="block">seats</span>
             </button>
           ))}
         </div>

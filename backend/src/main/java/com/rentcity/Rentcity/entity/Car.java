@@ -55,6 +55,10 @@ public class Car {
     @Column(nullable = false, length = 20)
     private Transmission transmission;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fuel_type", nullable = false, length = 20)
+    private FuelType fuelType;
+
     /** Giá thuê 1 ngày. Dùng decimal (BigDecimal) để tính tiền chính xác. */
     @Column(name = "price_per_day", nullable = false, precision = 12, scale = 0)
     private BigDecimal pricePerDay;

@@ -26,15 +26,15 @@ interface AdminLayoutProps {
 
 const NAV_LINKS = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, exact: true },
-  { name: 'Vehicle Management', path: '/admin/vehicles', icon: Car },
   { name: 'Booking', path: '/admin/bookings', icon: ListOrdered },
+{ name: 'Payment', path: '/admin/payments', icon: CreditCard },
+{ name: 'Withdraw Requests', path: '/admin/withdrawals', icon: Landmark },
+  { name: 'Vehicle Management', path: '/admin/vehicles', icon: Car },
+{ name: 'Branches', path: '/admin/branches', icon: MapPin },
+  { name: 'Vehicle Categories', path: '/admin/categories', icon: Tag },
+{ name: 'Users', path: '/admin/users', icon: Users },
   { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
   { name: 'Notifications', path: '/admin/notifications', icon: Bell },
-  { name: 'Withdraw Requests', path: '/admin/withdrawals', icon: Landmark },
-  { name: 'Payment', path: '/admin/payments', icon: CreditCard },
-  { name: 'Users', path: '/admin/users', icon: Users },
-  { name: 'Branches', path: '/admin/branches', icon: MapPin },
-  { name: 'Vehicle Categories', path: '/admin/categories', icon: Tag },
 ];
 
 function isLinkActive(path: string, currentPath: string, exact = false) {

@@ -133,6 +133,11 @@ export default function PaymentResultPage() {
   const vehicleName = getBookingVehicleName(booking);
   const vehicleImage = getBookingVehicleImage(booking);
   const durationLabel = getBookingDurationLabel(booking);
+  const extraServiceLabels = [
+    booking.insuranceSelected ? 'Insurance' : null,
+    (booking.childSeatQuantity ?? 0) > 0 ? `Child seat x ${booking.childSeatQuantity}` : null,
+    booking.gpsSelected ? 'GPS' : null,
+  ].filter(Boolean).join(', ');
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
@@ -270,6 +275,23 @@ export default function PaymentResultPage() {
                   <span>Rental Price</span>
                   <span className="text-gray-900">{formatVND(booking.baseAmount)}</span>
                 </div>
+                {(booking.extraServicesAmount ?? 0) > 0 && (
+                  <div className="flex justify-between items-start gap-4">
+                    <span>
+                      Extra services
+                      {extraServiceLabels && (
+                        <span className="mt-0.5 block text-xs font-semibold text-gray-400">{extraServiceLabels}</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-gray-900">{formatVND(booking.extraServicesAmount)}</span>
+                  </div>
+                )}
+                {(booking.deliveryFeeAmount ?? 0) > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span>Delivery Fee</span>
+                    <span className="text-gray-900">{formatVND(booking.deliveryFeeAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span>Reservation Fee (30%)</span>
                   <span className={content.accentClass}>{formatVND(booking.depositAmount)}</span>

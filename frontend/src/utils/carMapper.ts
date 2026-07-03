@@ -11,6 +11,12 @@ export type DisplayVehicle = MockVehicle & {
 };
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=1200&auto=format&fit=crop';
+const FUEL_LABELS: Record<ApiCarResponse['fuelType'], MockVehicle['fuelType']> = {
+  GASOLINE: 'Gasoline',
+  DIESEL: 'Diesel',
+  ELECTRIC: 'Electric',
+  HYBRID: 'Hybrid',
+};
 
 export function mapApiCarToDisplayVehicle(car: ApiCarResponse): DisplayVehicle {
   const imageUrls = car.images?.map((image) => image.imageUrl) ?? [];
@@ -28,7 +34,7 @@ export function mapApiCarToDisplayVehicle(car: ApiCarResponse): DisplayVehicle {
     passengers: car.seats ?? 4,
     doors: 4,
     transmission: car.transmission === 'AUTO' ? 'Automatic' : 'Manual',
-    fuelType: 'Gasoline',
+    fuelType: FUEL_LABELS[car.fuelType] ?? 'Gasoline',
     luggage: Math.max(2, Math.min(5, car.seats ?? 3)),
     year: car.year ?? new Date().getFullYear(),
     avgRating: Number(car.averageRating ?? 0),

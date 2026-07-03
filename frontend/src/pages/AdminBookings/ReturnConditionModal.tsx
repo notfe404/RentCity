@@ -349,7 +349,7 @@ export default function ReturnConditionModal({ booking, isSaving, onClose, onSub
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Return settlement</p>
               <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-white p-3">
-                  <p className="text-xs font-bold text-slate-500">Booking balance after reservation fee</p>
+                  <p className="text-xs font-bold text-slate-500">Rental amount after reservation fee</p>
                   <p className="mt-1 font-black text-slate-900">{formatVND(rentalBalanceAfterReservation)}</p>
                   <p className="mt-1 text-[10px] font-bold text-slate-400">Rental + services + delivery - reservation fee</p>
                 </div>
@@ -512,7 +512,7 @@ function ReturnContractPaper({
         <PaperDetail label="Returned keys" value={`${keyCount}`} />
         <PaperDetail label="Returned accessories" value={accessories || '-'} />
         <PaperDetail label="Final rental payment" value={finalPaymentMethod === 'CASH' ? 'Cash' : 'Payment request'} />
-        <PaperDetail label="Booking balance" value={formatVND(rentalBalanceAfterReservation)} />
+        <PaperDetail label="Rental fee after reservation" value={formatVND(rentalBalanceAfterReservation)} />
         <PaperDetail label="Overdue charge" value={formatVND(overdueTotal)} />
         <PaperDetail label="Total due now" value={formatVND(totalDue)} />
         <PaperDetail

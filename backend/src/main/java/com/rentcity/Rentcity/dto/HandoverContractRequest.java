@@ -14,13 +14,6 @@ public class HandoverContractRequest {
     @NotNull
     private CarCondition condition;
 
-    @PositiveOrZero
-    private Long odometer;
-
-    @Min(0)
-    @Max(100)
-    private Integer fuelLevel;
-
     private boolean damageFound;
 
     @Size(max = 2000)

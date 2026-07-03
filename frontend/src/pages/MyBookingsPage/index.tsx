@@ -17,9 +17,9 @@ type TabFilter = 'all' | ApiBookingStatus;
 
 const TABS: { key: TabFilter; label: string }[] = [
   { key: 'all',       label: 'All' },
-  { key: 'PENDING',   label: 'Pending Confirmation' },
+  { key: 'PENDING',   label: 'Pending' },
   { key: 'CONFIRMED', label: 'Confirmed' },
-  { key: 'PAID',      label: 'Fully Paid' },
+  { key: 'PAID',      label: 'Ready' },
   { key: 'ONGOING',   label: 'Ongoing' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'CANCELLED', label: 'Cancelled' },
@@ -153,7 +153,7 @@ export default function MyBookingsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <MapPin size={16} className="text-[#78ad44]" />
-                              {durationLabel} • {booking.pricingMode}
+                              {durationLabel}
                             </div>
                           </div>
                         </div>

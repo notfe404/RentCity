@@ -285,6 +285,7 @@ public class CarService {
         car.setModel(request.getModel().trim());
         car.setYear(request.getYear());
         car.setTransmission(request.getTransmission());
+        car.setFuelType(request.getFuelType());
         car.setPricePerDay(request.getPricePerDay());
         car.setDeposit(request.getDeposit());
         car.setDescription(request.getDescription());
@@ -343,6 +344,7 @@ public class CarService {
                 .model(car.getModel())
                 .year(car.getYear())
                 .transmission(car.getTransmission())
+                .fuelType(car.getFuelType())
                 .pricePerDay(car.getPricePerDay())
                 .deposit(car.getDeposit())
                 .status(car.getStatus())

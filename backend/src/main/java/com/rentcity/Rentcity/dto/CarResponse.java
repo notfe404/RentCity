@@ -1,6 +1,7 @@
 package com.rentcity.Rentcity.dto;
 
 import com.rentcity.Rentcity.entity.CarStatus;
+import com.rentcity.Rentcity.entity.FuelType;
 import com.rentcity.Rentcity.entity.Transmission;
 import lombok.*;
 
@@ -28,6 +29,7 @@ public class CarResponse {
     private String model;
     private Integer year;
     private Transmission transmission;
+    private FuelType fuelType;
     private BigDecimal pricePerDay;
     private BigDecimal deposit;
     private CarStatus status;

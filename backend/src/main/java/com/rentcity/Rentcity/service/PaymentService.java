@@ -439,11 +439,22 @@ public class PaymentService {
     }
 
     private PaymentResponse mapToResponse(Payment payment, Booking booking) {
+        Long customerUserId = booking != null && booking.getUserId() != null
+                ? booking.getUserId()
+                : payment.getUserId();
+        User customer = customerUserId != null
+                ? userRepository.findById(customerUserId).orElse(null)
+                : null;
+        if (customer == null && payment.getUserId() != null && !payment.getUserId().equals(customerUserId)) {
+            customer = userRepository.findById(payment.getUserId()).orElse(null);
+        }
         return PaymentResponse.builder()
                 .id(payment.getId())
                 .bookingId(payment.getBookingId())
                 .bookingCode(booking != null ? booking.getBookingCode() : null)
-                .userId(payment.getUserId())
+                .userId(customerUserId)
+                .customerName(customer != null ? customer.getFullName() : null)
+                .customerEmail(customer != null ? customer.getEmail() : null)
                 .type(payment.getType())
                 .gateway(payment.getGateway())
                 .status(payment.getStatus())

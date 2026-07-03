@@ -57,6 +57,32 @@ const GATEWAY_META: Record<string, { label: string; color: string }> = {
 
 const RECEIPT_REVENUE_TYPES = new Set<PaymentType>(['DEPOSIT', 'FINAL_RENTAL_PAYMENT', 'BALANCE_PAYMENT', 'FULL']);
 const SECURITY_DEPOSIT_TYPES = new Set<PaymentType>(['SECURITY_DEPOSIT', 'SECURITY_DEPOSIT_REFUND']);
+const PAGE_SIZE = 3;
+
+function paymentTypeLabel(type: PaymentType) {
+  switch (type) {
+    case 'DEPOSIT':
+      return 'Reservation Fee';
+    case 'SECURITY_DEPOSIT':
+      return 'Vehicle Security Deposit';
+    case 'SECURITY_DEPOSIT_REFUND':
+      return 'Security Deposit Refund';
+    case 'FINAL_RENTAL_PAYMENT':
+      return 'Final Rental Payment';
+    case 'DAMAGE_PAYMENT':
+      return 'Damage Payment';
+    case 'BALANCE_PAYMENT':
+      return 'Balance Payment';
+    case 'WALLET_TOP_UP':
+      return 'Wallet Top-up';
+    case 'FULL':
+      return 'Full Payment';
+    case 'REFUND':
+      return 'Refund';
+    default:
+      return type.replaceAll('_', ' ');
+  }
+}
 
 function isDepositOrRefundPayment(payment: ApiPaymentResponse) {
   return SECURITY_DEPOSIT_TYPES.has(payment.type) || payment.type.includes('REFUND') || payment.status === 'REFUNDED';
@@ -69,6 +95,16 @@ function paymentGatewayMeta(payment: ApiPaymentResponse) {
   return GATEWAY_META[payment.gateway] ?? { label: payment.gateway, color: 'text-gray-700' };
 }
 
+function pageCount(totalItems: number) {
+  return Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+}
+
+function paginate<T>(items: T[], page: number) {
+  const safePage = Math.min(Math.max(page, 1), pageCount(items.length));
+  const start = (safePage - 1) * PAGE_SIZE;
+  return items.slice(start, start + PAGE_SIZE);
+}
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<ApiPaymentResponse[]>([]);
   const [wallet, setWallet] = useState<ApiWalletResponse | null>(null);
@@ -78,6 +114,9 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
   const [gatewayFilter, setGatewayFilter] = useState<FilterGateway>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [receiptPage, setReceiptPage] = useState(1);
+  const [depositPage, setDepositPage] = useState(1);
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
@@ -152,6 +191,27 @@ export default function PaymentsPage() {
   const receiptTotal = filteredPayments
     .filter((payment) => payment.status === 'PAID' && RECEIPT_REVENUE_TYPES.has(payment.type))
     .reduce((sum, payment) => sum + payment.amount, 0);
+  const receiptPageCount = pageCount(filteredPayments.length);
+  const depositPageCount = pageCount(depositAndRefundPayments.length);
+  const withdrawalPageCount = pageCount(withdrawals.length);
+  const safeReceiptPage = Math.min(receiptPage, receiptPageCount);
+  const safeDepositPage = Math.min(depositPage, depositPageCount);
+  const safeWithdrawalPage = Math.min(withdrawalPage, withdrawalPageCount);
+  const paginatedReceipts = paginate(filteredPayments, safeReceiptPage);
+  const paginatedDeposits = paginate(depositAndRefundPayments, safeDepositPage);
+  const paginatedWithdrawals = paginate(withdrawals, safeWithdrawalPage);
+
+  useEffect(() => {
+    setReceiptPage(1);
+  }, [gatewayFilter, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setDepositPage(1);
+  }, [depositAndRefundPayments.length]);
+
+  useEffect(() => {
+    setWithdrawalPage(1);
+  }, [withdrawals.length]);
 
   const payBookingRequest = async (booking: ApiBookingResponse, gateway: PaymentGateway) => {
     setPayingBookingId(booking.id);
@@ -249,9 +309,10 @@ export default function PaymentsPage() {
           ) : (
             <>
               <div className="grid md:grid-cols-3 gap-4">
+		<SummaryCard icon={Receipt} label="Receipt total" value={formatVND(receiptTotal)} tone="dark" />
                 <SummaryCard icon={Landmark} label="Refundable balance" value={formatVND(refundableBalance)} tone="green" />
                 <SummaryCard icon={Send} label="Pending withdrawals" value={formatVND(pendingWithdrawalTotal)} tone="blue" />
-                <SummaryCard icon={Receipt} label="Receipt total" value={formatVND(receiptTotal)} tone="dark" />
+                
               </div>
 
               <div className="bg-white rounded-3xl border border-gray-100 p-2 shadow-sm flex flex-wrap gap-2">
@@ -326,7 +387,7 @@ export default function PaymentsPage() {
                     <EmptyState icon={<Receipt size={40} />} title="No receipts found" text="Completed and pending payments will appear here." />
                   ) : (
                     <div className="space-y-3">
-                      {filteredPayments.map((payment) => (
+                      {paginatedReceipts.map((payment) => (
                         <ReceiptRow
                           key={payment.id}
                           payment={payment}
@@ -335,6 +396,12 @@ export default function PaymentsPage() {
                           showInvoice
                         />
                       ))}
+                      <PaginationControls
+                        page={safeReceiptPage}
+                        totalPages={receiptPageCount}
+                        totalItems={filteredPayments.length}
+                        onPageChange={setReceiptPage}
+                      />
                     </div>
                   )}
                 </section>
@@ -355,18 +422,27 @@ export default function PaymentsPage() {
                     {depositAndRefundPayments.length === 0 ? (
                       <EmptyState icon={<Landmark size={40} />} title="No deposit or refund records" text="Security deposit and refund records will appear here." />
                     ) : (
-                      <div className="divide-y divide-gray-100">
-                        {depositAndRefundPayments.map((payment) => (
-                          <ReceiptRow
-                            key={payment.id}
-                            payment={payment}
-                            onDetails={setSelectedPayment}
-                            onDownload={downloadInvoice}
-                            showInvoice={false}
-                            compact
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="divide-y divide-gray-100">
+                          {paginatedDeposits.map((payment) => (
+                            <ReceiptRow
+                              key={payment.id}
+                              payment={payment}
+                              onDetails={setSelectedPayment}
+                              onDownload={downloadInvoice}
+                              showInvoice={false}
+                              compact
+                            />
+                          ))}
+                        </div>
+                        <PaginationControls
+                          page={safeDepositPage}
+                          totalPages={depositPageCount}
+                          totalItems={depositAndRefundPayments.length}
+                          onPageChange={setDepositPage}
+                          className="border-t border-gray-100"
+                        />
+                      </>
                     )}
                   </div>
 
@@ -431,7 +507,7 @@ export default function PaymentsPage() {
                       <EmptyState icon={<Send size={40} />} title="No withdrawal requests" text="Requests for refund withdrawal will appear here." />
                     ) : (
                       <div className="divide-y divide-gray-100">
-                        {withdrawals.map((request) => (
+                        {paginatedWithdrawals.map((request) => (
                           <div key={request.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                               <p className="font-black text-gray-900">{formatVND(request.amount)} to {request.bankName}</p>
@@ -445,6 +521,12 @@ export default function PaymentsPage() {
                             <WithdrawalStatusBadge status={request.status} />
                           </div>
                         ))}
+                        <PaginationControls
+                          page={safeWithdrawalPage}
+                          totalPages={withdrawalPageCount}
+                          totalItems={withdrawals.length}
+                          onPageChange={setWithdrawalPage}
+                        />
                       </div>
                     )}
                   </div>
@@ -577,7 +659,7 @@ function ReceiptRow({
           </div>
           <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
             <Calendar size={14} />
-            {formatDateTime(payment.createdAt)} | {payment.type}
+            {formatDateTime(payment.createdAt)} | {paymentTypeLabel(payment.type)}
           </p>
         </div>
         <div className="flex items-center gap-3 sm:justify-end">
@@ -632,7 +714,7 @@ function PaymentDetailsModal({
           </div>
           <DetailRow label="Payment ID" value={`#${payment.id}`} />
           <DetailRow label="Method" value={gatewayMeta.label} />
-          <DetailRow label="Type" value={payment.type} />
+          <DetailRow label="Type" value={paymentTypeLabel(payment.type)} />
           <DetailRow label="Amount" value={formatVND(payment.amount)} strong />
           <DetailRow label="Created" value={formatDateTime(payment.createdAt)} />
           {payment.paidAt && <DetailRow label="Paid" value={formatDateTime(payment.paidAt)} />}
@@ -645,7 +727,7 @@ function PaymentDetailsModal({
               className="w-full bg-[#78ad44] hover:bg-[#689938] text-white font-bold rounded-2xl py-3 flex items-center justify-center gap-2"
             >
               <Download size={18} />
-              Download Invoice PDF
+              Download Invoice
             </button>
           )}
         </div>
@@ -716,6 +798,56 @@ function EmptyState({ icon, title, text }: { icon: React.ReactNode; title: strin
       <div className="flex justify-center mb-3">{icon}</div>
       <p className="font-black text-gray-500">{title}</p>
       <p className="text-sm mt-1">{text}</p>
+    </div>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  totalItems,
+  onPageChange,
+  className = '',
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  className?: string;
+}) {
+  if (totalItems <= PAGE_SIZE) {
+    return null;
+  }
+
+  const start = (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, totalItems);
+
+  return (
+    <div className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between ${className}`}>
+      <p className="text-xs font-bold text-gray-400">
+        Showing {start}-{end} of {totalItems}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-600 transition-colors hover:bg-[#f4f8f7] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <span className="rounded-xl bg-[#f4f8f7] px-3 py-2 text-xs font-black text-gray-700">
+          {page} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-600 transition-colors hover:bg-[#f4f8f7] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }
