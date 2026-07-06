@@ -29,6 +29,7 @@ import ResolveRetainedDepositModal from './ResolveRetainedDepositModal';
 import { useAuth } from '@/hooks/useAuth';
 
 type StatusFilter = 'ALL' | ApiBookingStatus;
+const PAGE_SIZE = 5;
 
 const FILTERS: Array<{ key: StatusFilter; label: string }> = [
   { key: 'ALL', label: 'All' },
@@ -45,6 +46,7 @@ export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [activeBookingId, setActiveBookingId] = useState<number | null>(null);
   const [handoverBooking, setHandoverBooking] = useState<ApiBookingResponse | null>(null);
@@ -104,6 +106,22 @@ export default function AdminBookingsPage() {
       );
     });
   }, [bookings, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStartIndex = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE;
+  const pageEndIndex = Math.min(pageStartIndex + PAGE_SIZE, filtered.length);
+  const paginatedBookings = filtered.slice(pageStartIndex, pageEndIndex);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const runTransition = async (bookingId: number, payload: AdminBookingTransitionPayload, useTestConfirm = false) => {
     setActiveBookingId(bookingId);
@@ -330,7 +348,7 @@ export default function AdminBookingsPage() {
                 </tr>
               )}
 
-              {!isLoading && filtered.map((booking) => {
+              {!isLoading && paginatedBookings.map((booking) => {
                 const bookingMeta = BOOKING_STATUS_META[booking.status];
                 const depositMeta = DEPOSIT_STATUS_META[booking.depositStatus];
                 const busy = activeBookingId === booking.id;
@@ -488,8 +506,33 @@ export default function AdminBookingsPage() {
           </table>
         </div>
 
-        <div className="p-5 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs font-bold text-gray-400">Showing {filtered.length} booking(s)</p>
+        <div className="p-5 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-bold text-gray-400">
+            {filtered.length > 0
+              ? `Showing ${pageStartIndex + 1}-${pageEndIndex} of ${filtered.length} booking(s)`
+              : 'Showing 0 booking(s)'}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={safePage <= 1}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:border-[#78ad44] hover:text-[#56832d] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="rounded-lg bg-[#f4f8f7] px-3 py-2 text-xs font-black text-gray-700">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              disabled={safePage >= totalPages}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:border-[#78ad44] hover:text-[#56832d] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
           <p className="text-xs font-bold text-gray-400">Customer flow uses real backend booking data</p>
         </div>
       </div>

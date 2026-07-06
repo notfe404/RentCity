@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Header from '../LandingPage/Header';
 import Footer from '../LandingPage/Footer';
 import CustomerSidebar from '@/components/layout/CustomerSidebar';
-import { Calendar, MapPin, ChevronRight, Car, Star } from 'lucide-react';
+import { Calendar, MapPin, ChevronRight, Car, Star, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import { formatVND, formatDate } from '@/utils/formatters';
 import type { ApiBookingResponse, ApiBookingStatus } from '@/types';
 
 type TabFilter = 'all' | ApiBookingStatus;
+const PAGE_SIZE = 3;
 
 const TABS: { key: TabFilter; label: string }[] = [
   { key: 'all',       label: 'All' },
@@ -28,54 +29,74 @@ const TABS: { key: TabFilter; label: string }[] = [
 export default function MyBookingsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const [page, setPage] = useState(1);
   const [bookings, setBookings] = useState<ApiBookingResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadBookings = useCallback(async (initial = false) => {
+    if (initial) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
 
-    const run = async () => {
-      try {
-        const { data } = await getMyBookings();
-        if (!cancelled) {
-          setBookings(data);
-        }
-        const completedBookings = data.filter((booking) => booking.status === 'COMPLETED');
-        const reviewChecks = await Promise.allSettled(
-          completedBookings.map(async (booking) => {
-            await getMyBookingReview(booking.id);
-            return booking.id;
-          })
-        );
-        if (!cancelled) {
-          setReviewedBookingIds(new Set(
-            reviewChecks
-              .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
-              .map((result) => result.value)
-          ));
-        }
-      } catch {
-        if (!cancelled) {
-          toast.error('Could not load bookings');
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+    try {
+      const { data } = await getMyBookings();
+      setBookings(data);
+
+      const completedBookings = data.filter((booking) => booking.status === 'COMPLETED');
+      const reviewChecks = await Promise.allSettled(
+        completedBookings.map(async (booking) => {
+          await getMyBookingReview(booking.id);
+          return booking.id;
+        })
+      );
+      setReviewedBookingIds(new Set(
+        reviewChecks
+          .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
+          .map((result) => result.value)
+      ));
+
+      if (!initial) {
+        toast.success('Bookings refreshed');
       }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      toast.error('Could not load bookings');
+    } finally {
+      if (initial) {
+        setIsLoading(false);
+      } else {
+        setIsRefreshing(false);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    loadBookings(true);
+  }, [loadBookings]);
 
   const filtered = useMemo(() => {
     if (activeTab === 'all') return bookings;
     return bookings.filter((booking) => booking.status === activeTab);
   }, [activeTab, bookings]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStartIndex = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE;
+  const pageEndIndex = Math.min(pageStartIndex + PAGE_SIZE, filtered.length);
+  const paginatedBookings = filtered.slice(pageStartIndex, pageEndIndex);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
@@ -86,7 +107,18 @@ export default function MyBookingsPage() {
 
         <div className="flex-1 space-y-8">
           <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 min-h-full">
-            <h2 className="text-2xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">My Bookings</h2>
+            <div className="mb-8 flex flex-col gap-4 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-2xl font-black text-gray-900">My Bookings</h2>
+              <button
+                type="button"
+                onClick={() => loadBookings(false)}
+                disabled={isLoading || isRefreshing}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#f4f8f7] px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-[#e9f2eb] hover:text-[#56832d] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+            </div>
 
             {/* Tabs */}
             <div className="flex gap-3 mb-8 overflow-x-auto pb-2 hide-scrollbar">
@@ -111,7 +143,7 @@ export default function MyBookingsPage() {
                 <div className="text-center py-16 text-gray-500 font-bold">Loading bookings...</div>
               )}
               <AnimatePresence mode="popLayout">
-                {!isLoading && filtered.map((booking) => {
+                {!isLoading && paginatedBookings.map((booking) => {
                   const statusCfg = BOOKING_STATUS_META[booking.status];
                   const vehicleImage = getBookingVehicleImage(booking);
                   const vehicleName = getBookingVehicleName(booking);
@@ -184,6 +216,35 @@ export default function MyBookingsPage() {
                   );
                 })}
               </AnimatePresence>
+
+              {!isLoading && filtered.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs font-bold text-gray-400">
+                    Showing {pageStartIndex + 1}-{pageEndIndex} of {filtered.length} booking(s)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      disabled={safePage <= 1}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:border-[#78ad44] hover:text-[#56832d] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="rounded-lg bg-[#f4f8f7] px-3 py-2 text-xs font-black text-gray-700">
+                      {safePage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                      disabled={safePage >= totalPages}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:border-[#78ad44] hover:text-[#56832d] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16">

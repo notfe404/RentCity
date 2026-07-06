@@ -178,14 +178,6 @@ export default function AuthModal() {
                 </button>
               </div>
 
-              {/* Demo account hint */}
-              <div className="text-[11px] text-gray-400 bg-gray-50 rounded-xl p-3 leading-relaxed">
-                <span className="font-bold text-gray-500">Demo accounts:</span><br />
-                👤 customer@demo.com / Password123<br />
-                👔 staff@demo.com / Password123<br />
-                🛡️ admin@demo.com / Password123
-              </div>
-
               <div className="text-center">
                 <a href="#" className="text-xs text-gray-500 hover:text-gray-800 border-b border-gray-300 pb-0.5">Forgot your password?</a>
               </div>
